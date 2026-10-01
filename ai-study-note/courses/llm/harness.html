@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harness 工程 — 工具执行框架</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flow-box { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); }
+        .highlight-card { border-left: 3px solid rgb(59, 130, 246); }
+        .pseudo-code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .diagram-line { white-space: pre; font-family: 'JetBrains Mono', monospace; line-height: 1.4; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <h1 class="text-3xl font-bold text-white mb-3">
+                <i class="fas fa-puzzle-piece text-blue-400 mr-2"></i>Harness 工程 — 工具执行框架
+            </h1>
+            <p class="text-gray-400 text-lg">深入理解 AI Agent 的工具调用执行引擎：从 Tool Schema 注册到权限管控、结果回传的全链路解析</p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-blue-400"></i>目录
+            </h2>
+            <nav class="space-y-2 text-gray-300">
+                <a href="#overview" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">1.</span> Harness 是什么？
+                </a>
+                <a href="#tool-schema" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">2.</span> Tool Schema 注册中心
+                </a>
+                <a href="#permission" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">3.</span> 权限管控引擎
+                </a>
+                <a href="#execution" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">4.</span> 工具调用执行流水线
+                </a>
+                <a href="#result" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">5.</span> 结果处理与回传
+                </a>
+                <a href="#pseudocode" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">6.</span> 完整伪代码
+                </a>
+                <a href="#keypoints" class="flex items-center gap-2 hover:text-blue-400 transition-colors">
+                    <span class="text-blue-400 font-bold">7.</span> 关键点总结
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div id="overview" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-cube text-blue-400"></i>1. Harness 是什么？
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-blue-500/30 flow-box">
+                <div class="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-question-circle"></i> 核心定义
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    <span class="text-blue-300 font-semibold">Harness（工具执行框架）</span>是 AI Agent 与外部工具之间的<strong class="text-white">中间层</strong>。它负责：
+                </p>
+                <ul class="list-disc list-inside space-y-1.5 text-gray-400 text-sm">
+                    <li>注册和管理所有可用的工具（Tool Schema）</li>
+                    <li>拦截 AI 发出的工具调用请求</li>
+                    <li>验证参数是否符合 Schema 定义</li>
+                    <li>向用户发起权限确认（Permission Prompt）</li>
+                    <li>执行工具调用并捕获结果</li>
+                    <li>将结果格式化为标准格式回传给 AI</li>
+                </ul>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-blue-400 font-bold mb-2">为什么需要 Harness？</div>
+                <div class="space-y-2 text-gray-400">
+                    <div class="flex items-start gap-2">
+                        <span class="text-blue-400 font-bold">1.</span>
+                        <span><strong class="text-white">安全管控：</strong>AI 不能直接执行任意命令，需要权限拦截</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-blue-400 font-bold">2.</span>
+                        <span><strong class="text-white">标准化：</strong>每个工具有自己的接口，Harness 统一包装为标准格式</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-blue-400 font-bold">3.</span>
+                        <span><strong class="text-white">错误处理：</strong>工具执行可能失败，Harness 负责捕获并优雅降级</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-blue-400 font-bold">4.</span>
+                        <span><strong class="text-white">审计追踪：</strong>记录每次工具调用，便于调试和审计</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture Diagram -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-blue-400 font-bold mb-3">架构位置：</div>
+                <div class="bg-gray-950 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed">
+                    <div class="flex items-center justify-center">
+                        <div class="text-center p-3 border border-green-500/50 rounded-lg bg-green-500/10 mx-2">
+                            <div class="text-green-400 font-bold">用户</div>
+                            <div class="text-gray-500">User</div>
+                        </div>
+                        <div class="text-gray-600 mx-2">&#8596;</div>
+                        <div class="text-center p-3 border border-purple-500/50 rounded-lg bg-purple-500/10 mx-2">
+                            <div class="text-purple-400 font-bold">Loop</div>
+                            <div class="text-gray-500">主循环</div>
+                        </div>
+                        <div class="text-gray-600 mx-2">&#8596;</div>
+                        <div class="text-center p-3 border border-blue-500/50 rounded-lg bg-blue-500/10 mx-2">
+                            <div class="text-blue-400 font-bold">Harness</div>
+                            <div class="text-gray-500">执行框架</div>
+                        </div>
+                        <div class="text-gray-600 mx-2">&#8596;</div>
+                        <div class="text-center p-3 border border-yellow-500/50 rounded-lg bg-yellow-500/10 mx-2">
+                            <div class="text-yellow-400 font-bold">LLM</div>
+                            <div class="text-gray-500">模型</div>
+                        </div>
+                    </div>
+                    <div class="text-center text-gray-500 mt-2">Harness 位于 Loop 和 LLM 之间，拦截并处理所有工具调用</div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-blue-400 font-bold mb-2">工作流程概览：</div>
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 1</span>
+                        <span class="text-gray-400">LLM 返回 tool_calls（工具调用请求）</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 2</span>
+                        <span class="text-gray-400">Harness 解析 tool_calls 的 name + arguments</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 3</span>
+                        <span class="text-gray-400">Harness 查找注册的 Tool Schema，校验参数</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 4</span>
+                        <span class="text-gray-400">触发权限管控（弹窗确认或自动放行）</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 5</span>
+                        <span class="text-gray-400">执行实际工具函数，获取返回值</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">Step 6</span>
+                        <span class="text-gray-400">将结果包装为 tool_result，回传给 LLM</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Tool Schema Registry -->
+        <div id="tool-schema" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-database text-blue-400"></i>2. Tool Schema 注册中心
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-blue-500/30 flow-box">
+                <div class="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-sitemap"></i> 工具注册机制
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    每个工具在 Harness 中注册为一个 <span class="text-blue-300 font-semibold">Tool Schema</span>，包含元数据、参数定义和执行函数。
+                </p>
+
+                <div class="text-sm font-mono mb-4">
+                    <div class="bg-gray-800/80 rounded p-3 text-xs">
+                        <div class="text-blue-400 font-bold mb-2">Tool Schema 结构：</div>
+                        <div class="text-gray-300">
+                            <div>{</div>
+                            <div class="ml-4">name: <span class="text-green-400">"Read"</span>,        <span class="text-gray-600">// 工具名称（唯一标识）</span></div>
+                            <div class="ml-4">description: <span class="text-green-400">"读取文件内容"</span>,  <span class="text-gray-600">// 功能描述（给 LLM 看）</span></div>
+                            <div class="ml-4">parameters: {                    <span class="text-gray-600">// JSON Schema 参数定义</span></div>
+                            <div class="ml-8">type: <span class="text-green-400">"object"</span>,</div>
+                            <div class="ml-8">properties: {</div>
+                            <div class="ml-12">file_path: { type: <span class="text-green-400">"string"</span>, description: <span class="text-green-400">"文件路径"</span> },</div>
+                            <div class="ml-8">},</div>
+                            <div class="ml-8">required: [<span class="text-green-400">"file_path"</span>]</div>
+                            <div class="ml-4">},</div>
+                            <div class="ml-4">handler: <span class="text-yellow-400">async</span> (args) => { <span class="text-gray-600">/* 实际执行代码 */</span> }</div>
+                            <div>}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold mb-1">注册流程：</div>
+                        <div class="text-gray-400">
+                            1. 定义 Tool Schema（名称、描述、参数、处理函数）<br>
+                            2. 调用 registerTool(schema) 注册到 Harness 的 Schema 注册表<br>
+                            3. Harness 将 Schema 编译为 LLM 可理解的 tool_definition JSON<br>
+                            4. 在 API 请求中注入 tools 参数，LLM 就知道了可用工具
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schema Validation -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-blue-400 font-bold mb-2">参数校验（Schema Validation）</div>
+                <div class="space-y-2 text-gray-400 text-xs">
+                    <p>当 LLM 返回 <span class="text-yellow-400 font-mono">tool_calls</span> 时，Harness 会做以下校验：</p>
+                    <div class="bg-gray-800/80 rounded p-2 font-mono">
+                        <div class="text-gray-500">1. 校验工具名称是否已注册</div>
+                        <div class="text-gray-500">2. 校验参数类型是否正确（string / number / boolean / array / object）</div>
+                        <div class="text-gray-500">3. 校验必填字段是否缺失</div>
+                        <div class="text-gray-500">4. 校验枚举值是否合法（如果定义了 enum）</div>
+                        <div class="text-gray-500">5. 校验参数范围（minLength / maxLength / minimum / maximum）</div>
+                    </div>
+                    <div class="text-yellow-400">校验失败 → 返回格式化的校验错误，而不是崩溃</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Permission Engine -->
+        <div id="permission" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-shield-alt text-blue-400"></i>3. 权限管控引擎
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-blue-500/30 flow-box">
+                <div class="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-key"></i> 权限模型
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    权限管控是 Harness 最核心的安全机制。它决定了哪些工具调用需要用户确认，哪些可以自动放行。
+                </p>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-gray-800/80 rounded p-3">
+                        <div class="text-green-400 font-bold mb-1">权限级别：</div>
+                        <div class="space-y-2 text-gray-400">
+                            <div class="border border-green-500/30 rounded p-2">
+                                <span class="text-green-300 font-bold">Allow</span> — 自动放行
+                                <div class="text-gray-500 mt-1">读操作（Read、Glob、Grep）默认允许，不弹窗</div>
+                            </div>
+                            <div class="border border-yellow-500/30 rounded p-2">
+                                <span class="text-yellow-300 font-bold">Prompt</span> — 弹窗确认
+                                <div class="text-gray-500 mt-1">写操作（Edit、Write、Bash）默认需要用户确认</div>
+                            </div>
+                            <div class="border border-red-500/30 rounded p-2">
+                                <span class="text-red-300 font-bold">Deny</span> — 拒绝执行
+                                <div class="text-gray-500 mt-1">危险操作（如 rm -rf、格式化磁盘）被策略禁止</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-3">
+                        <div class="text-blue-400 font-bold mb-1">权限决策流程：</div>
+                        <div class="text-gray-400">
+                            1. 检查用户设置（settings.json 中的 allowlist / denylist）<br>
+                            2. 检查项目级设置（.claude/settings.json）<br>
+                            3. 检查会话级设置（用户本次会话中已确认的权限）<br>
+                            4. 如果都不匹配 → 弹窗让用户选择
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-3">
+                        <div class="text-blue-400 font-bold mb-1">用户选择：</div>
+                        <div class="text-gray-400">
+                            &#8226; Allow — 仅本次允许<br>
+                            &#8226; Allow Always — 加入 allowlist，以后自动放行<br>
+                            &#8226; Deny — 拒绝此次调用<br>
+                            &#8226; Deny Always — 加入 denylist，以后自动拒绝
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-blue-400 font-bold mb-2">安全策略示例：</div>
+                <div class="bg-gray-800/80 rounded p-3 font-mono text-xs">
+                    <div class="text-gray-400">{</div>
+                    <div class="text-gray-400 ml-4"><span class="text-blue-300">"allowlist"</span>: [</div>
+                    <div class="text-gray-400 ml-6">{ <span class="text-green-400">"tool"</span>: <span class="text-green-400">"Read"</span>, <span class="text-green-400">"allow"</span>: <span class="text-blue-300">true</span> },</div>
+                    <div class="text-gray-400 ml-6">{ <span class="text-green-400">"tool"</span>: <span class="text-green-400">"Bash"</span>, <span class="text-green-400">"pattern"</span>: <span class="text-green-400">"npm*"</span>, <span class="text-green-400">"allow"</span>: <span class="text-blue-300">true</span> }</div>
+                    <div class="text-gray-400 ml-4">],</div>
+                    <div class="text-gray-400 ml-4"><span class="text-blue-300">"denylist"</span>: [</div>
+                    <div class="text-gray-400 ml-6">{ <span class="text-green-400">"tool"</span>: <span class="text-green-400">"Bash"</span>, <span class="text-green-400">"pattern"</span>: <span class="text-green-400">"rm -rf /*"</span> }</div>
+                    <div class="text-gray-400 ml-4">]</div>
+                    <div class="text-gray-400">}</div>
+                </div>
+                <p class="text-gray-500 text-xs mt-2">策略文件让用户可以预先授权安全操作，减少重复弹窗</p>
+            </div>
+        </div>
+
+        <!-- Section 4: Execution Pipeline -->
+        <div id="execution" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-cogs text-blue-400"></i>4. 工具调用执行流水线
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-blue-500/30 flow-box">
+                <div class="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-arrow-right"></i> 完整执行链路
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-gray-500">[LLM] 返回响应</div>
+                        <div class="text-gray-400 ml-4">&#9492; content: <span class="text-green-400">"我来读取文件内容..."</span></div>
+                        <div class="text-gray-400 ml-4">&#9492; tool_calls: [{</div>
+                        <div class="text-gray-400 ml-8">id: <span class="text-green-400">"call_abc123"</span>,</div>
+                        <div class="text-gray-400 ml-8">type: <span class="text-green-400">"function"</span>,</div>
+                        <div class="text-gray-400 ml-8">function: {</div>
+                        <div class="text-gray-400 ml-12">name: <span class="text-green-400">"Read"</span>,</div>
+                        <div class="text-gray-400 ml-12">arguments: <span class="text-green-400">'{"file_path": "src/main.py"}'</span></div>
+                        <div class="text-gray-400 ml-8">}</div>
+                        <div class="text-gray-400 ml-4">}]</div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold">Phase 1: 解析 (Parsing)</div>
+                        <div class="text-gray-400 ml-4">
+                            &#8226; 提取 tool_calls 数组<br>
+                            &#8226; 解析每个调用的 name 和 arguments<br>
+                            &#8226; arguments 是 JSON 字符串 → 解析为对象<br>
+                            &#8226; 过滤掉非 function 类型的调用
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold">Phase 2: 校验 (Validation)</div>
+                        <div class="text-gray-400 ml-4">
+                            &#8226; 在 Schema 注册表中查找 name 对应的 Tool Schema<br>
+                            &#8226; 用 JSON Schema 校验 arguments<br>
+                            &#8226; 类型检查、必填检查、枚举检查、范围检查<br>
+                            &#8226; 校验失败 → 返回错误信息，不执行
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold">Phase 3: 权限 (Permission)</div>
+                        <div class="text-gray-400 ml-4">
+                            &#8226; 查询权限策略（allowlist / denylist）<br>
+                            &#8226; 匹配模式规则<br>
+                            &#8226; 命中 denylist → 直接拒绝<br>
+                            &#8226; 命中 allowlist → 直接放行<br>
+                            &#8226; 未命中任何规则 → 弹窗让用户选择
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold">Phase 4: 执行 (Execution)</div>
+                        <div class="text-gray-400 ml-4">
+                            &#8226; 调用 handler 函数，传入 validated_args<br>
+                            &#8226; 设置超时时间（防止工具卡死）<br>
+                            &#8226; 捕获异常（throw、超时、内存溢出）<br>
+                            &#8226; 记录执行日志（开始时间、结束时间、耗时）
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold">Phase 5: 回传 (Report)</div>
+                        <div class="text-gray-400 ml-4">
+                            &#8226; 将执行结果包装为 tool_result 对象<br>
+                            &#8226; 包含: tool_call_id, role: "tool", content<br>
+                            &#8226; 如果执行失败 → 包含 error 信息<br>
+                            &#8226; 将 tool_result 追加到消息历史中<br>
+                            &#8226; 触发 LLM 继续推理（使用工具结果）
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- State Management -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-blue-400 font-bold mb-2">文件状态追踪（File State Tracking）</div>
+                <div class="text-gray-400 text-xs space-y-1">
+                    <p>Harness 还维护一个文件状态跟踪器，记录每次写操作后的文件内容：</p>
+                    <div class="bg-gray-800/80 rounded p-2 font-mono">
+                        <div class="text-gray-500">// 每次 Edit/Write 成功后，Harness 更新内部缓存</div>
+                        <div class="text-gray-500">// 下次 Read 同一文件时，可以直接返回缓存内容（无需重新读取磁盘）</div>
+                        <div class="text-gray-500">// 这保证了对同一文件的多次操作不会丢失中间状态</div>
+                    </div>
+                    <div class="text-yellow-400">重要：Edit 操作要求必须先 Read 文件，否则会失败 — 这是 Harness 的强制约束</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Result Handling -->
+        <div id="result" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-undo text-blue-400"></i>5. 结果处理与回传
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-blue-500/30 flow-box">
+                <div class="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-exchange-alt"></i> Tool Result 消息格式
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold mb-1">成功结果：</div>
+                        <div class="text-gray-400 font-mono">
+                            {<br>
+                            &nbsp;&nbsp;role: <span class="text-green-400">"tool"</span>,<br>
+                            &nbsp;&nbsp;tool_call_id: <span class="text-green-400">"call_abc123"</span>,<br>
+                            &nbsp;&nbsp;content: <span class="text-green-400">"文件内容: ..."</span><br>
+                            }
+                        </div>
+                        <div class="text-gray-500 mt-1">content 是字符串，直接给 LLM 阅读</div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold mb-1">错误结果：</div>
+                        <div class="text-gray-400 font-mono">
+                            {<br>
+                            &nbsp;&nbsp;role: <span class="text-green-400">"tool"</span>,<br>
+                            &nbsp;&nbsp;tool_call_id: <span class="text-green-400">"call_abc123"</span>,<br>
+                            &nbsp;&nbsp;content: <span class="text-yellow-400">"Error: 文件不存在: /path/to/file"</span><br>
+                            }
+                        </div>
+                        <div class="text-gray-500 mt-1">错误信息被格式化为可读文本，LLM 可以据此调整策略</div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-blue-400 font-bold mb-1">被拒绝的结果：</div>
+                        <div class="text-gray-400 font-mono">
+                            {<br>
+                            &nbsp;&nbsp;role: <span class="text-green-400">"tool"</span>,<br>
+                            &nbsp;&nbsp;tool_call_id: <span class="text-green-400">"call_abc123"</span>,<br>
+                            &nbsp;&nbsp;content: <span class="text-orange-400">"Permission denied: 用户拒绝了该操作"</span><br>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-blue-400 font-bold mb-2">终止条件处理：</div>
+                <div class="text-gray-400 text-xs space-y-1">
+                    <p>当工具执行遇到以下情况时，Harness 会终止执行：</p>
+                    <div class="bg-gray-800/80 rounded p-2 font-mono text-gray-500">
+                        <div>- 超时（timeout）：工具执行超过设定的最大时间</div>
+                        <div>- 达到最大 token 限制：工具返回结果太长</div>
+                        <div>- 工具本身抛出异常：handler 内部崩溃</div>
+                        <div>- 用户手动取消：用户点击取消按钮</div>
+                    </div>
+                    <p class="text-green-400">所有终止情况都被优雅处理，不会导致整个系统崩溃</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Pseudocode -->
+        <div id="pseudocode" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-code text-blue-400"></i>6. 完整伪代码
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Harness — 工具执行框架 核心伪代码</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">ToolHarness</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">    // 注册表：存储所有 Tool Schema</div>
+                    <div class="ml-4">    schemas = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()</div>
+                    <div class="ml-4">    permissionStore = <span class="text-blue-400">new</span> <span class="text-yellow-400">PermissionStore</span>()</div>
+                    <div class="ml-4">    fileStateTracker = <span class="text-blue-400">new</span> <span class="text-yellow-400">FileStateTracker</span>()</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 注册工具 ----------</div>
+                    <div class="ml-4">    <span class="text-yellow-400">registerTool</span>(name, description, parameters, handler) {</div>
+                    <div class="ml-8">        schema = {</div>
+                    <div class="ml-12">            name, description,</div>
+                    <div class="ml-12">            parameters: <span class="text-yellow-400">compileJSONSchema</span>(parameters),</div>
+                    <div class="ml-12">            handler</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.schemas.set(name, schema)</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 获取 LLM 可用的 Tool Definitions ----------</div>
+                    <div class="ml-4">    <span class="text-yellow-400">getToolDefinitions</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-yellow-400">Array.from</span>(<span class="text-blue-400">this</span>.schemas.values())</div>
+                    <div class="ml-8">            .map(schema => ({</div>
+                    <div class="ml-12">                type: <span class="text-green-400">"function"</span>,</div>
+                    <div class="ml-12">                function: {</div>
+                    <div class="ml-16">                    name: schema.name,</div>
+                    <div class="ml-16">                    description: schema.description,</div>
+                    <div class="ml-16">                    parameters: schema.parameters</div>
+                    <div class="ml-12">                }</div>
+                    <div class="ml-8">            }))</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 核心：执行工具调用 ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeToolCall</span>(toolCall) {</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 1：解析</div>
+                    <div class="ml-8">        toolName = toolCall.function.name</div>
+                    <div class="ml-8">        rawArgs = <span class="text-yellow-400">JSON.parse</span>(toolCall.function.arguments)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 2：校验 Schema</div>
+                    <div class="ml-8">        schema = <span class="text-blue-400">this</span>.schemas.get(toolName)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!schema) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">`未知工具: ${toolName}`</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        validationResult = <span class="text-yellow-400">validateJSONSchema</span>(</div>
+                    <div class="ml-12">            schema.parameters, rawArgs</div>
+                    <div class="ml-8">        )</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!validationResult.valid) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">`参数校验失败: ${validationResult.error}`</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 3：权限检查</div>
+                    <div class="ml-8">        permission = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.permissionStore</div>
+                    <div class="ml-12">            .<span class="text-yellow-400">checkPermission</span>(toolName, rawArgs)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (permission === <span class="text-green-400">'deny'</span>) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">"用户拒绝了该操作"</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 4：执行</div>
+                    <div class="ml-8">        <span class="text-blue-400">try</span> {</div>
+                    <div class="ml-12">            result = <span class="text-blue-400">await</span> <span class="text-yellow-400">withTimeout</span>(</div>
+                    <div class="ml-16">                schema.handler(rawArgs),</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.config.timeoutMs</div>
+                    <div class="ml-12">            )</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // 文件状态追踪（写操作）</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (<span class="text-yellow-400">isWriteOperation</span>(toolName)) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.fileStateTracker</div>
+                    <div class="ml-20">                    .<span class="text-yellow-400">recordWrite</span>(rawArgs.file_path, result)</div>
+                    <div class="ml-12">            }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // Phase 5：回传</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                role: <span class="text-green-400">"tool"</span>,</div>
+                    <div class="ml-16">                tool_call_id: toolCall.id,</div>
+                    <div class="ml-16">                content: <span class="text-yellow-400">formatResult</span>(result)</div>
+                    <div class="ml-12">            }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        } <span class="text-blue-400">catch</span> (error) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                role: <span class="text-green-400">"tool"</span>,</div>
+                    <div class="ml-16">                tool_call_id: toolCall.id,</div>
+                    <div class="ml-16">                content: <span class="text-green-400">`执行失败: ${error.message}`</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 批量执行（并行工具调用） ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeToolCalls</span>(toolCalls) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-yellow-400">Promise.all</span>(</div>
+                    <div class="ml-12">            toolCalls.map(tc => <span class="text-blue-400">this</span>.<span class="text-yellow-400">executeToolCall</span>(tc))</div>
+                    <div class="ml-8">        )</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 7: Key Points -->
+        <div id="keypoints" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-star text-blue-400"></i>7. 关键点总结
+            </h2>
+
+            <div class="space-y-4 text-sm">
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 1：Schema 驱动
+                    </div>
+                    <p class="text-gray-400">一切工具调用都基于 JSON Schema 定义。LLM 通过 Schema 了解工具的用途和参数，Harness 通过 Schema 校验参数的合法性。Schema 是 AI 和工具之间的"契约"。</p>
+                </div>
+
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 2：权限分层
+                    </div>
+                    <p class="text-gray-400">权限系统采用分层设计：<strong class="text-white">全局设置 → 项目设置 → 会话设置 → 单次弹窗</strong>。上层优先，命中即终止。这种设计既保证了安全，又避免了频繁弹窗打扰用户。</p>
+                </div>
+
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 3：优雅的错误处理
+                    </div>
+                    <p class="text-gray-400">所有工具执行过程中的错误（参数校验失败、权限拒绝、执行超时、handler 崩溃）都被捕获并格式化为可读文本回传给 LLM，而不是抛出未捕获异常。LLM 可以基于错误信息调整策略重试。</p>
+                </div>
+
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 4：文件状态一致性
+                    </div>
+                    <p class="text-gray-400">Harness 维护文件状态跟踪器，确保 <span class="text-yellow-400">Read → Edit → Read</span> 的链式操作不会丢失中间状态。Edit 前必须 Read 的强制约束保证了文件内容的一致性。</p>
+                </div>
+
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 5：并行执行
+                    </div>
+                    <p class="text-gray-400">LLM 可以一次发出多个工具调用（如同时读取多个文件），Harness 使用 <span class="text-yellow-400">Promise.all</span> 并行执行它们，显著提升效率。但写操作通常串行执行以避免竞态条件。</p>
+                </div>
+
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-key"></i> 关键点 6：Tool 与 Tool 的区别
+                    </div>
+                    <p class="text-gray-400 text-xs space-y-1">
+                        <span class="text-gray-300"><strong>Read/Glob/Grep</strong> — 读操作，通常自动放行，返回文件内容</span><br>
+                        <span class="text-gray-300"><strong>Edit/Write</strong> — 写操作，需要权限确认，会触发文件状态追踪</span><br>
+                        <span class="text-gray-300"><strong>Bash</strong> — 命令执行，最敏感，需要严格权限控制</span><br>
+                        <span class="text-gray-300"><strong>Agent</strong> — 子 Agent 调用，需要隔离的工作环境</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 mt-6">
+                <div class="text-blue-400 font-bold mb-2">思考题：</div>
+                <div class="text-gray-400 text-xs space-y-1">
+                    <p>1. 如果 LLM 同时发出 10 个 Read 调用和 1 个 Edit 调用，Harness 应该如何调度？</p>
+                    <p>2. 权限弹窗被用户忽略（超时未响应）时应该怎么办？</p>
+                    <p>3. 如何设计一个工具链（Tool Chain），让多个工具按顺序执行并传递结果？</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="content-card text-center text-gray-500 text-sm py-4">
+            完整理解 Harness 架构，你就掌握了 AI Agent 工具调用的核心运行机制！
+        </div>
+
+    </div>
+</body>
+</html>

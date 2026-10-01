@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>序列模型：RNN / LSTM / GRU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <h1 class="text-3xl font-bold text-white mb-3">序列模型：RNN / LSTM / GRU</h1>
+            <div class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4">
+                理解循环神经网络及其演进：从简单 RNN 到 LSTM 再到 GRU，掌握序列建模的核心技术。
+            </div>
+        </div>
+
+        <!-- Directory -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-cyan-400"></i> 目录
+            </h2>
+            <ol class="list-decimal list-inside space-y-1 text-gray-300">
+                <li>为什么需要序列模型</li>
+                <li>RNN 基础</li>
+                <li>RNN 的问题：梯度消失</li>
+                <li>LSTM 长短期记忆网络</li>
+                <li>GRU 门控循环单元</li>
+                <li>三者对比总结</li>
+                <li>应用场景</li>
+            </ol>
+        </div>
+
+        <!-- Section 1: Why Sequence Models -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">1</span>
+                为什么需要序列模型
+            </h2>
+            <p class="text-gray-300 mb-4">
+                传统前馈神经网络（MLP、CNN）处理的是<strong class="text-cyan-400">固定大小的输入</strong>，输入之间相互独立。
+                但许多数据具有<strong class="text-yellow-400">时序依赖关系</strong>：
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30 text-center">
+                    <div class="text-2xl mb-2">📝</div>
+                    <h4 class="text-cyan-400 font-bold text-sm">自然语言</h4>
+                    <p class="text-gray-500 text-xs mt-1">"我 爱 吃 苹果"<br>词序决定语义</p>
+                </div>
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30 text-center">
+                    <div class="text-2xl mb-2">📈</div>
+                    <h4 class="text-cyan-400 font-bold text-sm">时间序列</h4>
+                    <p class="text-gray-500 text-xs mt-1">股价、天气、传感器<br>过去决定未来</p>
+                </div>
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30 text-center">
+                    <div class="text-2xl mb-2">🎵</div>
+                    <h4 class="text-cyan-400 font-bold text-sm">音频/视频</h4>
+                    <p class="text-gray-500 text-xs mt-1">连续的帧/采样点<br>前后帧关联</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: RNN Basics -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">2</span>
+                RNN 基础
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-cyan-400">RNN (Recurrent Neural Network)</strong> 通过<strong class="text-yellow-400">隐藏状态</strong>在时间步之间传递信息。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+RNN 展开视图:
+
+  t=1        t=2        t=3        t=4
+   x₁         x₂         x₃         x₄
+   │          │          │          │
+   ▼          ▼          ▼          ▼
+┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐
+│RNN  │──→│RNN  │──→│RNN  │──→│RNN  │──→ ...
+└──┬──┘   └──┬──┘   └──┬──┘   └──┬──┘
+   │ h₁       │ h₂       │ h₃       │ h₄
+   ▼          ▼          ▼          ▼
+   y₁         y₂         y₃         y₄
+
+核心公式:
+  hₜ = tanh(Wₕ · [hₜ₋₁, xₜ] + bₕ)
+  yₜ = Wᵧ · hₜ + bᵧ
+
+其中:
+  xₜ = 当前输入
+  hₜ₋₁ = 上一时刻的隐藏状态（记忆）
+  hₜ = 当前隐藏状态
+  yₜ = 当前输出</div>
+        </div>
+
+        <!-- Section 3: RNN Problems -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">3</span>
+                RNN 的问题：梯度消失/爆炸
+            </h2>
+            <div class="bg-red-500/10 rounded-lg p-4 border border-red-500/30 mb-4">
+                <p class="text-red-400 text-sm font-bold mb-2">核心问题</p>
+                <p class="text-gray-300 text-sm">
+                    当序列很长时，反向传播的梯度在链式求导中逐渐<strong>消失（趋近 0）</strong>或<strong>爆炸（趋近无穷）</strong>，
+                    导致模型无法学习长距离依赖关系。
+                </p>
+            </div>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+问题示例:
+  "我出生在法国，...（中间 50 个词）... 所以我会说 ____"
+
+  简单 RNN 很难记住 50 步前的"法国"来预测"法语"！
+
+解决方案 → LSTM 和 GRU !</div>
+        </div>
+
+        <!-- Section 4: LSTM -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">4</span>
+                LSTM 长短期记忆网络
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-cyan-400">LSTM (Long Short-Term Memory)</strong> 通过<strong class="text-yellow-400">三个门控机制</strong> 解决 RNN 的梯度消失问题。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+LSTM 核心结构:
+
+    输入 xₜ ────────────────────────┐
+    隐藏状态 hₜ₋₁ ──────────────────┤
+    细胞状态 cₜ₋₁ ──────────────────┤
+                                    ▼
+                          ┌─────────────────┐
+                          │   三个门控单元     │
+                          │                  │
+    遗忘门: fₜ = σ(W_f·[hₜ₋₁, xₜ])        │
+          → 决定丢弃哪些旧记忆               │
+                          │                  │
+    输入门: iₜ = σ(W_i·[hₜ₋₁, xₜ])        │
+          → 决定存储哪些新信息               │
+                          │                  │
+    输出门: oₜ = σ(W_o·[hₜ₋₁, xₜ])        │
+          → 决定输出哪些信息                 │
+                          │                  │
+    候选值: čₜ = tanh(W_c·[hₜ₋₁, xₜ])      │
+                          │                  │
+    更新细胞状态:                            │
+      cₜ = fₜ ⊙ cₜ₋₁ + iₜ ⊙ čₜ            │
+                          │                  │
+    更新隐藏状态:                            │
+      hₜ = oₜ ⊙ tanh(cₜ)                  │
+                          └─────────────────┘</div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30">
+                    <h4 class="text-cyan-400 font-bold mb-1">遗忘门</h4>
+                    <p class="text-gray-400 text-sm">决定从细胞状态中<strong class="text-yellow-400">丢弃什么</strong>信息。输出 0~1，0 表示完全忘记。</p>
+                </div>
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30">
+                    <h4 class="text-cyan-400 font-bold mb-1">输入门</h4>
+                    <p class="text-gray-400 text-sm">决定将什么<strong class="text-yellow-400">新信息存入</strong>细胞状态。</p>
+                </div>
+                <div class="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30">
+                    <h4 class="text-cyan-400 font-bold mb-1">输出门</h4>
+                    <p class="text-gray-400 text-sm">决定当前时间步的<strong class="text-yellow-400">输出</strong>是什么（基于细胞状态过滤）。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: GRU -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">5</span>
+                GRU 门控循环单元
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-cyan-400">GRU (Gated Recurrent Unit)</strong> 是 LSTM 的简化版本，
+                将遗忘门和输入门<strong class="text-yellow-400">合并</strong>为一个更新门，减少了参数。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+GRU 核心结构:
+
+    重置门: rₜ = σ(W_r·[hₜ₋₁, xₜ])
+          → 控制忽略多少过去的记忆
+
+    更新门: zₜ = σ(W_z·[hₜ₋₁, xₜ])
+          → 控制保留多少旧状态，接受多少新状态
+          → 同时承担了 LSTM 遗忘门+输入门的功能
+
+    候选值: ňₜ = tanh(W_n·[rₜ ⊙ hₜ₋₁, xₜ])
+
+    最终状态: hₜ = (1-zₜ) ⊙ hₜ₋₁ + zₜ ⊙ ňₜ
+             └──保留旧记忆──┘   └──接受新信息──┘</div>
+        </div>
+
+        <!-- Section 6: Comparison -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">6</span>
+                三者对比总结
+            </h2>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-cyan-400">特性</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-orange-400">Simple RNN</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">LSTM</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-green-400">GRU</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">门控数量</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">0 (tanh)</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">3 (遗忘/输入/输出)</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">2 (重置/更新)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">细胞状态</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">无 (只有 hₜ)</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">有 cₜ + hₜ</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">无 (只有 hₜ)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">参数数量</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">少</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">多 (LSTM 单元 4 个权重矩阵)</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">中等 (GRU 单元 3 个权重矩阵)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">长距离依赖</td>
+                            <td class="px-4 py-3 text-sm text-red-400">差</td>
+                            <td class="px-4 py-3 text-sm text-green-400">优秀</td>
+                            <td class="px-4 py-3 text-sm text-green-400">优秀</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">训练速度</td>
+                            <td class="px-4 py-3 text-sm text-green-400">快</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400">慢</td>
+                            <td class="px-4 py-3 text-sm text-green-400">较快</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">效果 (多数任务)</td>
+                            <td class="px-4 py-3 text-sm text-red-400">差</td>
+                            <td class="px-4 py-3 text-sm text-green-400">最好 (略优于 GRU)</td>
+                            <td class="px-4 py-3 text-sm text-green-400">好 (接近 LSTM)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">发布时间</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">1986</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">1997</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">2014</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4">
+                <p class="text-gray-300 text-sm mb-3">
+                    <strong class="text-yellow-400">选择建议：</strong>
+                </p>
+                <ul class="space-y-1 text-gray-400 text-sm">
+                    <li>· 数据量大、需要最佳效果 → <strong class="text-blue-400">LSTM</strong></li>
+                    <li>· 追求训练速度、数据量中等 → <strong class="text-green-400">GRU</strong></li>
+                    <li>· 不推荐直接使用简单 RNN（除非仅用于教学理解）</li>
+                    <li>· 现代 NLP 任务优先考虑 <strong class="text-yellow-400">Transformer</strong>（可完全替代 RNN）</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 7: Applications -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">7</span>
+                应用场景
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-cyan-400">场景</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-cyan-400">模型选择</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-cyan-400">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr><td class="px-4 py-3 text-sm font-bold">机器翻译</td><td class="px-4 py-3 text-sm text-gray-400">Seq2Seq LSTM</td><td class="px-4 py-3 text-sm text-gray-400">Encoder-Decoder 架构</td></tr>
+                        <tr><td class="px-4 py-3 text-sm font-bold">文本生成</td><td class="px-4 py-3 text-sm text-gray-400">LSTM/GRU</td><td class="px-4 py-3 text-sm text-gray-400">字符级/词级生成</td></tr>
+                        <tr><td class="px-4 py-3 text-sm font-bold">情感分析</td><td class="px-4 py-3 text-sm text-gray-400">Bi-LSTM</td><td class="px-4 py-3 text-sm text-gray-400">双向编码捕捉上下文</td></tr>
+                        <tr><td class="px-4 py-3 text-sm font-bold">语音识别</td><td class="px-4 py-3 text-sm text-gray-400">LSTM</td><td class="px-4 py-3 text-sm text-gray-400">处理时序声学特征</td></tr>
+                        <tr><td class="px-4 py-3 text-sm font-bold">股价预测</td><td class="px-4 py-3 text-sm text-gray-400">LSTM</td><td class="px-4 py-3 text-sm text-gray-400">捕捉时间序列规律</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-xl border border-cyan-500/30 p-6 mb-6 text-center">
+            <p class="text-cyan-400 font-bold text-lg">
+                RNN 是序列理解的基石，LSTM/GRU 让长距离依赖成为可能！
+            </p>
+            <p class="text-gray-500 text-sm mt-2">
+                虽然 Transformer 已成为主流，但理解 RNN 族仍是深度学习基础的重要组成部分。
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

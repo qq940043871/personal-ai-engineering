@@ -64,3 +64,6 @@ $RECYCLE.BIN/
 
 # 密钥本地备份（不入库）
 secrets_backup.txt
+
+# AI 笔记站点工具状态
+.codebuddy/

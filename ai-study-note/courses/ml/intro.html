@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>机器学习概述与基础</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-orange-400 mb-3 flex items-center gap-2">
+                <i class="fas fa-chart-bar"></i> 机器学习概述与基础
+            </h1>
+            <p class="text-gray-400 border-l-4 border-orange-500 pl-4">
+                机器学习 (Machine Learning) 是 AI 的核心分支，让计算机从数据中自动学习规律和模式。
+            </p>
+        </div>
+
+        <!-- 什么是机器学习？ -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-question-circle text-orange-400"></i> 什么是机器学习？
+            </h2>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────┐
+│                     Machine Learning                            │
+│                        机器学习                                  │
+│                                                                 │
+│  输入数据 ──→ 学习算法 ──→ 模型 ──→ 预测/决策                   │
+│  (经验)        (训练)      (知识)     (推理)                    │
+└─────────────────────────────────────────────────────────────────┘</pre>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-orange-400">核心思想</strong>：从数据中学习模式，无需显式编程规则。
+            </p>
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">传统编程</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">机器学习</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">数据 + 规则 → 答案</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">数据 + 答案 → 规则</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 主要类型 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list-ul text-orange-400"></i> 主要类型
+            </h2>
+
+            <!-- 监督学习 -->
+            <h3 class="text-lg font-semibold text-blue-400 mt-6 mb-3 flex items-center gap-2">
+                <i class="fas fa-circle text-xs text-blue-400"></i> 监督学习 (Supervised Learning)
+            </h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────┐
+│ 监督学习: 使用标注数据训练，学习输入→输出映射                      │
+│                                                                 │
+│  训练样本: (图片, "猫") → 学习"什么是猫"                         │
+│  任务类型: 分类（离散输出）/ 回归（连续输出）                     │
+└─────────────────────────────────────────────────────────────────┘</pre>
+
+            <!-- 无监督学习 -->
+            <h3 class="text-lg font-semibold text-green-400 mt-6 mb-3 flex items-center gap-2">
+                <i class="fas fa-circle text-xs text-green-400"></i> 无监督学习 (Unsupervised Learning)
+            </h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────┐
+│ 无监督学习: 发现未标注数据中的隐藏结构                            │
+│                                                                 │
+│  输入: 一堆无标签的新闻文章                                       │
+│  输出: 聚类成不同主题（体育、科技、娱乐...）                      │
+└─────────────────────────────────────────────────────────────────┘</pre>
+
+            <!-- 强化学习 -->
+            <h3 class="text-lg font-semibold text-purple-400 mt-6 mb-3 flex items-center gap-2">
+                <i class="fas fa-circle text-xs text-purple-400"></i> 强化学习 (Reinforcement Learning)
+            </h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────┐
+│ 强化学习: 智能体通过与环境交互学习最优策略                        │
+│                                                                 │
+│  智能体(Agent) ←→ 环境(Environment)                              │
+│      ↓                ↓                                          │
+│    采取动作     返回状态+奖励                                     │
+└─────────────────────────────────────────────────────────────────┘</pre>
+
+            <!-- 三种学习方式对比 -->
+            <h4 class="text-base font-semibold text-white mt-6 mb-3">三种学习方式对比</h4>
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">类型</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">数据</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">目标</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">典型应用</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><span class="text-orange-400 font-medium">监督学习</span></td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">有标签</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">预测标签</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">图像分类、房价预测</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><span class="text-green-400 font-medium">无监督学习</span></td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">无标签</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">发现结构</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">用户分群、降维可视化</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><span class="text-purple-400 font-medium">强化学习</span></td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">交互数据</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">最大化奖励</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">围棋AI、自动驾驶</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 基本术语 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-key text-orange-400"></i> 基本术语
+            </h2>
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">术语</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">英文</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">特征</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Feature</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">输入变量，描述数据属性</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">标签</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Label</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">要预测的目标变量</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">模型</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Model</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">输入到输出的映射函数</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">损失</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Loss</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">预测与真实值之间的误差</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">训练</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Training</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">从数据中学习参数的过程</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">推理</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Inference</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">用模型对新数据进行预测</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">过拟合</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Overfitting</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">训练好但泛化差</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">欠拟合</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Underfitting</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">训练和测试效果都差</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 完整流程 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-sync-alt text-orange-400"></i> 完整流程
+            </h2>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ 数据收集  │──→│ 数据清洗  │──→│ 特征工程  │──→│ 模型训练  │──→│ 模型评估  │
+│ & 采集    │   │ & 预处理  │   │ & 选择    │   │ & 调优    │   │ & 部署    │
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+      │              │              │              │              │
+      ▼              ▼              ▼              ▼              ▼
+  原始数据       干净数据      特征矩阵       训练好的模型    生产环境</pre>
+
+            <h4 class="text-base font-semibold text-white mt-6 mb-3">步骤详解</h4>
+            <ol class="space-y-2 text-gray-300 list-decimal list-inside">
+                <li><strong class="text-orange-400">数据收集</strong> — 从数据库、API、爬虫等渠道获取原始数据</li>
+                <li><strong class="text-orange-400">数据清洗</strong> — 处理缺失值、异常值、重复数据</li>
+                <li><strong class="text-orange-400">特征工程</strong> — 提取、转换、选择最有价值的特征</li>
+                <li><strong class="text-orange-400">数据集划分</strong> — 训练集 (70-80%) + 验证集 (10-15%) + 测试集 (10-15%)</li>
+                <li><strong class="text-orange-400">模型选择</strong> — 根据问题类型选择合适算法</li>
+                <li><strong class="text-orange-400">模型训练</strong> — 用训练数据学习参数</li>
+                <li><strong class="text-orange-400">超参数调优</strong> — 在验证集上调整模型超参数</li>
+                <li><strong class="text-orange-400">模型评估</strong> — 在测试集上评估最终性能</li>
+                <li><strong class="text-orange-400">部署上线</strong> — 将模型部署到生产环境</li>
+            </ol>
+        </div>
+
+        <!-- 偏差-方差权衡 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-line text-orange-400"></i> 偏差-方差权衡
+            </h2>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+                  欠拟合 ← 合适 → 过拟合
+                  
+高偏差 / 低方差         低偏差 / 高方差
+   ▓▓▓▓▓▓▓░░░             ▓▓▓░░░░░░░
+   训练误差高              训练误差低
+   测试误差高              测试误差低（但测试高）
+   
+         ┌───────────────┐
+         │  目标：平衡！  │
+         └───────────────┘</pre>
+
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">问题</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">症状</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">解决方案</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">高偏差（欠拟合）</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">训练误差高</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">更复杂的模型、更多特征</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">高方差（过拟合）</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">训练好但测试差</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">正则化、更多数据、简化模型</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

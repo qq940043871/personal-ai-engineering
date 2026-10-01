@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典论文精读</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <h1 class="text-3xl font-bold text-white mb-3">经典论文精读</h1>
+            <div class="text-gray-400 text-sm border-l-4 border-purple-500 pl-4">
+                <strong>三篇奠基性论文，撑起了当今大语言模型（LLM）的整个领域！</strong>
+            </div>
+        </div>
+
+        <!-- Paper 1: Transformer -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">2017</span>
+                <h2 class="text-xl font-bold text-white">Attention Is All You Need</h2>
+            </div>
+            <div class="text-gray-400 text-sm border-l-4 border-purple-500 pl-4 mb-4">
+                <strong>Vaswani et al.</strong> · NeurIPS 2017 · 引用 10万+
+            </div>
+            <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30 mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-1">摘要</p>
+                <p class="text-gray-300 text-sm">我们提出了一种新的网络架构——Transformer，完全基于注意力机制，不再使用循环和卷积。</p>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">核心贡献</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400 w-1/4">贡献</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">纯注意力架构</td><td class="px-4 py-3 text-sm text-gray-400">抛弃 RNN/CNN，完全基于自注意力机制</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">多头注意力</td><td class="px-4 py-3 text-sm text-gray-400">并行关注不同子空间的信息</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">位置编码</td><td class="px-4 py-3 text-sm text-gray-400">用正余弦函数编码序列位置信息</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">并行训练</td><td class="px-4 py-3 text-sm text-gray-400">自注意力可并行计算，训练速度远超 RNN</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">架构</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+        ┌──────────────────────┐
+        │    Output Softmax    │
+        └──────────┬───────────┘
+                   │
+        ┌──────────────────────┐
+        │   Decoder × N       │
+        │  ┌────────────────┐  │
+        │  │ Masked Attn    │  │
+        │  │ Cross Attn     │  │
+        │  │ FFN            │  │
+        │  └────────────────┘  │
+        └──────────┬───────────┘
+                   │
+    ┌──────────────┴──────────────┐
+    │         Encoder × N         │
+    │  ┌────────────────────┐    │
+    │  │ Self-Attention     │    │
+    │  │ FFN                │    │
+    │  └────────────────────┘    │
+    └──────────────┬───────────┘
+                   │
+        ┌──────────────────────┐
+        │   Input Embedding    │
+        └──────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">超参数</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">模型</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">d_model</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">h (头数)</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">d_ff</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">层数 N</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">参数量</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">Base</td>
+                            <td class="px-4 py-3 text-sm">512</td>
+                            <td class="px-4 py-3 text-sm">8</td>
+                            <td class="px-4 py-3 text-sm">2048</td>
+                            <td class="px-4 py-3 text-sm">6</td>
+                            <td class="px-4 py-3 text-sm">65M</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">Big</td>
+                            <td class="px-4 py-3 text-sm">1024</td>
+                            <td class="px-4 py-3 text-sm">16</td>
+                            <td class="px-4 py-3 text-sm">4096</td>
+                            <td class="px-4 py-3 text-sm">6</td>
+                            <td class="px-4 py-3 text-sm">213M</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">历史意义</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">开创了注意力机制时代</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">成为 NLP 领域的事实标准</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">启发了 BERT、GPT 等后续工作</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">扩展到图像（ViT）、语音（Whisper）等领域</span></div>
+            </div>
+        </div>
+
+        <!-- Paper 2: BERT -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full">2019</span>
+                <h2 class="text-xl font-bold text-white">BERT: Pre-training of Deep Bidirectional Transformers</h2>
+            </div>
+            <div class="text-gray-400 text-sm border-l-4 border-pink-500 pl-4 mb-4">
+                <strong>Devlin et al.</strong> · NAACL 2019 · 引用 7万+
+            </div>
+            <div class="bg-pink-500/10 rounded-lg p-4 border border-pink-500/30 mb-4">
+                <p class="text-pink-400 text-sm font-bold mb-1">核心思想</p>
+                <p class="text-gray-300 text-sm">双向Transformer编码器 + 掩码语言模型预训练</p>
+            </div>
+
+            <h3 class="text-lg font-semibold text-pink-400 mb-3">核心贡献</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400 w-1/4">贡献</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">双向上下文</td><td class="px-4 py-3 text-sm text-gray-400">同时利用上下文信息，而非单向</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">MLM 预训练</td><td class="px-4 py-3 text-sm text-gray-400">Masked Language Model：随机掩盖15%的词，预测被掩码词</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">NSP 任务</td><td class="px-4 py-3 text-sm text-gray-400">Next Sentence Prediction：判断两句是否连续</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-bold">微调范式</td><td class="px-4 py-3 text-sm text-gray-400">Pre-train → Fine-tune 成为标准范式</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-pink-400 mb-3">预训练任务</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+MLM 示例:
+    输入: 我 [MASK] 去 [MASK] 场
+    预测: 想 → 我 [想] 去 [机] 场
+          ↓      ↓
+    标签: 想     机
+
+NSP 示例:
+    Sentence A: 我去了机场。
+    Sentence B: 然后登上了飞机。  → IsNext (&#10004;)
+    Sentence C: 苹果很好吃。      → NotNext (&#10008;)</div>
+
+            <h3 class="text-lg font-semibold text-pink-400 mb-3">BERT 系列</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">模型</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">层数</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">隐藏维度</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">头数</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-pink-400">参数量</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-pink-400">BERT-Base</td>
+                            <td class="px-4 py-3 text-sm">12</td>
+                            <td class="px-4 py-3 text-sm">768</td>
+                            <td class="px-4 py-3 text-sm">12</td>
+                            <td class="px-4 py-3 text-sm">110M</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-pink-400">BERT-Large</td>
+                            <td class="px-4 py-3 text-sm">24</td>
+                            <td class="px-4 py-3 text-sm">1024</td>
+                            <td class="px-4 py-3 text-sm">16</td>
+                            <td class="px-4 py-3 text-sm">340M</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-pink-400">RoBERTa</td>
+                            <td class="px-4 py-3 text-sm">24</td>
+                            <td class="px-4 py-3 text-sm">1024</td>
+                            <td class="px-4 py-3 text-sm">16</td>
+                            <td class="px-4 py-3 text-sm">355M</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-pink-400 mb-3">历史意义</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">双向编码器全面超越单向模型</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">Pre-train + Fine-tune 范式影响深远</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">GLUE/SQuAD 等榜单全面刷新</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">启发了 RoBERTa、ALBERT、DistilBERT 等变体</span></div>
+            </div>
+        </div>
+
+        <!-- Paper 3: GPT Series -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">2018-2023</span>
+                <h2 class="text-xl font-bold text-white">GPT 系列</h2>
+            </div>
+
+            <!-- GPT-1 -->
+            <div class="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30 mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-blue-500/30 text-blue-300 text-xs font-bold px-2 py-0.5 rounded">GPT-1</span>
+                    <span class="text-gray-500 text-xs">2018 · 117M 参数</span>
+                </div>
+                <p class="text-gray-300 text-sm">单向 Transformer 解码器 + 自回归语言模型预训练。核心：预训练+微调范式。</p>
+            </div>
+
+            <!-- GPT-2 -->
+            <div class="bg-teal-500/10 rounded-lg p-4 border border-teal-500/30 mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-teal-500/30 text-teal-300 text-xs font-bold px-2 py-0.5 rounded">GPT-2</span>
+                    <span class="text-gray-500 text-xs">2019 · 1.5B 参数</span>
+                </div>
+                <p class="text-gray-300 text-sm">更大的模型 + 零样本学习能力 (Zero-shot)。因"太危险"推迟发布，引发广泛讨论。</p>
+            </div>
+
+            <!-- GPT-3 -->
+            <div class="bg-indigo-500/10 rounded-lg p-4 border border-indigo-500/30 mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-indigo-500/30 text-indigo-300 text-xs font-bold px-2 py-0.5 rounded">GPT-3</span>
+                    <span class="text-gray-500 text-xs">2020 · 175B 参数</span>
+                </div>
+                <p class="text-gray-300 text-sm">1750亿参数 + 少样本学习能力 (Few-shot)。45TB 文本数据，训练成本约 1200 万美元。发现缩放定律 (Scaling Law)。</p>
+            </div>
+
+            <!-- GPT-4 -->
+            <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30 mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="bg-purple-500/30 text-purple-300 text-xs font-bold px-2 py-0.5 rounded">GPT-4</span>
+                    <span class="text-gray-500 text-xs">2023 · 推测 1.7T+ 参数</span>
+                </div>
+                <p class="text-gray-300 text-sm">多模态能力 · 推理能力飞跃 · 几乎成为 AGI 代名词。</p>
+            </div>
+
+            <!-- Evolution Diagram -->
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+GPT-1 (2018) ──→ GPT-2 (2019) ──→ GPT-3 (2020) ──→ GPT-4 (2023)
+   117M           1.5B             175B              推测 1.7T+
+    │               │                │                  │
+   奠基工作       零样本学习        少样本学习         多模态
+                  "太危险"          缩放定律          推理能力飞跃</div>
+
+            <h3 class="text-lg font-semibold text-blue-400 mb-3">GPT 系列对比</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">模型</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">年份</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">参数量</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">训练数据</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-blue-400">核心能力</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">GPT-1</td>
+                            <td class="px-4 py-3 text-sm">2018</td>
+                            <td class="px-4 py-3 text-sm">117M</td>
+                            <td class="px-4 py-3 text-sm">BooksCorpus</td>
+                            <td class="px-4 py-3 text-sm">预训练+微调</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">GPT-2</td>
+                            <td class="px-4 py-3 text-sm">2019</td>
+                            <td class="px-4 py-3 text-sm">1.5B</td>
+                            <td class="px-4 py-3 text-sm">40GB 网页</td>
+                            <td class="px-4 py-3 text-sm">零样本学习</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">GPT-3</td>
+                            <td class="px-4 py-3 text-sm">2020</td>
+                            <td class="px-4 py-3 text-sm">175B</td>
+                            <td class="px-4 py-3 text-sm">45TB</td>
+                            <td class="px-4 py-3 text-sm">少样本学习</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">GPT-4</td>
+                            <td class="px-4 py-3 text-sm">2023</td>
+                            <td class="px-4 py-3 text-sm">推测 1.7T+</td>
+                            <td class="px-4 py-3 text-sm">多模态</td>
+                            <td class="px-4 py-3 text-sm">推理+多模态</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-blue-400 mb-3">历史意义</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">证明了 Scaling Law</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">展示了"涌现能力"</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">从 Fine-tune 到 In-context Learning</span></div>
+                <div class="bg-green-500/10 rounded-lg p-3 flex items-center gap-2"><span class="text-green-400">&#10004;</span><span class="text-gray-300 text-sm">开启了 AGI 的探索之路</span></div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-layer-group text-purple-400"></i> 三篇论文总结
+            </h2>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">论文</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">架构</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">训练方式</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">核心创新</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">影响</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">Transformer</td>
+                            <td class="px-4 py-3 text-sm">Enc-Dec</td>
+                            <td class="px-4 py-3 text-sm">有监督</td>
+                            <td class="px-4 py-3 text-sm">纯注意力</td>
+                            <td class="px-4 py-3 text-sm">奠定基础</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-pink-400">BERT</td>
+                            <td class="px-4 py-3 text-sm">Encoder</td>
+                            <td class="px-4 py-3 text-sm">MLM+NSP</td>
+                            <td class="px-4 py-3 text-sm">双向编码</td>
+                            <td class="px-4 py-3 text-sm">NLP 新范式</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">GPT</td>
+                            <td class="px-4 py-3 text-sm">Decoder</td>
+                            <td class="px-4 py-3 text-sm">自回归</td>
+                            <td class="px-4 py-3 text-sm">缩放定律</td>
+                            <td class="px-4 py-3 text-sm">开辟 LLM 时代</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">三者的关系</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+                    Transformer (2017)
+                    ┌──────────┴──────────┐
+                    ▼                     ▼
+              BERT (2018)              GPT (2018)
+                编码器                   解码器
+          理解任务 (NLU)           生成任务 (NLG)
+          分类/标注/QA             文本生成/对话
+                    │                     │
+                    ▼                     ▼
+            RoBERTa/ALBERT          GPT-2/3/4, Claude
+            T5 (Encoder+Decoder)    LLaMA / Qwen / ChatGLM</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/30 p-6 mb-6 text-center">
+            <p class="text-purple-400 font-bold text-lg">三篇论文，从注意力机制到缩放定律，再到 LLM 时代！</p>
+        </div>
+
+    </div>
+</body>
+</html>

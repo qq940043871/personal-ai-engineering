@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM训练流程详解</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flow-box { background: rgba(107, 70, 193, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); }
+        .highlight-card { border-left: 3px solid rgb(168, 85, 247); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <h1 class="text-3xl font-bold text-white mb-3">
+                <i class="fas fa-microchip text-purple-400 mr-2"></i>训练流程详解
+            </h1>
+            <p class="text-gray-400 text-lg">大语言模型的训练过程通常包含几个关键阶段：预训练、监督微调、人类反馈强化学习。让我们一步步来看！</p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i>目录
+            </h2>
+            <nav class="space-y-2 text-gray-300">
+                <a href="#pretraining" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">1.</span> 阶段1：预训练 (Pre-training)
+                </a>
+                <a href="#sft" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">2.</span> 阶段2：监督微调 (SFT)
+                </a>
+                <a href="#rlhf" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">3.</span> 阶段3：人类反馈强化学习 (RLHF)
+                </a>
+                <a href="#techniques" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">4.</span> 训练技术详解
+                </a>
+                <a href="#pipeline" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">5.</span> 完整训练流程总结
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section 1: Pre-training -->
+        <div id="pretraining" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-database text-purple-400"></i>1. 预训练阶段 (Pre-training)
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.1 什么是预训练？</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-cogs"></i> Pre-training（预训练）
+                </div>
+                <div class="space-y-2 text-gray-300 text-sm">
+                    <p><span class="text-purple-300 font-semibold">目标：</span>让模型从海量文本中学习语言的通用规律</p>
+                    <p><span class="text-purple-300 font-semibold">输入数据：</span>大规模互联网文本（书籍、网页、代码、...）例如: GPT-3 训练了 45TB 文本数据！</p>
+                    <p><span class="text-purple-300 font-semibold">任务：</span>自监督学习 - 给定上文，预测下一个词 (Next Token Prediction)</p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.2 预训练数据准备</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 overflow-x-auto mb-4">
+                <div class="text-purple-400 font-bold mb-3">原始数据收集：</div>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">网页</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">书籍</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">代码</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">论文</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">社交媒体</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">新闻</span>
+                    <span class="bg-purple-500/20 text-purple-300 px-3 py-1 rounded text-xs">...</span>
+                </div>
+                <div class="text-center text-gray-500 my-2">&#8595;</div>
+                <div class="text-purple-400 font-bold mb-3">数据清洗和预处理：</div>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="bg-gray-600/50 text-gray-300 px-3 py-1 rounded text-xs">- 去重</span>
+                    <span class="bg-gray-600/50 text-gray-300 px-3 py-1 rounded text-xs">- 过滤低质量内容</span>
+                    <span class="bg-gray-600/50 text-gray-300 px-3 py-1 rounded text-xs">- 隐私处理</span>
+                    <span class="bg-gray-600/50 text-gray-300 px-3 py-1 rounded text-xs">- 格式统一</span>
+                    <span class="bg-gray-600/50 text-gray-300 px-3 py-1 rounded text-xs">...</span>
+                </div>
+                <div class="text-center text-gray-500 my-2">&#8595;</div>
+                <div class="text-purple-400 font-bold mb-3">分词处理 (Tokenization)：</div>
+                <div class="bg-gray-800/80 rounded px-3 py-2 mb-4 text-purple-300 inline-block">"Hello,world!" → [15496, 11, 995, 0]</div>
+                <div class="text-center text-gray-500 my-2">&#8595;</div>
+                <div class="text-purple-400 font-bold mb-3">构建训练数据集：</div>
+                <div class="space-y-1 text-gray-400">
+                    <p>序列长度: 例如 2048 个token</p>
+                    <p>训练样本: (context, target) → (w₀..w₂₀₄₇, w₁..w₂₀₄₈)</p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.3 预训练任务详解</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 overflow-x-auto mb-4">
+                <div class="text-purple-400 font-bold mb-3">Next Token Prediction（下一词预测）：</div>
+                <div class="mb-3">
+                    <p>输入序列: <span class="text-green-400">"The cat sat on the"</span></p>
+                    <p class="text-center text-gray-500 my-1">&#8595;</p>
+                    <p>模型预测: <span class="text-yellow-400">"mat"</span></p>
+                </div>
+
+                <div class="mb-3">
+                    <div class="flex items-center justify-center gap-1 mb-1">
+                        <span class="bg-gray-600 px-2 py-1 rounded text-xs">The</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded text-xs">cat</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded text-xs">sat</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded text-xs">on</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded text-xs">the</span>
+                        <span class="bg-purple-600 px-2 py-1 rounded text-xs">?</span>
+                    </div>
+                    <div class="text-center text-gray-500 my-1">&#8595;</div>
+                    <div class="bg-gray-800/80 rounded p-3 text-center border border-gray-600">Transformer</div>
+                    <div class="text-center text-gray-500 my-1">&#8595;</div>
+                    <div class="flex items-center justify-center gap-3 text-xs">
+                        <span class="bg-gray-600 px-2 py-1 rounded">cat: 0.01</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded">dog: 0.02</span>
+                        <span class="bg-purple-600 px-2 py-1 rounded font-bold">mat: 0.85</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded">table: 0.03</span>
+                        <span class="bg-gray-600 px-2 py-1 rounded">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-2">目标函数 (Loss Function)：</div>
+                <div class="bg-gray-950 rounded-lg p-3 text-center font-mono text-green-400 mb-2">
+                    Loss = -log P(w_t | w₀, w₁, ..., w_{t-1})
+                </div>
+                <p class="text-gray-400">直观理解：希望模型对真实下一个词的预测概率最大化！</p>
+                <div class="bg-gray-950 rounded-lg p-3 text-center font-mono text-green-400 mt-3">
+                    Loss = - &#931;_{t=1 to T} log P(w_t | w₀ ... w_{t-1})
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.4 模型学到了什么？</h3>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-purple-400 mt-1"></i>
+                    <div><span class="text-white font-semibold">1. 语法知识 (Syntax)</span><span class="text-gray-400 text-sm ml-2">- 主语/谓语/宾语关系 - 时态一致 - 词性搭配</span></div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-purple-400 mt-1"></i>
+                    <div><span class="text-white font-semibold">2. 语义理解 (Semantics)</span><span class="text-gray-400 text-sm ml-2">- 词语含义 - 语义相似度 - 逻辑推理</span></div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-purple-400 mt-1"></i>
+                    <div><span class="text-white font-semibold">3. 世界知识 (World Knowledge)</span><span class="text-gray-400 text-sm ml-2">- 事实（巴黎是法国首都）- 常识（水在零度结冰）- 常识推理</span></div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-purple-400 mt-1"></i>
+                    <div><span class="text-white font-semibold">4. 创作能力 (Writing Skills)</span><span class="text-gray-400 text-sm ml-2">- 文章结构 - 风格适配 - 修辞技巧</span></div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-check-circle text-purple-400 mt-1"></i>
+                    <div><span class="text-white font-semibold">5. 知识整合 (Knowledge Integration)</span><span class="text-gray-400 text-sm ml-2">- 跨领域理解 - 上下文理解 - 逻辑链构建</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: SFT -->
+        <div id="sft" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-chalkboard-teacher text-purple-400"></i>2. 监督微调阶段 (Supervised Fine-tuning, SFT)
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">2.1 为什么需要 SFT？</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="mb-3">预训练模型虽然很强，但它是一个<span class="text-yellow-400 font-semibold">"通用模型"</span>！</p>
+                <div class="text-red-400 font-bold mb-2">问题：</div>
+                <div class="space-y-1 text-gray-400 pl-2">
+                    <p>- 它只会续写文本，不一定"听话"</p>
+                    <p>- 它不一定会用对话格式回答</p>
+                    <p>- 它可能输出不安全或不合适的内容</p>
+                    <p>- 它可能不会遵循指令 (Instruction Following)</p>
+                </div>
+                <div class="mt-3 text-purple-400 font-bold">解决方案：监督微调！</div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">2.2 SFT 数据收集</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-3">构建高质量的指令遵循数据集：</div>
+                <div class="space-y-2 text-gray-400">
+                    <p><span class="text-purple-300 font-semibold">1. 人工撰写：</span>人类专家写的高质量问答对；例如: Alpaca, ShareGPT</p>
+                    <p><span class="text-purple-300 font-semibold">2. 收集现有的对话：</span>社交媒体对话、客服聊天记录，过滤和清洗</p>
+                    <p><span class="text-purple-300 font-semibold">3. 让模型自生成 (Self-Instruct)：</span>给模型几个例子，让它生成更多，过滤和审核</p>
+                    <p><span class="text-purple-300 font-semibold">4. 合成数据 (Synthetic Data)：</span>用 GPT-4 等强模型生成，用脚本生成模式化数据</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-3">数据格式：</div>
+                <div class="border border-gray-600 rounded-lg p-3 space-y-2 font-mono text-xs">
+                    <div class="text-blue-400">&lt;system&gt; 你是一个有帮助的AI助手，友好且诚实。&lt;/system&gt;</div>
+                    <div class="text-green-400">&lt;user&gt; 解释什么是机器学习？&lt;/user&gt;</div>
+                    <div class="text-orange-400">&lt;assistant&gt; 机器学习是...&lt;/assistant&gt;</div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">2.3 SFT 训练过程</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 overflow-x-auto mb-4">
+                <div class="text-center mb-3">
+                    <div class="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg inline-block">预训练模型</div>
+                </div>
+                <div class="text-center text-gray-500 my-1">&#8595;</div>
+                <div class="border border-gray-600 rounded-lg p-3 mb-3">
+                    <div class="text-purple-400 font-bold mb-2">使用 SFT 数据集训练</div>
+                    <div class="border border-gray-700 rounded p-2 mb-2">
+                        <div class="text-blue-400">Input: &lt;user&gt;问题</div>
+                        <div class="text-orange-400">Target: &lt;assistant&gt;答案</div>
+                    </div>
+                    <div class="text-green-400">Loss = -log P(target|input)</div>
+                </div>
+                <div class="text-center text-gray-500 my-1">&#8595;</div>
+                <div class="text-center">
+                    <div class="bg-green-500/20 text-green-300 px-4 py-2 rounded-lg inline-block">SFT 模型（会说话了！）</div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4 border-l-2 border-yellow-500">
+                <div class="text-yellow-400 font-bold mb-2">注意：</div>
+                <ul class="space-y-1 text-gray-400">
+                    <li>- 训练步数少（通常几千步）</li>
+                    <li>- 学习率小</li>
+                    <li>- 目标是对齐，不是重新学习</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 3: RLHF -->
+        <div id="rlhf" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-star text-purple-400"></i>3. 人类反馈强化学习 (RLHF)
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.1 RLHF 为什么重要？</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="mb-2">SFT 模型虽然会听话了，但：</p>
+                <div class="space-y-1 text-red-400 pl-2">
+                    <p>- 输出可能有偏见 (Bias)</p>
+                    <p>- 可能编造事实 (Hallucinations)</p>
+                    <p>- 可能回避问题或绕圈子</p>
+                    <p>- 可能输出不安全内容</p>
+                    <p>- 可能不够有帮助性或友好度不够</p>
+                </div>
+                <p class="mt-3 text-gray-400">因为：用监督信号训练的模型只是模仿数据中的行为！</p>
+                <p class="text-purple-400 font-bold mt-1">我们想要的是：让模型学会「人类喜欢的行为」！</p>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.2 RLHF 完整流程三步曲</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-project-diagram"></i> RLHF Training Pipeline
+                </div>
+                <div class="flex flex-col md:flex-row gap-2 items-center justify-center text-sm">
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-300">Step 1</div>
+                        <div class="text-gray-400">Train SFT Model</div>
+                        <div class="text-gray-500 text-xs">（如前文所述）</div>
+                    </div>
+                    <div class="text-purple-400 text-lg">&#8594;</div>
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-300">Step 2</div>
+                        <div class="text-gray-400">Train Reward Model</div>
+                        <div class="text-gray-500 text-xs">(RM)</div>
+                    </div>
+                    <div class="text-purple-400 text-lg">&#8594;</div>
+                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-300">Step 3</div>
+                        <div class="text-gray-400">PPO Training</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.3 步骤 1：收集人类偏好数据</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="mb-3">
+                    <p class="text-gray-400 mb-1">输入：<span class="text-green-400">"给我讲一个关于猫的笑话"</span></p>
+                    <div class="text-gray-400 font-bold mb-1">生成多个回复：</div>
+                    <div class="space-y-1 pl-2 border-l-2 border-gray-600">
+                        <div class="text-blue-300">Response A: 为什么猫喜欢看医生？因为它们有 purr-fect 的视力！</div>
+                        <div class="text-blue-300">Response B: 猫很可爱，喵~喵~</div>
+                        <div class="text-blue-300">Response C: 我不会讲笑话。</div>
+                        <div class="text-blue-300">Response D: 在一个遥远的星球上... [长篇故事]</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-purple-400 font-bold mb-1">人类打标：对这些回复进行排序或比较</div>
+                    <div class="bg-gray-800/80 rounded p-2 font-mono text-xs text-gray-300">
+                        <div>A > B > D > C</div>
+                        <div>或: A > C</div>
+                        <div>或: B = D (并列)</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.4 步骤 2：训练奖励模型 (RM)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="flex items-start gap-3 mb-3">
+                    <div class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded text-xs font-mono shrink-0">输入</div>
+                    <div class="text-gray-400">(Prompt, Response)</div>
+                </div>
+                <div class="flex items-start gap-3 mb-3">
+                    <div class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded text-xs font-mono shrink-0">输出</div>
+                    <div class="text-gray-400">奖励分数 (scalar value)</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="text-gray-400 mb-2">训练目标：对于两个回复 r1 和 r2，如果人类偏好 r1 > r2，则：</div>
+                    <div class="bg-gray-950 rounded-lg p-3 text-center font-mono text-green-400 text-sm">
+                        P( r1 > r2 ) = exp(R(r1)) / [exp(R(r1)) + exp(R(r2))]
+                    </div>
+                </div>
+
+                <div class="border border-gray-600 rounded-lg p-3">
+                    <div class="text-gray-400 mb-2">训练过程：</div>
+                    <div class="text-purple-300 mb-1">SFT Model → 去掉最后的语言模型头，换一个回归头</div>
+                    <div class="bg-gray-950 rounded-lg p-2 font-mono text-green-400 text-xs">
+                        Loss = - &#931; log exp(R_better) / [exp(R_better) + exp(R_worse)]
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.5 步骤 3：PPO 强化学习训练</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-3">PPO Training (Proximal Policy Optimization)：</div>
+                <p class="text-gray-400 mb-3">这是 RLHF 中最复杂的一步！</p>
+
+                <div class="space-y-3">
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">目标：</span>
+                        <div class="text-gray-400">
+                            <p>- 最大化奖励模型的分数</p>
+                            <p>- 同时不要离原始 SFT 模型太远 (KL 惩罚)</p>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-gray-400 mb-2"><span class="text-purple-300 font-bold">1.</span> 对于给定的提示：</div>
+                        <div class="text-gray-500 text-xs space-y-1 pl-4">
+                            <p>SFT Model (Reference) → 参考输出</p>
+                            <p>Policy（正在训练） → 生成当前输出</p>
+                        </div>
+                        <div class="text-gray-400 mt-2 mb-2"><span class="text-purple-300 font-bold">2.</span> 计算奖励：</div>
+                        <div class="bg-gray-950 rounded-lg p-2 font-mono text-green-400 text-xs text-center">
+                            R_final = Reward_Model(Output) - &#946; &#215; KL(Policy || SFT_Model)
+                        </div>
+                        <div class="text-gray-500 text-xs text-center mt-1">奖励模型分数 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; KL散度惩罚（不偏离太远）</div>
+                        <div class="text-gray-400 mt-2"><span class="text-purple-300 font-bold">3.</span> PPO 更新：</div>
+                        <div class="text-gray-500 text-xs pl-4 space-y-1">
+                            <p>- 使用策略梯度优化 R_final</p>
+                            <p>- 使用 PPO 的 clipped 损失约束步幅</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4 border-l-2 border-purple-500">
+                <div class="text-purple-400 font-bold mb-2">KL 散度 (KL Divergence) 很重要：</div>
+                <p class="text-gray-400 mb-2">KL(Policy || Reference) 衡量两个分布的差异</p>
+                <div class="text-gray-500 text-xs space-y-1">
+                    <p><span class="text-red-400">太大？</span>模型可能"模式崩溃" (mode collapse)</p>
+                    <p><span class="text-yellow-400">太小？</span>模型可能变化不够快</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Training Techniques -->
+        <div id="techniques" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-tools text-purple-400"></i>4. 训练技术详解
+            </h2>
+
+            <!-- 4.1 AMP -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.1 混合精度训练 (AMP: Automatic Mixed Precision)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-red-400 font-bold mb-2">为什么需要混合精度？</div>
+                <div class="space-y-1 text-gray-400 mb-3 pl-2">
+                    <p>- 32位浮点数占用显存太多 (FP32)</p>
+                    <p>- 训练大模型时显存不够用</p>
+                    <p>- 有些计算单元更快支持 FP16/BF16</p>
+                </div>
+
+                <div class="text-purple-400 font-bold mb-2">精度格式：</div>
+                <div class="flex flex-wrap gap-3 mb-4 text-xs">
+                    <div class="bg-gray-800 rounded p-2"><span class="text-purple-300 font-semibold">FP32</span><span class="text-gray-500 ml-1">(Full Precision): 4字节，高精度</span></div>
+                    <div class="bg-gray-800 rounded p-2"><span class="text-purple-300 font-semibold">FP16</span><span class="text-gray-500 ml-1">(Half Precision): 2字节，半精度</span></div>
+                    <div class="bg-gray-800 rounded p-2"><span class="text-purple-300 font-semibold">BF16</span><span class="text-gray-500 ml-1">(BFloat16): 2字节，类似 FP16，但是范围更大</span></div>
+                </div>
+
+                <div class="border border-gray-600 rounded-lg p-3 mb-3">
+                    <div class="text-purple-400 font-bold mb-2">训练流程：</div>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded">模型权重 (FP32)</span>
+                            <span class="text-gray-500">← 保持 FP32 作为主权重 (数值稳定)</span>
+                        </div>
+                        <div class="text-center text-gray-600 text-xs">&#8595; 复制 / &#8593; 梯度累加</div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">前向传播 (FP16/BF16)</span>
+                            <span class="text-gray-500">← 前向计算用半精度，节省显存</span>
+                        </div>
+                        <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">反向传播 (FP16/BF16)</span>
+                            <span class="text-gray-500">← 梯度计算也用半精度</span>
+                        </div>
+                        <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">损失缩放 (Loss Scaling)</span>
+                            <span class="text-gray-500">← 防止 FP16 underflow</span>
+                        </div>
+                        <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">梯度转换回 FP32</span>
+                            <span class="text-gray-500">← 用 FP32 优化</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-1 text-green-400 text-sm">
+                    <p><i class="fas fa-check text-green-400"></i> 显存占用减半！</p>
+                    <p><i class="fas fa-check text-green-400"></i> 通常更快！</p>
+                    <p><i class="fas fa-check text-green-400"></i> 支持训练更大模型！</p>
+                </div>
+            </div>
+
+            <!-- 4.2 Gradient Accumulation -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.2 梯度累积 (Gradient Accumulation)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-red-400 font-bold mb-2">问题：大批次训练会超出显存！</div>
+                <p class="text-gray-400 mb-3">GPU 显存就这么大，批大小（Batch Size）不能无限大</p>
+                <div class="text-purple-400 font-bold mb-2">解决方案：梯度累积！</div>
+
+                <div class="border border-gray-600 rounded-lg p-3 mb-3">
+                    <div class="text-gray-400 font-bold mb-2">正常训练 (1步 = 1个batch)：</div>
+                    <div class="space-y-1 text-xs text-gray-500 pl-4">
+                        <p>Batch 1 → 前向 → 反向 → <span class="text-green-400 font-bold">更新权重</span></p>
+                        <p>Batch 2 → 前向 → 反向 → <span class="text-green-400 font-bold">更新权重</span></p>
+                    </div>
+                </div>
+
+                <div class="border border-gray-600 rounded-lg p-3 mb-3">
+                    <div class="text-gray-400 font-bold mb-2">梯度累积 (4步 = 1个有效batch)：</div>
+                    <div class="space-y-1 text-xs text-gray-500 pl-4">
+                        <p>Batch 1 → 前向 → 反向 → <span class="text-yellow-400">累积梯度 → 不更新</span></p>
+                        <p>Batch 2 → 前向 → 反向 → <span class="text-yellow-400">累积梯度 → 不更新</span></p>
+                        <p>Batch 3 → 前向 → 反向 → <span class="text-yellow-400">累积梯度 → 不更新</span></p>
+                        <p>Batch 4 → 前向 → 反向 → <span class="text-green-400 font-bold">累积梯度 → 更新权重！</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-950 rounded-lg p-3 mb-2 font-mono text-xs text-gray-300 overflow-x-auto">
+                    <div>optimizer.zero_grad()</div>
+                    <div>for i in range(gradient_accumulation_steps):</div>
+                    <div>    loss = model(batch_i)</div>
+                    <div>    loss.backward()</div>
+                    <div>    if (i + 1) % gradient_accumulation_steps == 0:</div>
+                    <div>        optimizer.step()</div>
+                    <div>        optimizer.zero_grad()</div>
+                </div>
+
+                <div class="text-green-400 text-sm mt-3">
+                    <span class="font-bold">效果：</span>用小GPU也能模拟大批次训练！
+                </div>
+            </div>
+
+            <!-- 4.3 Distributed Training -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.3 分布式训练 (Distributed Training)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="text-gray-400 mb-3 font-bold">大模型必须多卡多机训练！</p>
+
+                <div class="space-y-4">
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-2">1. 数据并行 (Data Parallelism, DP/DDP)：</div>
+                        <ul class="text-gray-400 text-xs space-y-1 mb-2">
+                            <li>- 每个 GPU 有完整模型副本</li>
+                            <li>- 每个 GPU 训练不同数据</li>
+                            <li>- 聚合梯度 (All-Reduce)</li>
+                            <li>- 同步更新所有模型副本</li>
+                        </ul>
+                        <div class="flex items-center justify-center gap-2 text-xs">
+                            <span class="bg-gray-800 px-2 py-1 rounded">GPU1</span>
+                            <span class="bg-gray-800 px-2 py-1 rounded">GPU2</span>
+                            <span class="bg-gray-800 px-2 py-1 rounded">GPU3</span>
+                            <span class="bg-gray-800 px-2 py-1 rounded">GPU4</span>
+                            <span class="text-gray-500">&#8594; 聚合梯度</span>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-1">2. 张量并行 (Tensor Parallelism, TP)：</div>
+                        <p class="text-gray-400 text-xs">模型太大，单个 GPU 放不下，把权重切分到多个 GPU，前向反向时需要通信</p>
+                    </div>
+
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-1">3. 流水线并行 (Pipeline Parallelism, PP)：</div>
+                        <p class="text-gray-400 text-xs">按层切分模型到不同 GPU，"流水线"式处理数据，类似工厂流水线作业</p>
+                    </div>
+
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-1">4. 三维并行 (3D Parallelism)：</div>
+                        <p class="text-gray-400 text-xs">数据 + 张量 + 流水线并行，例如 Megatron-LM</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.4 Optimizers -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.4 优化器 (Optimizers)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="space-y-3">
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-1">1. AdamW：</div>
+                        <p class="text-gray-400 text-xs">Adam + 权重衰减 (Weight Decay)，最常用的默认优化器，稳定、收敛快</p>
+                        <div class="mt-2 flex items-center gap-1 text-xs">
+                            <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Warmup</span>
+                            <span class="text-gray-500">→</span>
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Cosine Decay</span>
+                            <span class="text-gray-500">→</span>
+                            <span class="bg-green-500/20 text-green-300 px-2 py-1 rounded">Plateau</span>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-600 rounded-lg p-3">
+                        <div class="text-purple-300 font-bold mb-1">2. Lion (Evolved Sign Momentum)：</div>
+                        <p class="text-gray-400 text-xs">只用到梯度的符号 (sign(g))，更新更小、性能更好，显存占用更少！</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 border border-gray-600 rounded-lg p-3">
+                    <div class="text-purple-400 font-bold mb-2">学习率调度过程：</div>
+                    <div class="bg-gray-950 rounded-lg p-3 font-mono text-xs text-gray-300">
+                        <div>Learning Rate</div>
+                        <div>  |</div>
+                        <div>  |    /&uarr;</div>
+                        <div>  |  / &uarr;</div>
+                        <div>  |/ &uarr;</div>
+                        <div>  |─────────────────────</div>
+                        <div>  |</div>
+                        <div>  |   Warmup    Decay</div>
+                        <div>  |  0     5k   100k step</div>
+                    </div>
+                    <div class="mt-2 text-gray-400 text-xs space-y-1">
+                        <p><span class="text-blue-300 font-bold">1. Warmup：</span>学习率从0线性增加到目标值</p>
+                        <p><span class="text-purple-300 font-bold">2. Cosine Decay：</span>余弦式下降</p>
+                        <p><span class="text-green-300 font-bold">3. Plateau：</span>如果不再改进，可能调整或停止</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.5 ZeRO -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.5 ZeRO (Zero Redundancy Optimizer)</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="text-gray-400 mb-3">ZeRO (来自 DeepSpeed) 优化器族。目标：进一步节省显存，支持更大模型！</p>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded font-mono">ZeRO-0</span>
+                        <span class="text-gray-400">基础优化</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded font-mono">ZeRO-1</span>
+                        <span class="text-gray-400">分割优化器状态 (Shard optimizer states)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded font-mono">ZeRO-2</span>
+                        <span class="text-gray-400">+ 分割梯度 (Shard gradients)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded font-mono">ZeRO-3</span>
+                        <span class="text-gray-400">+ 分割模型参数 (Shard parameters)</span>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-green-400 text-sm">
+                    <span class="font-bold">效果：</span>显存占用几乎线性降低！在 PaLM、Llama 等训练中都用这个！
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Complete Pipeline -->
+        <div id="pipeline" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-sitemap text-purple-400"></i>5. 完整训练流程总结
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">5.1 完整训练阶段一览</h3>
+
+            <div class="space-y-2 mb-6">
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-gray-500 text-sm">
+                    <div class="text-gray-400 font-bold mb-1">Phase 0：预训练前 (Pre-Pretraining) （可选）</div>
+                    <p class="text-gray-500 text-xs">可能有一些初始化或准备步骤，例如: 训练 tokenizer, 收集数据等</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-purple-500/10 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-300 font-bold mb-1">Phase 1：预训练 (Pre-training)</div>
+                    <p class="text-gray-400 text-xs">大规模文本数据 | 自监督学习：预测下一个词 | 学习通用知识和能力 | 大规模计算资源 | (模型: GPT-3, Llama, PaLM)</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-purple-500/10 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-300 font-bold mb-1">Phase 2：监督微调 (SFT)</div>
+                    <p class="text-gray-400 text-xs">高质量指令数据 | 学习对齐 (Alignment) | 学会"听话" | 步数少，学习率小</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-purple-500/10 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-300 font-bold mb-1">Phase 3：奖励模型 (RM)</div>
+                    <p class="text-gray-400 text-xs">收集人类偏好数据 | 训练 RM: (Prompt, Response) → Reward | 让 RM 学会"人类喜欢什么"</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-purple-500/10 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-300 font-bold mb-1">Phase 4：PPO (RLHF)</div>
+                    <p class="text-gray-400 text-xs">用 RM 作为奖励训练 SFT 模型 | 加上 KL 惩罚防止偏离 | 可能还有其他技巧 (PPO-max, Rejection Sampling, etc.)</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-gray-500 text-sm">
+                    <div class="text-gray-400 font-bold mb-1">Phase 5：后处理 (Post-Processing)</div>
+                    <p class="text-gray-500 text-xs">安全过滤 (Safety Filtering) | 去水印 (Watermarking) | 其他安全措施</p>
+                </div>
+                <div class="text-center text-gray-600">&#8595;</div>
+                <div class="bg-green-500/10 rounded-lg p-3 border border-green-500/30 text-center text-sm">
+                    <div class="text-green-400 font-bold">模型最终可用！</div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">5.2 各阶段的重要性</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-5 text-sm mb-4">
+                <div class="mb-4">
+                    <div class="text-purple-400 font-bold text-lg mb-2">预训练：99% 的能力（知识、推理、语法）</div>
+                    <p class="text-gray-400 mb-2">用图比喻：给模型一个"大脑"</p>
+                    <div class="bg-gray-950 rounded-lg p-3 text-center text-gray-600 font-mono leading-relaxed">
+                        &#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;<br>
+                        &#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;<br>
+                        &#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;
+                    </div>
+                </div>
+                <div>
+                    <div class="text-yellow-400 font-bold text-lg mb-2">SFT/RM/RLHF：最后的 1%（让模型真正可用）</div>
+                    <p class="text-gray-400 mb-2">用图比喻：给模型"装上嘴"，让它学会用人类能懂的方式说话</p>
+                    <div class="bg-gray-950 rounded-lg p-3 text-center text-gray-600 text-xl">
+                        (&#9589;&#176;&#9633;&#176;&#65289;&#9589;
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Cost Estimation -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-dollar-sign text-purple-400"></i>6. 附录：训练成本估算
+            </h2>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <p class="text-gray-500 mb-3 italic">仅供参考，数字在快速变化中！</p>
+                <div class="space-y-2 text-gray-400">
+                    <p><span class="text-purple-300 font-semibold">GPT-3 (175B)：</span>估计: 1000万到1亿美元</p>
+                    <p><span class="text-purple-300 font-semibold">Llama-7B：</span>预训练: 约几万到几十万美元</p>
+                    <p><span class="text-purple-300 font-semibold">Llama-70B：</span>预训练: 约几十到上百万美元</p>
+                </div>
+                <div class="mt-3 p-3 bg-gray-950 rounded-lg text-gray-400">
+                    <p>模型成本大致和<span class="text-yellow-400 font-bold">参数平方</span>成正比！</p>
+                    <p class="mt-2 text-xs text-gray-500">训练成本主要由：参数数量 &#215; 数据量 | 硬件成本（GPU 价格、电费、集群）| 训练时长</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="content-card text-center text-gray-500 text-sm py-4">
+            现在你完整理解了大语言模型的训练流程！从预训练到 RLHF，所有核心环节都讲清楚了！
+        </div>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM推理与解码</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flow-box { background: rgba(107, 70, 193, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); }
+        .highlight-card { border-left: 3px solid rgb(168, 85, 247); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <h1 class="text-3xl font-bold text-white mb-3">
+                <i class="fas fa-brain text-purple-400 mr-2"></i>推理与解码
+            </h1>
+            <p class="text-gray-400 text-lg">模型训练完成后，如何让它生成文本？这就是推理（Inference）和解码（Decoding）的过程！</p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i>目录
+            </h2>
+            <nav class="space-y-2 text-gray-300">
+                <a href="#autoregressive" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">1.</span> 自回归生成
+                </a>
+                <a href="#decoding" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">2.</span> 解码策略详解
+                </a>
+                <a href="#sampling" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">3.</span> 采样技术
+                </a>
+                <a href="#optimization" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">4.</span> 推理优化技术
+                </a>
+                <a href="#batch" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">5.</span> 批量推理与部署
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section 1: Autoregressive Generation -->
+        <div id="autoregressive" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-arrow-right text-purple-400"></i>1. 自回归生成
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.1 什么是自回归生成？</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-redo"></i> Autoregressive Generation（自回归生成）
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    <span class="text-purple-300 font-semibold">核心思想：</span>每次生成一个词，然后把生成的词加到输入中，继续生成下一个词！就像写作文：写完一个词，再写下一个词，直到写完为止。
+                </p>
+                <div class="space-y-1 text-xs text-gray-400 font-mono">
+                    <p>时间步 0: 输入 [BOS] <span class="text-green-400">"今天天气"</span> → 预测 <span class="text-yellow-400">"真"</span></p>
+                    <p>时间步 1: 输入 [BOS] <span class="text-green-400">"今天天气真"</span> → 预测 <span class="text-yellow-400">"好"</span></p>
+                    <p>时间步 2: 输入 [BOS] <span class="text-green-400">"今天天气真好"</span> → 预测 <span class="text-yellow-400">"！"</span></p>
+                    <p>时间步 3: 输入 [BOS] <span class="text-green-400">"今天天气真好！"</span> → 预测 <span class="text-orange-400">[EOS]（结束）</span></p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.2 自回归生成流程</h3>
+
+            <div class="space-y-2 mb-4">
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-400 font-bold mb-1">Step 0：初始化</div>
+                    <p class="text-gray-400 text-xs">输入: [BOS] + 用户提示，例如: [BOS] "请写一首关于春天的诗"</p>
+                </div>
+                <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-400 font-bold mb-1">Step 1：第一次前向传播</div>
+                    <div class="bg-gray-800/80 rounded p-2 text-xs">
+                        <div class="text-gray-400 mb-1">模型输出概率分布：</div>
+                        <div class="text-gray-500">词表: [春, 夏, 秋, 冬, 风, 花, 雪, 月, ...]</div>
+                        <div class="text-gray-500">概率: [0.15, 0.05, 0.03, 0.02, 0.20, 0.10, ...]</div>
+                    </div>
+                    <div class="text-yellow-400 text-xs mt-1">采样得到: "春"</div>
+                </div>
+                <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-400 font-bold mb-1">Step 2：第二次前向传播</div>
+                    <p class="text-gray-400 text-xs">新输入: [BOS] "请写一首关于春天的诗" "春" → 采样得到: "风"</p>
+                </div>
+                <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-purple-500 text-sm">
+                    <div class="text-purple-400 font-bold mb-1">Step 3-N：继续生成...</div>
+                    <p class="text-gray-400 text-xs">"春风吹绿了柳枝，""桃花朵朵开满园。" ...</p>
+                </div>
+                <div class="text-center text-gray-600 text-xs">&#8595;</div>
+                <div class="bg-gray-700/50 rounded-lg p-3 border-l-2 border-red-500 text-sm">
+                    <div class="text-red-400 font-bold mb-1">终止条件</div>
+                    <p class="text-gray-400 text-xs">1. 生成了 [EOS] (End of Sequence) token &nbsp; 2. 达到最大长度限制 (max_length) &nbsp; 3. 其他停止条件</p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">1.3 伪代码实现</h3>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono">
+                <div class="text-gray-300">
+                    <div><span class="text-purple-400">def</span> <span class="text-yellow-400">generate</span>(model, prompt, max_length=<span class="text-green-400">100</span>):</div>
+                    <div class="text-gray-500 ml-4"># 初始化</div>
+                    <div>    tokens = <span class="text-yellow-400">tokenize</span>(prompt)  <span class="text-gray-500"># [BOS, w1, w2, ...]</span></div>
+                    <div>&nbsp;</div>
+                    <div>    <span class="text-purple-400">for</span> _ <span class="text-purple-400">in</span> <span class="text-yellow-400">range</span>(max_length):</div>
+                    <div class="text-gray-500 ml-4">        # 前向传播</div>
+                    <div>        logits = <span class="text-yellow-400">model</span>(tokens)  <span class="text-gray-500"># [seq_len, vocab_size]</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">        # 取最后一个位置的预测</div>
+                    <div>        next_token_logits = logits[-<span class="text-green-400">1</span>, :]  <span class="text-gray-500"># [vocab_size]</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">        # 采样得到下一个词</div>
+                    <div>        next_token = <span class="text-yellow-400">sample</span>(next_token_logits)  <span class="text-gray-500"># 整数</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">        # 检查是否结束</div>
+                    <div>        <span class="text-purple-400">if</span> next_token == <span class="text-green-400">EOS</span>:</div>
+                    <div>            <span class="text-purple-400">break</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">        # 加入序列</div>
+                    <div>        tokens.<span class="text-yellow-400">append</span>(next_token)</div>
+                    <div>&nbsp;</div>
+                    <div>    <span class="text-purple-400">return</span> <span class="text-yellow-400">detokenize</span>(tokens)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Decoding Strategies -->
+        <div id="decoding" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-search text-purple-400"></i>2. 解码策略详解
+            </h2>
+
+            <!-- 2.1 Greedy Search -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">2.1 Greedy Search（贪心搜索）</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-bolt"></i> Greedy Search
+                </div>
+                <p class="text-gray-300 text-sm mb-3"><span class="text-purple-300 font-semibold">策略：</span>每次选择概率最大的词</p>
+
+                <div class="space-y-3 mb-4">
+                    <div class="bg-gray-800/80 rounded p-3 text-xs">
+                        <div class="text-gray-400 mb-1">输入: <span class="text-green-400">"今天天气"</span></div>
+                        <div class="mb-2">
+                            <div class="text-gray-500">时间步 1: 概率分布: {<span class="text-yellow-400">真: 0.4</span>, 很: 0.3, 不: 0.2, 太: 0.1}</div>
+                            <div>选择: <span class="text-yellow-400">"真"</span>（概率最大）</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">时间步 2: 输入: "今天天气真"，概率分布: {<span class="text-yellow-400">好: 0.5</span>, 棒: 0.3, 差: 0.2}</div>
+                            <div>选择: <span class="text-yellow-400">"好"</span>（概率最大）</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                        <div class="text-green-400 font-bold mb-2">优点</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p><i class="fas fa-check text-green-400 text-xs"></i> 简单快速</p>
+                            <p><i class="fas fa-check text-green-400 text-xs"></i> 确定性（每次结果相同）</p>
+                        </div>
+                    </div>
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                        <div class="text-red-400 font-bold mb-2">缺点</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p><i class="fas fa-times text-red-400 text-xs"></i> 容易陷入重复</p>
+                            <p><i class="fas fa-times text-red-400 text-xs"></i> 可能错过更好的整体结果</p>
+                            <p><i class="fas fa-times text-red-400 text-xs"></i> 输出缺乏多样性</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4 border-l-2 border-red-500">
+                <div class="text-red-400 font-bold mb-2">Greedy Search 的重复问题：</div>
+                <div class="bg-gray-950 rounded p-3 text-gray-400 text-xs font-mono leading-relaxed">
+                    输入: "从前有座山"<br>
+                    输出: "从前有座山，山里有座庙，庙里有个老和尚，老和尚在给小和尚讲故事，讲的什么故事呢？从前有座山，山里有座庙，庙里有个老和尚，老和尚在给小和尚讲故事，讲的什么故事呢？从前有座山..." <span class="text-red-400">(无限循环)</span>
+                </div>
+                <p class="text-gray-500 text-xs mt-2">原因：模型学到了这个模式，每次都选择概率最高的词，导致陷入循环！</p>
+            </div>
+
+            <!-- 2.2 Beam Search -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">2.2 Beam Search（集束搜索）</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-layer-group"></i> Beam Search
+                </div>
+                <p class="text-gray-300 text-sm mb-3"><span class="text-purple-300 font-semibold">策略：</span>同时保留 top-k 个候选序列，最后选择最优的</p>
+
+                <div class="space-y-2 text-xs mb-4">
+                    <div class="bg-gray-800/80 rounded p-2">示例 (beam_size = 2)：</div>
+                    <div class="bg-gray-800/80 rounded p-2"><span class="text-gray-500">时间步 0：</span>输入: <span class="text-green-400">"今天天气"</span>，候选: [([今天天气], 1.0)]</div>
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div><span class="text-gray-500">时间步 1：</span>保留 top-2：</div>
+                        <div class="text-yellow-400 pl-2">[今天天气真], 0.4</div>
+                        <div class="text-yellow-400 pl-2">[今天天气很], 0.3</div>
+                    </div>
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div><span class="text-gray-500">时间步 2：</span>保留 top-2：</div>
+                        <div class="text-yellow-400 pl-2">[今天天气真好], 0.4 &#215; 0.5 = 0.20</div>
+                        <div class="text-yellow-400 pl-2">[今天天气真棒], 0.4 &#215; 0.3 = 0.12</div>
+                    </div>
+                    <div class="bg-gray-800/80 rounded p-2"><span class="text-green-400 font-bold">最终：</span>选择累计概率最高的序列</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                        <div class="text-green-400 font-bold mb-2">优点</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p><i class="fas fa-check text-green-400 text-xs"></i> 考虑全局最优</p>
+                            <p><i class="fas fa-check text-green-400 text-xs"></i> 结果更稳定</p>
+                        </div>
+                    </div>
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                        <div class="text-red-400 font-bold mb-2">缺点</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p><i class="fas fa-times text-red-400 text-xs"></i> 计算量大（beam_size 倍）</p>
+                            <p><i class="fas fa-times text-red-400 text-xs"></i> 仍然缺乏多样性</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-3">Beam Search 可视化：</div>
+                <div class="bg-gray-950 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed">
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">[今天天气]</span></div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-400">真(0.4)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-400">很(0.3)</span></div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;&#9472;&#9472;&#9472;&#9472;&#9472;&#9503;</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-green-400">好(0.5)&nbsp;&nbsp;&nbsp;&nbsp;棒(0.3)&nbsp;&nbsp;&nbsp;好(0.4)&nbsp;&nbsp;&nbsp;&nbsp;热(0.3)</span></div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|</div>
+                    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">真好(0.20)&nbsp;&nbsp;真棒(0.12)&nbsp;很好(0.12)&nbsp;很热(0.09)</span></div>
+                    <div class="mt-2 text-gray-500">保留 top-2: [真好, 真棒]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Sampling Techniques -->
+        <div id="sampling" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-dice text-purple-400"></i>3. 采样技术
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.1 为什么需要采样？</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="mb-2">问题：<span class="text-yellow-400 font-bold">Greedy 和 Beam Search 都太确定性了！</span></p>
+                <div class="bg-gray-800/80 rounded p-3 mb-3">
+                    <p class="text-gray-400 mb-1">用户: "给我讲个笑话"</p>
+                    <p class="text-purple-300 mb-1">期望: 每次问都能得到不同的笑话！</p>
+                    <p class="text-red-400">但 Greedy 每次都会输出相同的笑话...</p>
+                </div>
+                <div class="text-purple-400 font-bold">解决方案：引入随机性！从概率分布中采样，而不是总是选最大的。</div>
+            </div>
+
+            <!-- 3.2 Temperature -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.2 Temperature（温度参数）</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-thermometer-half"></i> Temperature Scaling
+                </div>
+
+                <div class="bg-gray-700/50 rounded-lg p-3 mb-4 text-center">
+                    <div class="font-mono text-green-400 mb-1">scaled_logits = logits / temperature</div>
+                    <div class="font-mono text-green-400">probs = softmax(scaled_logits)</div>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                        <div class="text-blue-400 font-bold mb-1">Temperature &lt; 1（例如 0.5）：</div>
+                        <p class="text-gray-400 mb-1">- 放大差异，让高概率词更突出 &nbsp; - 输出更确定、更保守 &nbsp; - 更容易重复</p>
+                        <div class="bg-gray-800/80 rounded p-2 font-mono">
+                            <span class="text-gray-500">原始概率: [0.4, 0.3, 0.2, 0.1]</span><br>
+                            <span class="text-blue-300">T=0.5: [0.55, 0.25, 0.13, 0.07] ← 更尖锐</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <div class="text-gray-300 font-bold mb-1">Temperature = 1：</div>
+                        <p class="text-gray-400">- 保持原始概率分布 &nbsp; - 标准采样</p>
+                    </div>
+
+                    <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                        <div class="text-orange-400 font-bold mb-1">Temperature &gt; 1（例如 2.0）：</div>
+                        <p class="text-gray-400 mb-1">- 缩小差异，让分布更平坦 &nbsp; - 输出更随机、更有创意 &nbsp; - 可能产生奇怪结果</p>
+                        <div class="bg-gray-800/80 rounded p-2 font-mono">
+                            <span class="text-gray-500">原始概率: [0.4, 0.3, 0.2, 0.1]</span><br>
+                            <span class="text-orange-300">T=2.0: [0.32, 0.28, 0.24, 0.16] ← 更平坦</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-center justify-center gap-8 text-xs">
+                    <div class="text-center">
+                        <div class="text-blue-400 font-bold mb-1">T = 0.5 (尖锐)</div>
+                        <div class="bg-gray-950 rounded p-2 font-mono text-blue-400 leading-none">
+                            &#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-gray-400 font-bold mb-1">T = 1.0 (正常)</div>
+                        <div class="bg-gray-950 rounded p-2 font-mono text-gray-400 leading-none">
+                            &#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;<br>&#9600;&#9600;
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-orange-400 font-bold mb-1">T = 2.0 (平坦)</div>
+                        <div class="bg-gray-950 rounded p-2 font-mono text-orange-400 leading-none">
+                            &#9618;&#9618;<br>&#9618;&#9618;<br>&#9618;&#9618;<br>&#9618;&#9618;<br>&#9618;&#9618;
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.3 Top-k Sampling -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.3 Top-k Sampling</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-chart-bar"></i> Top-k Sampling
+                </div>
+                <p class="text-gray-300 text-sm mb-3"><span class="text-purple-300 font-semibold">策略：</span>只从概率最高的 k 个词中采样，其他词概率设为 0</p>
+
+                <div class="space-y-2 text-xs mb-3">
+                    <div class="text-gray-400 font-bold">示例 (k = 3)：</div>
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-gray-500 mb-1">原始概率分布（已排序）：</div>
+                        <div class="text-gray-400">风(0.20) > 春(0.15) > 花(0.10) > 雪(0.08) > 月(0.07) > ...</div>
+                    </div>
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-gray-500 mb-1">保留 top-3：<span class="text-yellow-400">风(0.20), 春(0.15), 花(0.10)</span></div>
+                        <div class="text-gray-500 mb-1">重新归一化：</div>
+                        <div>风: 0.20 / 0.45 = <span class="text-green-400">0.44</span> | 春: 0.15 / 0.45 = <span class="text-green-400">0.33</span> | 花: 0.10 / 0.45 = <span class="text-green-400">0.22</span></div>
+                    </div>
+                    <div class="text-purple-300">从这三个词中采样！</div>
+                </div>
+
+                <div class="text-xs">
+                    <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                        <div class="text-green-400 font-bold mb-1">优点</div>
+                        <p class="text-gray-400">避免采样到极低概率的奇怪词&nbsp;&middot;&nbsp;保持一定随机性&nbsp;&middot;&nbsp;k 越小越确定，k 越大越随机</p>
+                        <p class="text-gray-500 mt-1">常用值: k = 50, k = 40</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.4 Top-p Sampling -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.4 Top-p Sampling (Nucleus Sampling)</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-circle-notch"></i> Top-p (Nucleus) Sampling
+                </div>
+                <p class="text-gray-300 text-sm mb-3"><span class="text-purple-300 font-semibold">策略：</span>选择概率累计达到 p 的最小词集，从中采样</p>
+
+                <div class="space-y-2 text-xs mb-3">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-gray-500 mb-1">原始概率分布（已排序）：</div>
+                        <div class="flex flex-wrap gap-1">
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">风: 0.20</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">春: 0.15</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">花: 0.10</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">雪: 0.08</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">月: 0.07</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">夏: 0.05</span>
+                            <span class="bg-gray-700 px-1.5 py-0.5 rounded">秋: 0.03</span>
+                            <span class="text-gray-500">...</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-gray-500">累计: 0.20 → 0.35 → 0.45 → 0.53 → 0.60 → 0.65 → 0.68 → ...</div>
+                    </div>
+                    <p class="text-gray-400">找最小词集使得累计概率 ≥ 0.9：假设需要前 10 个词才能达到 0.9 → <span class="text-purple-300 font-bold">就从前 10 个词中采样！</span></p>
+                </div>
+
+                <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-xs">
+                    <div class="text-green-400 font-bold mb-1">优点</div>
+                    <p class="text-gray-400">动态调整候选集大小&nbsp;&middot;&nbsp;高确定性时候选集小，低确定性时候选集大&nbsp;&middot;&nbsp;比 Top-k 更灵活</p>
+                    <p class="text-gray-500 mt-1">常用值: p = 0.9, p = 0.95</p>
+                </div>
+            </div>
+
+            <!-- 3.5 Combined Strategies -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">3.5 组合策略</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <p class="text-gray-400 mb-3">实际应用中，通常组合多种策略：</p>
+
+                <div class="space-y-3">
+                    <div class="bg-gray-800/80 rounded-lg p-3 border border-purple-500/30">
+                        <div class="text-purple-300 font-bold mb-2">常见配置 1：</div>
+                        <div class="flex flex-wrap gap-2 mb-2 text-xs">
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Temperature = 0.7</span>
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Top-k = 50</span>
+                            <span class="bg-purple-500/20 text-purple-300 px-2 py-1 rounded">Top-p = 0.95</span>
+                        </div>
+                        <div class="text-gray-400 text-xs">
+                            <div class="font-bold mb-1">流程：</div>
+                            <div>1. 对 logits 除以 temperature &nbsp; 2. 应用 top-k（只保留前50个）</div>
+                            <div>3. 应用 top-p（只保留累计概率达0.95的）&nbsp; 4. 重新归一化 &nbsp; 5. 采样</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded-lg p-3 border border-blue-500/30">
+                        <div class="text-blue-400 font-bold mb-1">常见配置 2（更确定）：</div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Temperature = 0.3</span>
+                            <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Top-p = 0.9</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded-lg p-3 border border-orange-500/30">
+                        <div class="text-orange-400 font-bold mb-1">常见配置 3（更有创意）：</div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <span class="bg-orange-500/20 text-orange-300 px-2 py-1 rounded">Temperature = 1.2</span>
+                            <span class="bg-orange-500/20 text-orange-300 px-2 py-1 rounded">Top-k = 100</span>
+                            <span class="bg-orange-500/20 text-orange-300 px-2 py-1 rounded">Top-p = 0.99</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Inference Optimization -->
+        <div id="optimization" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-rocket text-purple-400"></i>4. 推理优化技术
+            </h2>
+
+            <!-- 4.1 KV Cache -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.1 KV Cache（键值缓存）</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-memory"></i> KV Cache
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-red-400 font-bold text-xs mb-2">问题：自回归生成时，每次都要重新计算所有位置的 K 和 V！</div>
+                    <div class="bg-gray-800/80 rounded p-2 font-mono text-xs text-gray-400">
+                        <div>时间步 1: 输入 [w₁] → 计算 Q₁, K₁, V₁</div>
+                        <div>时间步 2: 输入 [w₁, w₂] → 计算 Q₁,K₁,V₁, Q₂,K₂,V₂ <span class="text-red-400">← 重复计算！</span></div>
+                        <div>时间步 3: 输入 [w₁, w₂, w₃] → 全部重新计算... <span class="text-red-400">← 更浪费！</span></div>
+                    </div>
+                </div>
+
+                <div class="text-purple-300 font-bold text-sm mb-2">解决方案：缓存已计算的 K 和 V！</div>
+
+                <div class="border border-gray-600 rounded-lg p-3 mb-4 text-xs">
+                    <div class="space-y-2">
+                        <div class="bg-gray-800/80 rounded p-2">
+                            <div class="text-yellow-400 font-bold">时间步 1：</div>
+                            <div>输入: [w₁] &nbsp; 计算: K₁, V₁ &nbsp; 缓存: KV_Cache = [(K₁, V₁)]</div>
+                        </div>
+                        <div class="bg-gray-800/80 rounded p-2">
+                            <div class="text-yellow-400 font-bold">时间步 2：</div>
+                            <div>输入: [w₂] <span class="text-gray-500">← 只输入新词！</span></div>
+                            <div>计算: K₂, V₂ &nbsp; 缓存: KV_Cache = [(K₁, V₁), (K₂, V₂)]</div>
+                            <div class="text-gray-500">注意力计算: Q₂ &#215; [K₁, K₂]^T &#215; [V₁, V₂]</div>
+                        </div>
+                        <div class="bg-gray-800/80 rounded p-2">
+                            <div class="text-yellow-400 font-bold">时间步 3：</div>
+                            <div>缓存: KV_Cache = [(K₁, V₁), (K₂, V₂), (K₃, V₃)]</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                        <div class="text-red-400 font-bold mb-1">无 KV Cache：</div>
+                        <div class="text-gray-400 font-mono">
+                            <div>时间步 1: O(1)</div>
+                            <div>时间步 2: O(2)</div>
+                            <div>时间步 N: O(N)</div>
+                            <div class="text-red-400 font-bold mt-1">总复杂度: O(N&#178;)</div>
+                        </div>
+                    </div>
+                    <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                        <div class="text-green-400 font-bold mb-1">有 KV Cache：</div>
+                        <div class="text-gray-400 font-mono">
+                            <div>每个时间步: O(1)</div>
+                            <div>&nbsp;</div>
+                            <div>&nbsp;</div>
+                            <div class="text-green-400 font-bold mt-1">总复杂度: O(N)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center text-green-400 font-bold text-sm mt-3">加速：约 N 倍！</div>
+            </div>
+
+            <!-- 4.2 Flash Attention -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.2 Flash Attention</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-bolt"></i> Flash Attention
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-red-400 font-bold text-xs mb-2">问题：标准 attention 需要存储巨大的中间矩阵！</div>
+                    <div class="bg-gray-800/80 rounded p-3 text-xs space-y-1 font-mono">
+                        <div>标准实现：</div>
+                        <div class="text-gray-400">1. 计算 S = QK^T <span class="text-gray-600">[seq_len, seq_len] ← 大矩阵！</span></div>
+                        <div class="text-gray-400">2. S = S / &#8730;d_k</div>
+                        <div class="text-gray-400">3. P = softmax(S) <span class="text-gray-600">[seq_len, seq_len] ← 又一个大矩阵！</span></div>
+                        <div class="text-gray-400">4. O = PV <span class="text-gray-600">[seq_len, d_k]</span></div>
+                    </div>
+                    <div class="mt-2 text-xs text-yellow-400">
+                        对于 seq_len = 8192: S 矩阵: 8192&#178; &#215; 4 bytes = <span class="font-bold">256 MB</span>，P 矩阵: <span class="font-bold">256 MB</span>，总共: <span class="font-bold">512 MB</span>（单个注意力层！）
+                    </div>
+                </div>
+
+                <div class="border border-gray-600 rounded-lg p-3 mb-3 text-xs">
+                    <div class="text-purple-300 font-bold mb-2">Flash Attention 的创新：</div>
+                    <div class="space-y-1 text-gray-400">
+                        <p>- <span class="text-purple-300 font-semibold">分块计算 (Tiling)：</span>把大矩阵分成小块</p>
+                        <p>- <span class="text-purple-300 font-semibold">在 SRAM 中计算小块，</span>避免频繁访问 HBM</p>
+                        <p>- <span class="text-purple-300 font-semibold">重新计算而不是存储 (Recomputation)</span></p>
+                        <p>- <span class="text-purple-300 font-semibold">融合 softmax 和矩阵乘法</span></p>
+                    </div>
+                </div>
+
+                <div class="space-y-1 text-green-400 text-xs">
+                    <p><i class="fas fa-check text-green-400"></i> 显存占用从 O(N&#178;) 降到 O(N)</p>
+                    <p><i class="fas fa-check text-green-400"></i> 速度提升 2-4 倍</p>
+                    <p><i class="fas fa-check text-green-400"></i> 支持更长序列 (32K, 128K, ...)</p>
+                </div>
+            </div>
+
+            <!-- 4.3 Quantization -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.3 量化 (Quantization)</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-compress-arrows-alt"></i> Quantization
+                </div>
+                <p class="text-gray-300 text-sm mb-3"><span class="text-purple-300 font-semibold">目标：</span>用更低位数表示权重，减少显存占用和加速计算</p>
+
+                <div class="mb-4">
+                    <div class="text-gray-300 font-bold text-xs mb-2">精度对比：</div>
+                    <div class="space-y-2 text-xs">
+                        <div class="bg-gray-800/80 rounded p-2 flex items-center justify-between">
+                            <span class="font-mono text-blue-400 font-bold">FP32</span>
+                            <span class="text-gray-400">4 字节/参数 | 7B 模型: <span class="text-red-400">28 GB</span> | 精度最高</span>
+                        </div>
+                        <div class="bg-gray-800/80 rounded p-2 flex items-center justify-between">
+                            <span class="font-mono text-purple-400 font-bold">FP16</span>
+                            <span class="text-gray-400">2 字节/参数 | 7B 模型: <span class="text-yellow-400">14 GB</span> | 常用于训练和推理</span>
+                        </div>
+                        <div class="bg-gray-800/80 rounded p-2 flex items-center justify-between">
+                            <span class="font-mono text-green-400 font-bold">INT8</span>
+                            <span class="text-gray-400">1 字节/参数 | 7B 模型: <span class="text-green-400">7 GB</span> | 推理常用</span>
+                        </div>
+                        <div class="bg-gray-800/80 rounded p-2 flex items-center justify-between">
+                            <span class="font-mono text-orange-400 font-bold">INT4</span>
+                            <span class="text-gray-400">0.5 字节/参数 | 7B 模型: <span class="text-green-400">3.5 GB</span> | 极限压缩！</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-gray-300 font-bold text-xs mb-2">量化方法：</div>
+                    <div class="space-y-2 text-xs">
+                        <div class="border border-gray-600 rounded-lg p-2">
+                            <div class="text-purple-300 font-bold">1. Post-Training Quantization (PTQ)：</div>
+                            <p class="text-gray-400">训练后量化，不需要重新训练 &middot; 简单快速 &middot; 可能损失精度</p>
+                        </div>
+                        <div class="border border-gray-600 rounded-lg p-2">
+                            <div class="text-purple-300 font-bold">2. Quantization-Aware Training (QAT)：</div>
+                            <p class="text-gray-400">训练时就考虑量化 &middot; 精度更好 &middot; 需要重新训练</p>
+                        </div>
+                        <div class="border border-gray-600 rounded-lg p-2">
+                            <div class="text-purple-300 font-bold">3. GPTQ, AWQ, GGUF：</div>
+                            <p class="text-gray-400">先进的量化算法 &middot; INT4 量化效果很好</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-gray-300 font-bold text-xs mb-2">常用工具：</div>
+                    <div class="flex flex-wrap gap-1 text-xs">
+                        <span class="bg-gray-700 px-2 py-1 rounded text-gray-300">bitsandbytes: INT8/INT4 量化</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-gray-300">GPTQ-for-LLaMA: GPTQ 量化</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-gray-300">llama.cpp: GGUF 格式，CPU 推理</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-gray-300">AutoGPTQ, AutoAWQ</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.4 Other Optimization -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">4.4 其他优化技术</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-puzzle-piece"></i> 其他推理优化技术
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">1.</span>
+                        <div><span class="text-white font-semibold">Paged Attention (vLLM)：</span><span class="text-gray-400 ml-1">把 KV Cache 分页管理，支持动态内存分配，大幅提高吞吐量</span></div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">2.</span>
+                        <div><span class="text-white font-semibold">Speculative Decoding：</span><span class="text-gray-400 ml-1">用小模型快速生成候选，大模型验证，加速 2-3 倍</span></div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">3.</span>
+                        <div><span class="text-white font-semibold">Continuous Batching：</span><span class="text-gray-400 ml-1">动态调整 batch，提高吞吐量</span></div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">4.</span>
+                        <div><span class="text-white font-semibold">Multi-Query Attention (MQA)：</span><span class="text-gray-400 ml-1">多个头共享 K 和 V，减少 KV Cache 大小。Llama 2 等模型使用</span></div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="text-purple-400 font-bold shrink-0">5.</span>
+                        <div><span class="text-white font-semibold">Grouped-Query Attention (GQA)：</span><span class="text-gray-400 ml-1">MQA 的扩展，平衡效果和效率。Llama 3 使用</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Batch Inference & Deployment -->
+        <div id="batch" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-server text-purple-400"></i>5. 批量推理与部署
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">5.1 批量推理 (Batch Inference)</h3>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-layer-group"></i> Batch Inference
+                </div>
+                <p class="text-gray-400 text-sm mb-3">单个请求推理 → GPU 利用率低，吞吐量差</p>
+
+                <div class="bg-gray-800/80 rounded p-3 mb-3 text-xs">
+                    <div class="text-yellow-400 font-bold mb-2">批量推理：</div>
+                    <div class="space-y-1 text-gray-500 font-mono">
+                        <div>请求 1: <span class="text-green-400">"翻译: Hello"</span></div>
+                        <div>请求 2: <span class="text-green-400">"翻译: World"</span></div>
+                        <div>请求 3: <span class="text-green-400">"翻译: AI"</span></div>
+                    </div>
+                    <div class="mt-2 text-gray-500 font-mono">
+                        <div>[PAD, PAD, 翻, 译, :, H, e, l, l, o]</div>
+                        <div>[PAD, PAD, PAD, 翻, 译, :, W, o, r, l, d]</div>
+                        <div>[PAD, PAD, PAD, PAD, 翻, 译, :, A, I]</div>
+                    </div>
+                    <div class="mt-2 text-purple-300 font-bold">一次前向传播处理所有请求！</div>
+                </div>
+
+                <div class="mb-3 text-xs">
+                    <div class="text-red-400 font-bold mb-1">挑战：</div>
+                    <p class="text-gray-400">- 不同请求长度不同 → Padding 浪费 &nbsp; - 不同请求生成速度不同 → 需要动态调度</p>
+                </div>
+                <div class="text-xs">
+                    <div class="text-green-400 font-bold mb-1">解决方案：</div>
+                    <p class="text-gray-400">- Continuous Batching (vLLM, TGI) &nbsp; - 动态添加/移除请求 &nbsp; - 最大化 GPU 利用率</p>
+                </div>
+            </div>
+
+            <!-- 5.2 Deployment Frameworks -->
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">5.2 部署框架</h3>
+
+            <div class="space-y-3 text-sm">
+                <div class="bg-gray-700/50 rounded-lg p-4 border-l-2 border-purple-500">
+                    <div class="text-purple-300 font-bold text-sm flex items-center gap-2">
+                        <span class="text-lg">1.</span> vLLM
+                    </div>
+                    <p class="text-gray-400 text-xs">Paged Attention &middot; Continuous Batching &middot; 高吞吐量</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border-l-2 border-purple-500">
+                    <div class="text-purple-300 font-bold text-sm flex items-center gap-2">
+                        <span class="text-lg">2.</span> Text Generation Inference (TGI)
+                    </div>
+                    <p class="text-gray-400 text-xs">HuggingFace 官方 &middot; 支持多种模型</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border-l-2 border-purple-500">
+                    <div class="text-purple-300 font-bold text-sm flex items-center gap-2">
+                        <span class="text-lg">3.</span> TensorRT-LLM
+                    </div>
+                    <p class="text-gray-400 text-xs">NVIDIA 官方 &middot; 极致优化</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border-l-2 border-purple-500">
+                    <div class="text-purple-300 font-bold text-sm flex items-center gap-2">
+                        <span class="text-lg">4.</span> llama.cpp
+                    </div>
+                    <p class="text-gray-400 text-xs">纯 C++ &middot; CPU 推理 &middot; Apple Silicon 优化</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border-l-2 border-purple-500">
+                    <div class="text-purple-300 font-bold text-sm flex items-center gap-2">
+                        <span class="text-lg">5.</span> ONNX Runtime
+                    </div>
+                    <p class="text-gray-400 text-xs">跨平台 &middot; 支持多种硬件</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Summary -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-clipboard-check text-purple-400"></i>6. 总结
+            </h2>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">6.1 解码策略选择建议</h3>
+
+            <table class="min-w-full divide-y divide-gray-700 text-sm">
+                <thead class="bg-gray-750">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">任务类型</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">推荐策略</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">翻译</td>
+                        <td class="px-4 py-3 text-purple-400">Beam Search (beam_size=5) 或 Greedy</td>
+                    </tr>
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">摘要</td>
+                        <td class="px-4 py-3 text-purple-400">Greedy 或 Beam Search</td>
+                    </tr>
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">对话/聊天</td>
+                        <td class="px-4 py-3 text-purple-400">Top-p (p=0.9) + Temperature (0.7-1.0)</td>
+                    </tr>
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">创意写作</td>
+                        <td class="px-4 py-3 text-purple-400">Top-p (p=0.95) + Temperature (1.0-1.2)</td>
+                    </tr>
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">代码生成</td>
+                        <td class="px-4 py-3 text-purple-400">Top-p (p=0.9) + Temperature (0.5-0.7)</td>
+                    </tr>
+                    <tr class="hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-gray-300">数据分析</td>
+                        <td class="px-4 py-3 text-purple-400">Greedy 或低 Temperature</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="text-lg font-semibold text-white mt-6 mb-3">6.2 推理优化检查清单</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-purple-400 font-bold mb-3">优化推理的步骤：</div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500" checked>
+                        <label class="text-gray-300">1. 启用 KV Cache <span class="text-red-400 font-bold">(必须！)</span></label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">2. 使用 Flash Attention（如果支持）</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">3. 选择合适的量化方案 (INT8/INT4)</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">4. 使用批量推理提高吞吐量</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">5. 选择合适的部署框架</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">6. 调整 batch size 和 max_length</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="accent-purple-500">
+                        <label class="text-gray-300">7. 监控 GPU 利用率和显存</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="content-card text-center text-gray-500 text-sm py-4">
+            现在你完整理解了推理与解码的所有关键技术！从自回归生成到各种采样策略，再到推理优化，都讲清楚了！
+        </div>
+
+    </div>
+</body>
+</html>

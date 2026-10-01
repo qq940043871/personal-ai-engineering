@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典神经网络架构 - 深度学习</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-cyan-400 mb-2">
+                <i class="fas fa-landmark mr-2"></i>经典神经网络架构
+            </h1>
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4">
+                从 CNN 到 RNN，掌握深度学习最常用的网络结构。
+            </p>
+        </div>
+
+        <!-- CNN -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 text-sm font-bold">1</span>
+                CNN (卷积神经网络)
+            </h2>
+
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4 mb-6">专门处理网格型数据：图像、视频、时间序列</p>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">核心组件</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+输入图像                    卷积层                      池化层
+┌────────┐              ┌──────────────┐           ┌──────────┐
+│        │  卷积核      │  特征图      │  下采样    │          │
+│  图像  │  ────→       │  ▓▓ ░░ ▓▓    │  ────→    │  ▓▓ ░░  │
+│        │  滑动窗口    │  ░░ ▓▓ ░░    │  MaxPool   │  ░░ ▓▓  │
+└────────┘              └──────────────┘           └──────────┘
+  3通道(RGB)                多层特征                  尺寸减半</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">各层作用</h3>
+
+            <div class="space-y-4 mb-6">
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">卷积层 (Convolution Layer):</span>
+    ┌─────────────────────────────────────────────────────────┐
+    │ 用可学习的滤波器（卷积核）在图像上滑动，提取局部特征        │
+    │                                                          │
+    │  输入: 32×32×3         卷积核: 3×3×3        输出: 特征图  │
+    │  (高度×宽度×通道)       (高度×宽度×输入通道)                │
+    └─────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">池化层 (Pooling Layer):</span>
+    ┌─────────────────────────────────────────────────────────┐
+    │ 降采样，减小特征图尺寸，增加平移不变性                     │
+    │                                                          │
+    │  Max Pooling (2×2, stride=2):                           │
+    │  ┌───┬───┐     ┌───┐                                    │
+    │  │ 3 │ 1 │     │ 3 │   ← 取窗口内最大值                  │
+    │  ├───┼───┤  →  └───┘                                    │
+    │  │ 2 │ 4 │                                                │
+    │  └───┴───┘                                                │
+    └─────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">全连接层 (Fully Connected Layer):</span>
+    ┌─────────────────────────────────────────────────────────┐
+    │ 将提取的特征展平，进行最终分类                            │
+    │  输入: 特征向量 → 隐藏层 → 输出: 类别概率                  │
+    └─────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">经典 CNN 架构演进</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+LeNet (1998) ──→ AlexNet (2012) ──→ VGG (2014) ──→ ResNet (2015)
+   ↓                ↓                  ↓               ↓
+  手写数字         ImageNet突破     加深网络        残差连接
+  识别              GPU加速         统一3×3卷积    解决退化</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">网络对比</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">架构</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">年份</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">层数</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">特点</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">LeNet</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">1998</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">7</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">第一个 CNN，手写数字识别</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">AlexNet</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">2012</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">8</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">GPU 加速，ReLU，Dropout</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">VGG</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">2014</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">16-19</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">全部 3×3 卷积，简单统一</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">ResNet</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">2015</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">50-152</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">残差连接，可训练极深网络</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RNN / LSTM / GRU -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 text-sm font-bold">2</span>
+                RNN / LSTM / GRU
+            </h2>
+
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4 mb-6">处理序列数据：文本、语音、时间序列</p>
+
+            <!-- RNN -->
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">RNN (循环神经网络)</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+RNN 的核心：循环连接 → 记忆
+
+展开前:         展开后:
+┌─────┐         ┌───┐   ┌───┐   ┌───┐
+│     │         │h₀│→│h₁│→│h₂│→ ...
+│ ↗   │    =    └───┘   └───┘   └───┘
+│ ↻   │           ↑       ↑       ↑
+└─────┘         x₀      x₁      x₂
+
+公式: hₜ = tanh(Wₕₕ·hₜ₋₁ + Wₓₕ·xₜ + bₕ)
+
+问题: 长程依赖 → 梯度消失 → 记不住太久远的信息</div>
+
+            <!-- LSTM -->
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">LSTM (长短期记忆网络)</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+LSTM 用"门控机制"解决 RNN 的长程依赖问题:
+
+                      ┌─────────────────────┐
+                      │      LSTM 细胞      │
+                      │                     │
+    hₜ₋₁ ──────┬──────┤    ┌──────────┐    ├──────→ hₜ
+               │      │    │  遗忘门   │    │
+    xₜ ──┬─────┤      │    └──────────┘    │
+         │     │      │    ┌──────────┐    │
+         │     ├──────┤    │  输入门   │    │
+         │     │      │    └──────────┘    │
+         │     │      │    ┌──────────┐    │
+         │     └──────┤    │  输出门   │    │
+         │            │    └──────────┘    │
+         │            │                     │
+         │            └─────────────────────┘</div>
+
+            <p class="text-gray-300 mb-4">三门的作用：</p>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">门</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">作用</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">类比</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">
+                                <span class="text-red-400"><i class="fas fa-trash mr-1"></i>遗忘门</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-300">决定丢弃哪些旧信息</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">删除旧的记忆</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">
+                                <span class="text-green-400"><i class="fas fa-pen mr-1"></i>输入门</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-300">决定存储哪些新信息</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">写入新的记忆</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">
+                                <span class="text-yellow-400"><i class="fas fa-arrow-right-from-bracket mr-1"></i>输出门</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-300">决定输出哪些信息</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">读取记忆输出</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+遗忘门示例（语言模型预测下一词）:
+
+  输入: "我住在北京，我的____"
+
+  遗忘门: 丢弃"住"的具体信息，保留"地点"的上下文
+  输入门: 学习到模板是"我的[关系/所属]"
+  输出门: 预测"家" → "我的家"</div>
+
+            <!-- GRU -->
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">GRU (门控循环单元)</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+GRU = LSTM 的简化版（只有两个门）:
+
+  ┌─────────────────────────────────┐
+  │           GRU 细胞              │
+  │                                 │
+  │    hₜ₋₁ ───┬──────┬─────       │
+  │            │      │            │
+  │            ↓      ↓            │
+  │        ┌──────┐ ┌──────┐      │
+  │        │更新门│ │重置门│      │
+  │        └──────┘ └──────┘      │
+  │            │      │            │
+  │            └──┬───┘            │
+  │               ↓                │
+  │            ┌──────┐           │
+  │            │ 候选h │           │
+  │            └──────┘           │
+  │               │                │
+  │               ↓                │
+  │    hₜ ────────┘               │
+  └─────────────────────────────────┘
+
+  参数更少 → 训练更快 → 效果与 LSTM 相近</div>
+
+            <!-- RNN Family Comparison -->
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">RNN 家族对比</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">模型</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">门数量</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">参数量</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">长程依赖</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">训练速度</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">RNN</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">0</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">少</td>
+                            <td class="px-4 py-3 text-sm text-red-400">✗</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">★★★★</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">LSTM</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">3</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">多</td>
+                            <td class="px-4 py-3 text-sm text-green-400">✓✓</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">★★</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">GRU</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">2</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">中</td>
+                            <td class="px-4 py-3 text-sm text-green-400">✓</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">★★★</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 架构选择指南 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-compass text-cyan-400"></i>架构选择指南
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">任务类型</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">推荐架构</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">理由</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">图像分类</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">CNN / ResNet</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">局部特征提取能力强</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">目标检测</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">CNN (YOLO/SSD)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">同时定位和分类</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">文本分类</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">Transformer / LSTM</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">捕获序列依赖</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">机器翻译</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">Transformer</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">并行计算，效果好</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">时间序列预测</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">LSTM / GRU</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">处理时间依赖</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">语音识别</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">RNN / Transformer</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">处理变长序列</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

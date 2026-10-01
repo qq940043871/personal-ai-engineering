@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式 Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <h1 class="text-3xl font-bold text-white mb-3 flex items-center gap-2">
+                <i class="fas fa-gamepad text-purple-400"></i> 交互式 Demo
+            </h1>
+            <div class="text-gray-400 text-sm border-l-4 border-purple-500 pl-4">
+                <strong>纸上得来终觉浅，绝知此事要躬行！</strong>动手试一试下面的交互式学习工具。
+            </div>
+        </div>
+
+        <!-- Demo 1: Neural Network Playground -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6 hover:border-purple-500 transition-colors">
+            <div class="flex items-start gap-4 flex-col md:flex-row">
+                <div class="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center shrink-0">
+                    <i class="fas fa-brain text-3xl text-purple-400"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-white mb-2">神经网络 Playground</h3>
+                    <p class="text-gray-400 mb-4">可视化训练神经网络，理解反向传播</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-gray-700/50 rounded-lg p-3">
+                            <div class="text-purple-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                <i class="fas fa-star text-xs"></i> 功能亮点
+                            </div>
+                            <ul class="space-y-1 text-gray-400 text-sm">
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 实时可视化神经网络训练过程</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 调整学习率、层数、神经元数等超参数</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 观察损失曲线、决策边界变化</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 理解前向传播和反向传播的工作原理</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3">
+                            <div class="text-pink-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                <i class="fas fa-lightbulb text-xs"></i> 你可以尝试
+                            </div>
+                            <ul class="space-y-1 text-gray-400 text-sm">
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-pink-400 text-xs"></i> 用不同学习率训练，观察收敛速度</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-pink-400 text-xs"></i> 增加隐藏层，观察过拟合现象</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-pink-400 text-xs"></i> 切换数据集，看激活函数的影响</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-pink-400 text-xs"></i> 加入 L2 正则化，看泛化效果的变化</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <a href="https://playground.tensorflow.org/" target="_top" class="inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-external-link-alt"></i> 打开 Demo
+                    </a>
+                    <span class="text-gray-500 text-xs ml-3">单文件 HTML，无需安装</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo 2: Transformer Explainer -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6 hover:border-purple-500 transition-colors">
+            <div class="flex items-start gap-4 flex-col md:flex-row">
+                <div class="w-16 h-16 bg-pink-500/20 rounded-xl flex items-center justify-center shrink-0">
+                    <i class="fas fa-magnifying-glass-chart text-3xl text-pink-400"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-white mb-2">Transformer Explainer</h3>
+                    <p class="text-gray-400 mb-4">理解 Transformer 内部运行机制</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-gray-700/50 rounded-lg p-3">
+                            <div class="text-pink-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                <i class="fas fa-star text-xs"></i> 功能亮点
+                            </div>
+                            <ul class="space-y-1 text-gray-400 text-sm">
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 可视化注意力权重矩阵</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 展示 QKV 计算过程</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 查看多头注意力的不同头关注的位置</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-check text-green-400 text-xs"></i> 逐层展示编码器-解码器信息流</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-lg p-3">
+                            <div class="text-blue-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                <i class="fas fa-lightbulb text-xs"></i> 你可以尝试
+                            </div>
+                            <ul class="space-y-1 text-gray-400 text-sm">
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-blue-400 text-xs"></i> 输入不同文本，观察注意力分布的变化</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-blue-400 text-xs"></i> 切换不同 head，看它们分别关注什么</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-blue-400 text-xs"></i> 观察 position encoding 对位置信息的编码</li>
+                                <li class="flex items-center gap-1"><i class="fas fa-chevron-right text-blue-400 text-xs"></i> 理解 masked attention 在解码器中的作用</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <a href="https://poloclub.github.io/transformer-explainer/" target="_top" class="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+                        <i class="fas fa-external-link-alt"></i> 打开 Demo
+                    </a>
+                    <span class="text-gray-500 text-xs ml-3">单文件 HTML，无需安装</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Instructions -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-book text-purple-400"></i> 使用说明
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center shrink-0">
+                        <i class="fas fa-check text-green-400 text-sm"></i>
+                    </div>
+                    <div class="text-sm text-gray-300">所有 Demo 都是完整的单 HTML 文件，直接浏览器打开即可运行</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                        <i class="fas fa-sliders text-blue-400 text-sm"></i>
+                    </div>
+                    <div class="text-sm text-gray-300">支持自定义参数和实时可视化</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
+                        <i class="fas fa-code text-yellow-400 text-sm"></i>
+                    </div>
+                    <div class="text-sm text-gray-300">代码全部开源，方便学习研究和二次开发</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 flex items-start gap-3">
+                    <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
+                        <i class="fas fa-book-open text-purple-400 text-sm"></i>
+                    </div>
+                    <div class="text-sm text-gray-300">建议结合对应模块的 Markdown 文档一起学习效果更佳</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning Flow -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-route text-purple-400"></i> 推荐学习流程
+            </h2>
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-1 bg-purple-500/10 rounded-xl border border-purple-500/30 p-6 text-center">
+                    <div class="text-3xl mb-2">&#128214;</div>
+                    <div class="text-purple-400 font-bold mb-1">理论学习</div>
+                    <div class="text-gray-400 text-sm">阅读对应模块的 Markdown 文档</div>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-arrow-right text-purple-400 text-2xl hidden md:block"></i>
+                    <i class="fas fa-arrow-down text-purple-400 text-2xl md:hidden"></i>
+                </div>
+                <div class="flex-1 bg-pink-500/10 rounded-xl border border-pink-500/30 p-6 text-center">
+                    <div class="text-3xl mb-2">&#127919;</div>
+                    <div class="text-pink-400 font-bold mb-1">动手实践</div>
+                    <div class="text-gray-400 text-sm">打开 Demo，调整参数，观察变化</div>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-arrow-right text-purple-400 text-2xl hidden md:block"></i>
+                    <i class="fas fa-arrow-down text-purple-400 text-2xl md:hidden"></i>
+                </div>
+                <div class="flex-1 bg-blue-500/10 rounded-xl border border-blue-500/30 p-6 text-center">
+                    <div class="text-3xl mb-2">&#128187;</div>
+                    <div class="text-blue-400 font-bold mb-1">代码阅读</div>
+                    <div class="text-gray-400 text-sm">查看 HTML 源码，理解实现细节，尝试修改功能</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo Comparison Table -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-table text-purple-400"></i> Demo 对比
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">Demo</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">学习目标</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">交互方式</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">适合阶段</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm">&#129504; NN Playground</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">理解神经网络训练</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">可视化训练过程 + 调参</td>
+                            <td class="px-4 py-3 text-sm"><span class="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded">深度学习入门</span></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm">&#128269; Transformer Explainer</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">理解注意力机制</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">矩阵可视化 + 交互探索</td>
+                            <td class="px-4 py-3 text-sm"><span class="bg-purple-500/20 text-purple-400 text-xs px-2 py-1 rounded">Transformer 学习</span></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm">&#127963; Transformer Architecture</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">理解整体架构</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">架构图 + 流程图</td>
+                            <td class="px-4 py-3 text-sm"><span class="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded">架构理解</span></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="px-4 py-3 text-sm">&#128218; Transformer Tutorial</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">从零实现 Transformer</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">代码 + 解释</td>
+                            <td class="px-4 py-3 text-sm"><span class="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded">动手实践</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

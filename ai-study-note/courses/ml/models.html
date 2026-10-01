@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典机器学习算法</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-orange-400 mb-3 flex items-center gap-2">
+                <i class="fas fa-cubes"></i> 经典机器学习算法
+            </h1>
+            <p class="text-gray-400 border-l-4 border-orange-500 pl-4">
+                从线性模型到集成学习，掌握最核心的 ML 算法！
+            </p>
+        </div>
+
+        <!-- 1. 线性模型 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 rounded-full text-orange-400 font-bold text-sm">1</span>
+                线性模型
+            </h2>
+
+            <!-- 线性回归 -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-4 mb-3">线性回归 (Linear Regression)</h3>
+            <pre class="bg-gray-950 rounded-lg p-4 overflow-x-auto mb-4"><code class="text-sm text-gray-300">预测连续值:
+    ŷ = w₁x₁ + w₂x₂ + ... + wₙxₙ + b
+    
+损失函数 (MSE):
+    Loss = (1/n) Σ(ŷᵢ - yᵢ)²
+
+可视化:
+    ↑ y
+    │    ·  ·
+    │   ·   ·  ·
+    │  ·  ·    ·  ← 回归线: ŷ = wx + b
+    │ · ·  ·    
+    └───────────→ x</code></pre>
+
+            <!-- 逻辑回归 -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-6 mb-3">逻辑回归 (Logistic Regression)</h3>
+            <pre class="bg-gray-950 rounded-lg p-4 overflow-x-auto mb-4"><code class="text-sm text-gray-300">分类问题，输出概率值:
+    ŷ = σ(w·x + b)
+    σ(z) = 1 / (1 + e⁻ᶻ)   ← Sigmoid 函数
+
+输出解释:
+    σ(z) ≥ 0.5 → 类别 1（正类）
+    σ(z) < 0.5 → 类别 0（负类）
+
+Sigmoid 曲线:
+    ŷ
+   1 ┤░░░░░░░░░░░░░░░░░░░░░░
+    │         ░░░░░░░░░
+   0.5 ┤──────×───────────   决策边界
+    │  ░░░░░
+   0 ┤░░
+    └───────────────────→ z</code></pre>
+        </div>
+
+        <!-- 2. 树模型与集成学习 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 rounded-full text-orange-400 font-bold text-sm">2</span>
+                树模型与集成学习
+            </h2>
+
+            <!-- 决策树 -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-4 mb-3">决策树 (Decision Tree)</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+决策过程就像一个 if-else 树:
+                ┌─────────────┐
+                │ 年龄 < 30?  │
+                └──────┬──────┘
+                       │
+           ┌───────────┴───────────┐
+           ▼                       ▼
+    ┌─────────────┐         ┌─────────────┐
+    │ 收入 > 50K? │         │ 有房产?     │
+    └──────┬──────┘         └──────┬──────┘
+           │                       │
+       ┌───┴───┐               ┌───┴───┐
+       ▼       ▼               ▼       ▼
+    ┌─────┐ ┌─────┐         ┌─────┐ ┌─────┐
+    │ 是  │ │ 否  │         │ 是  │ │ 否  │
+    └─────┘ └─────┘         └─────┘ └─────┘</pre>
+
+            <!-- 随机森林 -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-6 mb-3">随机森林 (Random Forest)</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────┐
+│ 随机森林 = 多棵决策树的投票结果                        │
+│                                                       │
+│  树1 ──→ 预测A                                       │
+│  树2 ──→ 预测A  ──→ 多数投票 ──→ 最终预测: A         │
+│  树3 ──→ 预测B                                       │
+│  树4 ──→ 预测A                                       │
+└─────────────────────────────────────────────────────┘</pre>
+
+            <!-- XGBoost / LightGBM / CatBoost -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-6 mb-3">XGBoost / LightGBM / CatBoost</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+梯度提升树 (GBDT) 家族:
+    XGBoost   ─→ 工业界最常用，Kaggle 竞赛常胜将军
+    LightGBM  ─→ 训练更快，内存更少
+    CatBoost  ─→ 原生支持类别特征
+
+核心思想：串行训练，每棵新树纠正前一棵的错误</pre>
+
+            <!-- 树模型对比 -->
+            <h4 class="text-base font-semibold text-white mt-6 mb-3">树模型对比</h4>
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">算法</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">类型</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">训练速度</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">精度</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">特点</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">决策树</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">单棵树</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">可解释性最强</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">随机森林</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Bagging</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">抗过拟合</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">XGBoost</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Boosting</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">最常用</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">LightGBM</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Boosting</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">速度快</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">CatBoost</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">Boosting</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-yellow-400 text-center">⭐⭐⭐⭐</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">类别特征友好</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. 支持向量机 (SVM) -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 rounded-full text-orange-400 font-bold text-sm">3</span>
+                支持向量机 (SVM)
+            </h2>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+SVM 核心思想：找到最优超平面，最大化分类间隔
+
+                ↑
+    ○ ○ ○      │      ● ● ●
+    ○ ○ ○      │      ● ● ●
+    ○ ○ ○    ══╪══    ● ● ●
+               ╱│╲
+              ╱ │ ╲     ← 支持向量 (Support Vectors)
+             ╱  │  ╲
+   类别 -1 ←────┼─────→ 类别 +1
+                │
+            最大间隔 (Max Margin)</pre>
+
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">特性</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">核技巧</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">用 RBF/Poly 核将数据映射到高维空间，处理非线性问题</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">支持向量</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">只有少数样本决定决策边界，效率高</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center font-semibold">适用场景</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">小样本、高维数据、文本分类</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 4. 其他经典算法 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="flex items-center justify-center w-8 h-8 bg-orange-500/20 rounded-full text-orange-400 font-bold text-sm">4</span>
+                其他经典算法
+            </h2>
+
+            <!-- k-NN -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-4 mb-3">k-NN (k-Nearest Neighbors)</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+新样本的类别由最近的 k 个邻居决定:
+    
+    新样本? ──→ ●
+    
+    最近邻 (k=3):
+    ┌─────────────────┐
+    │ ○ ○              │
+    │   ○  ●  □        │  → 2个○ + 1个□ → 预测为○
+    │       □ □        │
+    └─────────────────┘
+    
+    优点: 简单直观，无需训练
+    缺点: 计算量大，维度灾难</pre>
+
+            <!-- k-Means -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-6 mb-3">k-Means 聚类</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+无监督聚类算法:
+        初始中心        迭代更新        收敛结果
+    ┌──────┐      ┌──────┐      ┌──────────┐
+    │  ○   │      │  ○   │      │ ○○○      │
+    │  ●   │  →   │○ ●  │  →  │ ○●  □□□   │
+    │  □   │      │  □   │      │    □□     │
+    └──────┘      └──────┘      └──────────┘
+    
+    流程:
+    1. 随机选 k 个初始中心
+    2. 每个点归到最近的中心
+    3. 重新计算每个簇的中心
+    4. 重复 2-3 直到收敛</pre>
+
+            <!-- PCA -->
+            <h3 class="text-lg font-semibold text-orange-300 mt-6 mb-3">PCA 降维 (Principal Component Analysis)</h3>
+            <pre class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+将高维数据投影到低维空间:
+                   PC2
+                   ↑
+    原始数据       │  新坐标
+    ┌──────┐    ┌──┴──────┐
+    │  ··  │    │   ··    │
+    │·  · ·│ →  │ ·  · ·  │ → 保留 PC1（最大方差方向）
+    │ ··   │    │  ··     │
+    └──────┘    └─────────┘
+                   → PC1
+    用途: 可视化、降噪、加速训练</pre>
+        </div>
+
+        <!-- 算法选择指南 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-compass text-orange-400"></i> 算法选择指南
+            </h2>
+            <div class="overflow-x-auto rounded-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">数据类型</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">任务类型</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">推荐算法</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">数值特征</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">回归</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">线性回归 / XGBoost</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">数值特征</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">分类</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">逻辑回归 / SVM / XGBoost</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">图像数据</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">分类/检测</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">CNN (深度学习方向)</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">文本数据</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">分类/聚类</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">SVM / Naive Bayes</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">高维稀疏</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">分类</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">SVM / 逻辑回归</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">无标签数据</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">聚类</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">k-Means / DBSCAN</code></td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/50 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">超大样本</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center">分类</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 text-center"><code class="bg-gray-700 px-2 py-0.5 rounded text-sm font-mono text-blue-300">LightGBM / 随机森林</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

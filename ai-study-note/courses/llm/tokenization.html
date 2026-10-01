@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分词与嵌入技术</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <h1 class="text-3xl font-bold text-white mb-3">分词与嵌入技术</h1>
+            <div class="text-gray-400 text-sm border-l-4 border-purple-500 pl-4">
+                从文本到向量：理解大模型如何将自然语言转换为计算机可以理解的数字表示。
+            </div>
+        </div>
+
+        <!-- Directory -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i> 目录
+            </h2>
+            <ol class="list-decimal list-inside space-y-1 text-gray-300">
+                <li>什么是 Tokenization</li>
+                <li>分词策略对比</li>
+                <li>BPE (Byte Pair Encoding)</li>
+                <li>WordPiece / SentencePiece</li>
+                <li>什么是 Embedding</li>
+                <li>位置编码</li>
+                <li>实战示例</li>
+            </ol>
+        </div>
+
+        <!-- Section 1: What is Tokenization -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">1</span>
+                什么是 Tokenization
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-purple-400">Tokenization（分词）</strong>是将原始文本转换为模型可以处理的<strong class="text-yellow-400">离散单元（Token）</strong>的过程。
+                它是 NLP 管线的第一步，直接影响模型的理解能力。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+示例: "我喜欢学习人工智能"
+
+按字符分词 (Character-level):
+  ['我', '喜', '欢', '学', '习', '人', '工', '智', '能']
+  → 9 tokens, 每个 token 语义信息少
+
+按词分词 (Word-level):
+  ['我', '喜欢', '学习', '人工智能']
+  → 4 tokens, OOV (未登录词) 问题严重
+
+按子词分词 (Subword-level):
+  ['我', '喜欢', '学习', '人工', '智能']
+  → 5 tokens, 平衡语义和 OOV</div>
+
+            <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
+                <p class="text-purple-400 text-sm font-bold mb-2">Tokenization 的核心挑战</p>
+                <ul class="space-y-1 text-gray-300 text-sm">
+                    <li>· <strong class="text-yellow-400">OOV 问题</strong>：如何处理从未见过的词？</li>
+                    <li>· <strong class="text-yellow-400">多语言支持</strong>：中英混合、代码、特殊符号</li>
+                    <li>· <strong class="text-yellow-400">效率平衡</strong>：token 太多效率低，太少语义不足</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 2: Comparison -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">2</span>
+                分词策略对比
+            </h2>
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">策略</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">原理</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">优点</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">缺点</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">代表</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">字符级</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">按字符切分</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">无 OOV，词汇表极小</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">序列长，语义弱</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">char-CNN</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">词级</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">按空格/标点切分</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">语义完整</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">OOV严重，词汇表巨大</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">Word2Vec</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">BPE</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">统计高频字节对合并</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">平衡OOV和效率</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">GPT 系列</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">WordPiece</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">概率式合并</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">更优的合并选择</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">计算稍复杂</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">BERT</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">SentencePiece</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">直接处理原始文本</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">语言无关，多语言友好</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">—</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">LLaMA, T5</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 3: BPE -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">3</span>
+                BPE (Byte Pair Encoding)
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-purple-400">BPE</strong> 是最常用的子词分词算法，GPT 系列模型的核心选择。
+                核心思想：从字符开始，<strong class="text-yellow-400">反复合并最频繁出现的相邻符号对</strong>。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+BPE 训练过程示例:
+
+语料: "low lower lowest"
+
+步骤1: 初始化为字符级
+  'l o w', 'l o w e r', 'l o w e s t'
+
+步骤2: 统计频次，合并最常见对
+  ('l','o') 出现 3次 → 合并为 'lo'
+  'lo w', 'lo w e r', 'lo w e s t'
+
+步骤3: 继续合并
+  ('lo','w') 出现 3次 → 合并为 'low'
+  'low', 'low e r', 'low e s t'
+
+步骤4: 继续...
+  ('e','r') 出现 1次 → 合并 'er'
+  ('e','s') 出现 1次 → 合并 'es'
+  ('es','t') 出现 1次 → 合并 'est'
+
+最终词表: ['l','o','w','e','r','s','t','lo','low','er','es','est']
+
+编码 "lowest":
+  'low' + 'est' → [low, est]  (用已学习的子词组合)</div>
+        </div>
+
+        <!-- Section 4: WordPiece & SentencePiece -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">4</span>
+                WordPiece / SentencePiece
+            </h2>
+
+            <div class="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30 mb-4">
+                <h4 class="text-blue-400 font-bold mb-2">WordPiece (BERT)</h4>
+                <p class="text-gray-300 text-sm mb-2">
+                    与 BPE 类似但使用<strong class="text-yellow-400">似然概率</strong>而非频率来选择合并。选择能使训练数据<strong class="text-yellow-400">概率最大化</strong>的合并对。
+                </p>
+                <div class="bg-gray-700/50 rounded p-3 font-mono text-xs text-gray-300">
+BERT Tokenizer 示例:
+  "playing"  → ['play', '##ing']
+  "player"   → ['play', '##er']
+  "unhappy"  → ['un', '##happy']
+  (## 表示该 token 是前一个 token 的延续)</div>
+            </div>
+
+            <div class="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
+                <h4 class="text-green-400 font-bold mb-2">SentencePiece (LLaMA / T5)</h4>
+                <p class="text-gray-300 text-sm mb-2">
+                    直接在<strong class="text-yellow-400">原始字节流</strong>上操作，不依赖预分词（如空格分割），天然支持任何语言。
+                </p>
+                <div class="bg-gray-700/50 rounded p-3 font-mono text-xs text-gray-300">
+SentencePiece 优势:
+  - 不需要预先分词（语言无关）
+  - 将空格也作为一个 token "▁" 处理
+  - 可逆编码：token → 原始文本 无信息丢失
+  - 支持 BPE 和 Unigram 两种算法
+
+LLaMA Tokenizer 示例 (基于 SentencePiece BPE):
+  "Hello World" → ['▁Hello', '▁World']
+  ("▁" 表示前导空格)</div>
+            </div>
+        </div>
+
+        <!-- Section 5: Embedding -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">5</span>
+                什么是 Embedding
+            </h2>
+            <p class="text-gray-300 mb-4">
+                <strong class="text-purple-400">Embedding（嵌入）</strong>将离散的 Token ID 映射为<strong class="text-yellow-400">连续的稠密向量</strong>，使语义相似的词在向量空间中距离更近。
+            </p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+Token → ID → Embedding 流程:
+
+  "我爱学习"
+     ↓ Tokenize
+  [我, 爱, 学习]
+     ↓ Token ID
+  [234, 567, 890]
+     ↓ Embedding Layer (查表)
+  ┌──────────────────────────────┐
+  │ 我:   [0.12, -0.34,  0.56, ...]  d=768
+  │ 爱:   [0.78,  0.23, -0.45, ...]  d=768
+  │ 学习: [0.11, -0.67,  0.89, ...]  d=768
+  └──────────────────────────────┘
+     ↓
+  形状: [3, 768]  (seq_len=3, d_model=768)</div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
+                    <h4 class="text-purple-400 font-bold mb-2">Token Embedding</h4>
+                    <p class="text-gray-400 text-sm">每个 token 的<strong class="text-yellow-400">语义表示</strong>。通过 Embedding 矩阵 W_E (vocab_size × d_model) 查表获得。</p>
+                </div>
+                <div class="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
+                    <h4 class="text-purple-400 font-bold mb-2">Positional Embedding</h4>
+                    <p class="text-gray-400 text-sm">表示 token <strong class="text-yellow-400">在序列中的位置</strong>。与 Token Embedding 相加后输入模型。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Positional Encoding -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">6</span>
+                位置编码
+            </h2>
+            <p class="text-gray-300 mb-4">
+                Transformer 没有循环结构，无法天然捕获顺序信息，需要通过<strong class="text-yellow-400">位置编码</strong>告诉模型 token 的位置。
+            </p>
+
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">类型</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">说明</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">使用模型</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-blue-400">正弦位置编码</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">用 sin/cos 函数生成固定编码，无需学习</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">Transformer (原始), LLaMA</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-green-400">可学习位置编码</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">随机初始化，训练中优化</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">BERT, GPT</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-purple-400">RoPE (旋转位置编码)</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">用旋转矩阵编码相对位置，外推性好</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">LLaMA, Qwen, ChatGLM</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold text-orange-400">ALiBi</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">加性线性偏置，外推能力最强</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">BLOOM</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">RoPE 旋转位置编码</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+RoPE (Rotary Position Embedding) - 当前主流方案
+
+核心思想:
+  通过旋转矩阵为 Q 和 K 向量注入位置信息，
+  使注意力计算时能感知 token 之间的相对位置。
+
+公式:  Q_pos = R(θ · pos) · Q
+       K_pos = R(θ · pos) · K
+
+优点:
+  - 相对位置自然编码（距离越远，旋转角度差越大）
+  - 序列长度外推能力强（训练 4K → 推理 32K）
+  - 计算高效，无需额外参数</div>
+        </div>
+
+        <!-- Section 7: Practice -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">7</span>
+                实战示例
+            </h2>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 overflow-x-auto mb-4">
+from transformers import AutoTokenizer
+
+# 加载 GPT-2 的 BPE Tokenizer
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+
+# 编码
+text = "Hello, 我爱AI!"
+tokens = tokenizer.tokenize(text)
+ids = tokenizer.encode(text)
+
+print(f"原文: {text}")
+print(f"Tokens: {tokens}")
+print(f"IDs: {ids}")
+print(f"长度: {len(ids)} tokens")
+
+# 输出:
+# 原文: Hello, 我爱AI!
+# Tokens: ['Hello', ',', 'æ', 'Ī', 'ģ', 'ç', 'Ħ', '±', 'AI', '!']
+# IDs: [15496, 11, 232, 140, 163, 121, 196, 177, 9552, 0]
+# 长度: 10 tokens
+
+# 解码回原文
+decoded = tokenizer.decode(ids)
+print(f"还原: {decoded}")
+
+# === 不同模型 Tokenizer 对比 ===
+# "我爱学习人工智能" 不同模型的编码长度:
+# GPT-2 (BPE):          ~12 tokens
+# BERT (WordPiece):     ~10 tokens  
+# LLaMA (SentencePiece): ~8 tokens
+# Qwen (自己的):          ~5 tokens (中文优化)</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/30 p-6 mb-6 text-center">
+            <p class="text-purple-400 font-bold text-lg">
+                Tokenization 是 LLM 的第一道工序，Embedding 是语义理解的基石！
+            </p>
+            <p class="text-gray-500 text-sm mt-2">
+                好的分词器 = 更少 Token + 更好语义 + 更快速度
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

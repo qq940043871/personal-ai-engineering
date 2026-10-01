@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI学习系统 - 从ML到LLM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body { font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        #mainFrame { width: 100%; height: 100%; border: 0; }
+        .nav-item { transition: all 0.2s ease; border-left: 3px solid transparent; }
+        .nav-item:hover { background-color: #374151; color: #93C5FD; }
+        .active-nav { background-color: #1E3A5F; border-left-color: #3B82F6; color: #60A5FA; font-weight: 600; }
+        .nav-section-header { letter-spacing: 0.05em; }
+        html, body { height: 100%; }
+        .shell { height: 100vh; overflow: hidden; }
+        aside { overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="shell flex">
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+            <div class="p-4 border-b border-gray-700">
+                <div class="text-lg font-bold text-blue-400">AI学习系统</div>
+                <div class="text-xs text-gray-400 mt-1">从零到一理解大模型 · ai-study</div>
+            </div>
+            <nav class="py-2 flex-1">
+                <a href="#" onclick="loadPage('courses/home.html')"
+                    class="nav-item active-nav flex items-center px-4 py-3 text-gray-300 text-sm">
+                    <i class="fas fa-home w-5 mr-3 text-blue-400"></i><span>首页</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">机器学习</div>
+                <a href="#" onclick="loadPage('courses/ml/intro.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-seedling w-5 mr-3 text-green-400"></i><span>机器学习概述</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/ml/models.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-cubes w-5 mr-3 text-green-400"></i><span>经典算法</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/ml/training.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-chart-line w-5 mr-3 text-green-400"></i><span>训练与评估</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">深度学习</div>
+                <a href="#" onclick="loadPage('courses/dl/intro.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-brain w-5 mr-3 text-cyan-400"></i><span>神经网络基础</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/dl/architectures.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-project-diagram w-5 mr-3 text-cyan-400"></i><span>经典架构</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/dl/training.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-sliders-h w-5 mr-3 text-cyan-400"></i><span>优化与正则化</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/dl/sequence.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-stream w-5 mr-3 text-cyan-400"></i><span>序列模型</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">大语言模型</div>
+                <a href="#" onclick="loadPage('courses/llm/transformer.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-cube w-5 mr-3 text-purple-400"></i><span>Transformer架构</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/training.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-microchip w-5 mr-3 text-purple-400"></i><span>训练流程可视化</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/tokenization.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-code w-5 mr-3 text-purple-400"></i><span>分词与嵌入</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/inference.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-bolt w-5 mr-3 text-purple-400"></i><span>推理与解码</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/inference-visualization.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-eye w-5 mr-3 text-purple-400"></i><span>推理流程可视化</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/papers.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-file-alt w-5 mr-3 text-purple-400"></i><span>论文精读</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/mcp.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-plug w-5 mr-3 text-purple-400"></i><span>MCP与Function Calling</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/agent.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-robot w-5 mr-3 text-purple-400"></i><span>AI Agent</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/demo.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-gamepad w-5 mr-3 text-purple-400"></i><span>交互式Demo</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">面试题库</div>
+                <a href="#" onclick="loadPage('courses/exam/index.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-clipboard-list w-5 mr-3 text-amber-400"></i><span>题库总览</span>
+                </a>
+                <a href="#" onclick="loadPage('exam/大模型平台.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-diagram-project w-5 mr-3 text-amber-400"></i><span>大模型平台架构图</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">Agent 工程原理</div>
+                <a href="#" onclick="loadPage('courses/llm/harness.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-puzzle-piece w-5 mr-3 text-pink-400"></i><span>Harness 执行框架</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/loop.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-sync-alt w-5 mr-3 text-pink-400"></i><span>Loop 主循环</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/agent-sandbox.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-shield-halved w-5 mr-3 text-pink-400"></i><span>沙箱安全机制</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/agentic.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-layer-group w-5 mr-3 text-pink-400"></i><span>普通智能体的多种实现方式</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/agentic-compare.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-balance-scale w-5 mr-3 text-pink-400"></i><span>Spring AI vs AgentScope</span>
+                </a>
+
+                <div class="nav-section-header px-4 pt-5 pb-2 text-xs font-semibold text-gray-500 uppercase">工具</div>
+                <a href="#" onclick="loadPage('courses/roadmap.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-map w-5 mr-3 text-green-400"></i><span>学习路线图</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/documents.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fas fa-folder-open w-5 mr-3 text-green-400"></i><span>文档预览</span>
+                </a>
+                <a href="#" onclick="loadPage('courses/llm/claude-cli.html')"
+                    class="nav-item flex items-center px-4 py-2.5 text-gray-300 text-sm">
+                    <i class="fab fa-aws w-5 mr-3 text-green-400"></i><span>Claude CLI 深度分析</span>
+                </a>
+            </nav>
+            <div class="px-4 py-3 border-t border-gray-700 text-xs text-gray-500">
+                ai-study · :3001 · 题库 exam/
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0">
+            <iframe id="mainFrame" src="courses/home.html"></iframe>
+        </main>
+    </div>
+
+    <script>
+        function loadPage(page) {
+            document.getElementById('mainFrame').src = page;
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active-nav'));
+            if (typeof event !== 'undefined' && event.currentTarget) {
+                event.currentTarget.classList.add('active-nav');
+            }
+        }
+    </script>
+</body>
+</html>

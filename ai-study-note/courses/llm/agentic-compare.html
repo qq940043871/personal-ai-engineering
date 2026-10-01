@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AI Alibaba vs AgentScope — 框架对比</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .vs-badge { background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EF4444 100%); }
+        .dimension-card { border-left: 3px solid; transition: all 0.2s ease; }
+        .dimension-card:hover { transform: translateX(4px); }
+        .code-block { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9rem; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .score-bar { height: 8px; border-radius: 4px; }
+        .tooltip { position: relative; }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip-text { visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="vs-badge w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold">VS</div>
+                <h1 class="text-3xl font-bold text-white">Spring AI Alibaba <span class="text-gray-500">vs</span> AgentScope</h1>
+            </div>
+            <p class="text-gray-400 text-lg">从架构设计、开发体验、多智能体支持到生产部署，<strong class="text-yellow-400">8 大维度</strong>深度对比两大阿里系 AI Agent 框架</p>
+            <div class="flex flex-wrap gap-2 mt-4">
+                <span class="tag bg-blue-500/20 text-blue-300">Spring AI Alibaba</span>
+                <span class="tag bg-red-500/20 text-red-300">AgentScope</span>
+                <span class="tag bg-purple-500/20 text-purple-300">框架对比</span>
+                <span class="tag bg-green-500/20 text-green-300">选型参考</span>
+            </div>
+        </div>
+
+        <!-- Quick Overview -->
+        <div class="content-card grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Spring AI Alibaba -->
+            <div class="bg-gray-800 rounded-xl border border-blue-500/30 p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <i class="fab fa-java text-blue-400 text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Spring AI Alibaba</h2>
+                        <p class="text-xs text-gray-400">Spring 生态 · Java 优先</p>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 space-y-1 mb-4">
+                    <div><span class="text-gray-500">定位：</span>企业级 AI 应用开发框架</div>
+                    <div><span class="text-gray-500">语言：</span>Java（Spring Boot / Spring Cloud）</div>
+                    <div><span class="text-gray-500">维护方：</span>Alibaba Cloud / Spring 社区</div>
+                    <div><span class="text-gray-500">核心理念：</span>以 Spring 方式集成 AI</div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3">
+                    <pre class="code-block text-xs text-gray-300">
+<span class="text-gray-500">// Spring AI Alibaba — 典型用法</span>
+<span class="text-blue-400">@Service</span>
+<span class="text-blue-400">public class</span> AIService {
+    <span class="text-blue-400">private final</span> ChatClient chatClient;
+
+    <span class="text-blue-400">public</span> AIService(ChatClient.Builder builder) {
+        <span class="text-blue-400">this</span>.chatClient = builder.build();
+    }
+
+    <span class="text-blue-400">@Tool</span>(<span class="text-green-400">"获取天气"</span>)
+    <span class="text-blue-400">public String</span> getWeather(String city) {
+        <span class="text-blue-400">return</span> weatherService.query(city);
+    }
+
+    <span class="text-blue-400">public String</span> chat(String prompt) {
+        <span class="text-blue-400">return</span> chatClient.prompt()
+            .user(prompt)
+            .tools(<span class="text-blue-400">this</span>)  <span class="text-gray-500">// ← 注入 @Tool 方法</span>
+            .call()
+            .content();
+    }
+}</pre>
+                </div>
+            </div>
+
+            <!-- AgentScope -->
+            <div class="bg-gray-800 rounded-xl border border-red-500/30 p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                        <i class="fab fa-python text-red-400 text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">AgentScope</h2>
+                        <p class="text-xs text-gray-400">ModelScope 生态 · Python 优先</p>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 space-y-1 mb-4">
+                    <div><span class="text-gray-500">定位：</span>多智能体协作开发平台</div>
+                    <div><span class="text-gray-500">语言：</span>Python</div>
+                    <div><span class="text-gray-500">维护方：</span>Alibaba DAMO Academy / ModelScope</div>
+                    <div><span class="text-gray-500">核心理念：</span>Agent 即分布式消息传递</div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3">
+                    <pre class="code-block text-xs text-gray-300">
+<span class="text-gray-500"># AgentScope — 典型用法</span>
+<span class="text-blue-400">import</span> agentscope <span class="text-blue-400">as</span> asc
+
+<span class="text-blue-400">class</span> <span class="text-yellow-400">WeatherAgent</span>(asc.AgentBase):
+    <span class="text-blue-400">def</span> __init__(self, name):
+        <span class="text-blue-400">super</span>().__init__(name=name)
+        <span class="text-blue-400">self</span>.weather_svc = WeatherService()
+
+    <span class="text-blue-400">def</span> reply(self, x: dict = <span class="text-blue-400">None</span>):
+        <span class="text-gray-500"># 接收消息 → 处理 → 回复</span>
+        city = x[<span class="text-green-400">"content"</span>]
+        result = <span class="text-blue-400">self</span>.weather_svc.query(city)
+        <span class="text-blue-400">return</span> {<span class="text-green-400">"role"</span>: <span class="text-green-400">"assistant"</span>,
+                <span class="text-green-400">"content"</span>: result}
+
+<span class="text-gray-500"># 多 Agent 协作</span>
+agent_a = WeatherAgent(<span class="text-green-400">"WeatherBot"</span>)
+agent_b = RouterAgent(<span class="text-green-400">"Router"</span>)
+asc.msc(agent_a, agent_b)  <span class="text-gray-500"># ← 消息循环</span></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i> 对比维度
+            </h2>
+            <nav class="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-300">
+                <a href="#arch" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">1.</span> 架构设计哲学
+                </a>
+                <a href="#lang" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">2.</span> 开发语言与生态
+                </a>
+                <a href="#tool" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">3.</span> 工具调用与 Function Calling
+                </a>
+                <a href="#multi" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">4.</span> 多智能体协作
+                </a>
+                <a href="#memory" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">5.</span> 记忆与状态管理
+                </a>
+                <a href="#deploy" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">6.</span> 部署与生产化
+                </a>
+                <a href="#model" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">7.</span> 模型接入与扩展性
+                </a>
+                <a href="#community" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">8.</span> 社区、文档与学习曲线
+                </a>
+                <a href="#summary" class="flex items-center gap-2 hover:text-purple-400 transition-colors p-2 rounded-lg hover:bg-gray-700/30">
+                    <span class="text-purple-400 font-bold">9.</span> 综合评分与选型建议
+                </a>
+            </nav>
+        </div>
+
+        <!-- Dimension 1: Architecture -->
+        <div id="arch" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">1</span>
+                架构设计哲学
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3 flex items-center gap-2">
+                        <i class="fab fa-java"></i> Spring AI Alibaba
+                    </h3>
+                    <ul class="text-sm text-gray-300 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span><strong class="text-white">Spring 原生：</strong>遵循 IoC（控制反转）和 DI（依赖注入）容器模式，以 Spring Bean 的方式管理 AI 组件</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span><strong class="text-white">模板模式：</strong>类似 JdbcTemplate，提供 ChatClient / EmbeddingClient 等模板类</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span><strong class="text-white">声明式编程：</strong>通过注解（@Tool, @Service）声明行为，框架自动编排</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span><strong class="text-white">分层设计：</strong>Client 层 → Service 层 → Tool 层，清晰分离关注点</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span><strong class="text-white">核心抽象：</strong>ChatModel, EmbeddingModel, VectorStore, ToolCallback</span>
+                        </li>
+                    </ul>
+                    <div class="mt-4 bg-gray-900 rounded-lg p-3">
+                        <p class="text-xs text-gray-400"><span class="text-blue-400">比喻：</span>Spring AI Alibaba 就像<span class="text-yellow-400">"预制菜中央厨房"</span>——标准化流程、组件化拼装、适合大规模生产。</p>
+                    </div>
+                </div>
+
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
+                        <i class="fab fa-python"></i> AgentScope
+                    </h3>
+                    <ul class="text-sm text-gray-300 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">消息驱动：</strong>Agent 之间通过 Msg 消息通信，每个 Agent 是独立的 Actor</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">分布式原生：</strong>Agent 可跨进程、跨机器部署，通过 RPC 通信</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">Agent 即类：</strong>继承 AgentBase 实现 reply() 方法，每个 Agent 实例是一个独立智能体</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">通信协议：</strong>支持消息路由、广播、点对点、群组等多种模式</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">核心抽象：</strong>AgentBase, Msg, Pipeline, Service, RpcAgent</span>
+                        </li>
+                    </ul>
+                    <div class="mt-4 bg-gray-900 rounded-lg p-3">
+                        <p class="text-xs text-gray-400"><span class="text-red-400">比喻：</span>AgentScope 就像<span class="text-yellow-400">"乐队合奏"</span>——每个乐手（Agent）独立演奏，通过指挥（消息路由）协同。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dimension 2: Language & Ecosystem -->
+        <div id="lang" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">2</span>
+                开发语言与生态
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="dimension-card border-blue-500 bg-gray-700/20 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-bold text-blue-400">Spring AI Alibaba</h3>
+                        <span class="text-xs text-gray-500">Java / Kotlin</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>深度绑定 Spring Boot 3.x + JDK 17+</li>
+                        <li>天然集成 Spring Cloud（Nacos、Sentinel、RocketMQ）</li>
+                        <li>阿里云生态（通义千问、DashScope、OSS、SLS）</li>
+                        <li>Java 企业级中间件全兼容</li>
+                        <li>Maven / Gradle 依赖管理</li>
+                        <li>适合已有 Spring 技术栈的团队</li>
+                    </ul>
+                </div>
+                <div class="dimension-card border-red-500 bg-gray-700/20 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-bold text-red-400">AgentScope</h3>
+                        <span class="text-xs text-gray-500">Python</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>Python 原生，pip install agentscope</li>
+                        <li>ModelScope 生态集成（模型下载、推理）</li>
+                        <li>HuggingFace Transformers 兼容</li>
+                        <li>支持 Docker / Kubernetes 部署</li>
+                        <li>pip / conda 环境管理</li>
+                        <li>适合 AI 研究、算法团队</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">关键差异：</strong>Spring AI Alibaba 是 <strong class="text-blue-400">"Java 开发者进入 AI 世界"</strong> 的桥梁——如果你已经在用 Spring Boot，学习成本极低。
+                    AgentScope 是 <strong class="text-red-400">"AI 研究者构建多 Agent 系统"</strong> 的工具——Python 生态 + 灵活的消息传递，更适合快速实验。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 3: Tool Calling -->
+        <div id="tool" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">3</span>
+                工具调用与 Function Calling
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <div class="bg-gray-900 rounded-lg p-3 mb-3 overflow-x-auto">
+                        <pre class="code-block text-xs text-gray-300">
+<span class="text-gray-500">// 注解驱动 — 声明式工具定义</span>
+<span class="text-blue-400">@Component</span>
+<span class="text-blue-400">public class</span> OrderTools {
+
+    <span class="text-blue-400">@Tool</span>(<span class="text-green-400">"查询订单状态"</span>)
+    <span class="text-blue-400">public String</span> getOrderStatus(
+        <span class="text-blue-400">@ToolParam</span>(<span class="text-green-400">"订单号"</span>) String orderId) {
+        <span class="text-blue-400">return</span> orderRepo.query(orderId);
+    }
+}
+
+<span class="text-gray-500">// 自动生成 JSON Schema 并注册到 LLM</span>
+String result = chatClient.prompt()
+    .user(<span class="text-green-400">"查一下订单 OD2024 的状态"</span>)
+    .tools(orderTools)  <span class="text-gray-500">// ← 自动扫描 @Tool 注解</span>
+    .call()
+    .content();</pre>
+                    </div>
+                    <ul class="text-xs text-gray-400 space-y-1 list-disc list-inside">
+                        <li>注解驱动，自动生成 Tool Schema</li>
+                        <li>支持 Spring 管理 Bean 生命周期</li>
+                        <li>AOP 环绕增强（日志、监控、限流）</li>
+                        <li>自动类型转换（JSON ↔ Java 对象）</li>
+                    </ul>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <div class="bg-gray-900 rounded-lg p-3 mb-3 overflow-x-auto">
+                        <pre class="code-block text-xs text-gray-300">
+<span class="text-gray-500"># 消息驱动 — Service 注册</span>
+<span class="text-blue-400">import</span> agentscope <span class="text-blue-400">as</span> asc
+<span class="text-blue-400">from</span> agentscope.service <span class="text-blue-400">import</span> ServiceToolkit
+
+<span class="text-gray-500"># 注册服务函数</span>
+service_toolkit = ServiceToolkit()
+service_toolkit.add(<span class="text-blue-400">lambda</span> city: weather(city),
+    name=<span class="text-green-400">"get_weather"</span>,
+    description=<span class="text-green-400">"获取天气"</span>)
+
+<span class="text-gray-500"># Agent 服务化：Agent 也可作为 Service</span>
+<span class="text-blue-400">class</span> <span class="text-yellow-400">OrderAgent</span>(asc.AgentBase):
+    <span class="text-blue-400">def</span> reply(self, x):
+        <span class="text-blue-400">if</span> x.get(<span class="text-green-400">"type"</span>) == <span class="text-green-400">"order_query"</span>:
+            <span class="text-blue-400">return</span> {<span class="text-green-400">"content"</span>: self.query_order(x[<span class="text-green-400">"order_id"</span>])}</pre>
+                    </div>
+                    <ul class="text-xs text-gray-400 space-y-1 list-disc list-inside">
+                        <li>ServiceToolkit 统一管理可调用服务</li>
+                        <li>Agent 本身可被其他 Agent 调用（Agent as Service）</li>
+                        <li>支持分布式 RPC 工具调用</li>
+                        <li>更灵活的消息格式，但需手动解析</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">对比结论：</strong>Spring AI Alibaba 的 <strong class="text-blue-400">@Tool 注解 + 自动 Schema</strong> 在开发效率上占优，对 Java 开发者几乎零成本；
+                    AgentScope 的 <strong class="text-red-400">Service-as-Agent</strong> 设计更灵活，Agent 之间可以互相调用，适合嵌套场景。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 4: Multi-Agent -->
+        <div id="multi" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">4</span>
+                多智能体协作
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="tag bg-yellow-500/20 text-yellow-300">有限支持</span>
+                        <span class="tag bg-gray-600 text-gray-300">需自行编排</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span>通过 ChatClient 链式调用模拟多 Agent</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span>无内置 Agent 通信协议</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span>多 Agent 需基于 Spring Cloud 自行实现</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span>适合"主-从"模式（Orchestrator + Workers）</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">•</span>
+                            <span>可通过 MessageChannel 做简单路由</span>
+                        </li>
+                    </ul>
+                    <div class="mt-3 bg-gray-900 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">
+                            <span class="text-blue-400">策略：</span>用 Spring Cloud Stream 做 Agent 间消息队列，自行实现编排逻辑
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="tag bg-green-500/20 text-green-300">核心优势</span>
+                        <span class="tag bg-blue-500/20 text-blue-300">分布式原生</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">Msg 消息系统：</strong>Agent 间通过结构化的 Msg 对象通信</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">通信模式：</strong>点对点、广播、组播、Pipeline、顺序链</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">分布式 Agent：</strong>RpcAgent 可跨进程/跨机器通信</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">群组管理：</strong>AgentGroup 管理多个 Agent 协作</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-400 mt-1">•</span>
+                            <span><strong class="text-white">内置编排模式：</strong>Sequential / Parallel / Debate / Auto</span>
+                        </li>
+                    </ul>
+                    <div class="mt-3 bg-gray-900 rounded-lg p-3">
+                        <p class="text-xs text-gray-400">
+                            <span class="text-red-400">策略：</span>定义 Agent 类 → 配置消息路由 → 启动分布式消息循环
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">对比结论：</strong>这是两者<strong class="text-white">最大的差异点</strong>。AgentScope 以多 Agent 协作为<strong class="text-red-400">第一公民</strong>设计，从消息协议到分布式通信一应俱全；
+                    Spring AI Alibaba 更聚焦单 Agent + 工具调用，多 Agent 需开发者自行搭建。如果你的核心需求是 <strong class="text-red-400">Multi-Agent 系统</strong>，AgentScope 明显更合适。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 5: Memory & State -->
+        <div id="memory" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">5</span>
+                记忆与状态管理
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>ConversationMemory（对话历史管理）</li>
+                        <li>向量数据库集成（Redis / Milvus / PostgreSQL pgvector）</li>
+                        <li>Spring Session 管理会话状态</li>
+                        <li>JDBC / Redis 持久化</li>
+                        <li>支持 Window / Summary / Token 三种记忆策略</li>
+                    </ul>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>Agent 内置 Memory 模块</li>
+                        <li>分布式共享存储（Redis / MySQL）</li>
+                        <li>消息历史持久化到文件或数据库</li>
+                        <li>Agent 状态可序列化迁移</li>
+                        <li>支持自定义记忆策略（滑动窗口、摘要、混合）</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">对比结论：</strong>两者记忆管理能力相当。Spring AI Alibaba 强在 <strong class="text-blue-400">Spring Session + 多种 VectorStore 集成</strong>，适合企业级持久化；
+                    AgentScope 强在 <strong class="text-red-400">分布式状态共享</strong>，适合多 Agent 间的状态同步。平手。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 6: Deployment -->
+        <div id="deploy" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">6</span>
+                部署与生产化
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="tag bg-green-500/20 text-green-300">生产就绪</span>
+                        <span class="tag bg-blue-500/20 text-blue-300">企业级</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>Fat JAR 部署，Spring Boot 原生</li>
+                        <li>阿里云 ECS / SAE / ACK 一键部署</li>
+                        <li>Nacos 配置中心 + Sentinel 流量控制</li>
+                        <li>SLS 日志服务 + ARMS 监控</li>
+                        <li>Spring Actuator 健康检查 + Metrics</li>
+                        <li>Seata 分布式事务（与 AI 调用结合）</li>
+                    </ul>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="tag bg-yellow-500/20 text-yellow-300">成熟中</span>
+                        <span class="tag bg-purple-500/20 text-purple-300">灵活部署</span>
+                    </div>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>Docker 容器化部署</li>
+                        <li>Kubernetes 编排（分布式 Agent）</li>
+                        <li>ModelScope 模型推理服务</li>
+                        <li>Agent 热加载 / 热替换</li>
+                        <li>Web Demo 快速展示</li>
+                        <li>分布式 Agent 需自行配置网络</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">对比结论：</strong>Spring AI Alibaba 背靠阿里云企业级基础设施，<strong class="text-blue-400">运维体系成熟</strong>，适合严肃生产环境；
+                    AgentScope 部署更灵活但<strong class="text-red-400">企业级监控和治理能力较弱</strong>，适合中小规模部署或研究场景。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 7: Model Access -->
+        <div id="model" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">7</span>
+                模型接入与扩展性
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>通义千问（Qwen）系列深度集成</li>
+                        <li>OpenAI / Claude / Ollama 兼容</li>
+                        <li>DashScope 平台统一管理</li>
+                        <li>多模态（文本 + 图片 + 语音）</li>
+                        <li>嵌入模型（text-embedding 系列）</li>
+                        <li>通过 ChatModel 接口扩展新模型</li>
+                    </ul>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
+                        <li>ModelScope 模型库（千余种模型）</li>
+                        <li>HuggingFace Transformers 集成</li>
+                        <li>OpenAI API 兼容</li>
+                        <li>本地模型部署（vLLM / Ollama）</li>
+                        <li>多模型路由（不同任务用不同模型）</li>
+                        <li>自定义模型 Wrapper 扩展</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400">
+                    <strong class="text-yellow-400">对比结论：</strong>Spring AI Alibaba 以 <strong class="text-blue-400">商业 API 为主</strong>（通义千问 + DashScope），体验一致性好；
+                    AgentScope 以 <strong class="text-red-400">开源模型为主</strong>（ModelScope + HuggingFace），适合需要本地部署或自定义模型的场景。
+                </p>
+            </div>
+        </div>
+
+        <!-- Dimension 8: Community -->
+        <div id="community" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">8</span>
+                社区、文档与学习曲线
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-blue-500/5 rounded-xl p-5 border border-blue-500/20">
+                    <h3 class="text-lg font-bold text-blue-400 mb-3">Spring AI Alibaba</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">GitHub Stars</span>
+                            <span class="text-blue-400 font-bold">⭐ ~5k+</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">文档质量</span>
+                            <span class="text-green-400 font-bold">⭐⭐⭐⭐ 完善</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">学习曲线</span>
+                            <span class="text-yellow-400 font-bold">低（对 Java 开发者）</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">中文资料</span>
+                            <span class="text-green-400 font-bold">丰富（阿里云文档）</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">企业支持</span>
+                            <span class="text-blue-400 font-bold">阿里云官方支持</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-red-500/5 rounded-xl p-5 border border-red-500/20">
+                    <h3 class="text-lg font-bold text-red-400 mb-3">AgentScope</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">GitHub Stars</span>
+                            <span class="text-red-400 font-bold">⭐ ~3k+</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">文档质量</span>
+                            <span class="text-yellow-400 font-bold">⭐⭐⭐ 较完善</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">学习曲线</span>
+                            <span class="text-yellow-400 font-bold">中（需理解 Agent 模型）</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">中文资料</span>
+                            <span class="text-yellow-400 font-bold">较多（ModelScope 社区）</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-300">企业支持</span>
+                            <span class="text-gray-400 font-bold">社区驱动为主</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dimension 9: Summary -->
+        <div id="summary" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">9</span>
+                综合评分与选型建议
+            </h2>
+
+            <!-- Radar-style comparison -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <!-- Spring AI Alibaba Scores -->
+                <div>
+                    <h3 class="text-lg font-bold text-blue-400 mb-4 text-center">Spring AI Alibaba</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>架构设计</span>
+                                <span class="text-blue-400 font-bold">9/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 90%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>开发效率</span>
+                                <span class="text-blue-400 font-bold">9/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 90%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>工具调用</span>
+                                <span class="text-blue-400 font-bold">8/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 80%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>多 Agent 协作</span>
+                                <span class="text-blue-400 font-bold">4/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 40%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>生产部署</span>
+                                <span class="text-blue-400 font-bold">10/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 100%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>模型扩展性</span>
+                                <span class="text-blue-400 font-bold">7/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 70%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>社区生态</span>
+                                <span class="text-blue-400 font-bold">8/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-blue-500" style="width: 80%"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AgentScope Scores -->
+                <div>
+                    <h3 class="text-lg font-bold text-red-400 mb-4 text-center">AgentScope</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>架构设计</span>
+                                <span class="text-red-400 font-bold">8/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 80%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>开发效率</span>
+                                <span class="text-red-400 font-bold">7/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 70%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>工具调用</span>
+                                <span class="text-red-400 font-bold">7/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 70%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>多 Agent 协作</span>
+                                <span class="text-red-400 font-bold">9/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 90%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>生产部署</span>
+                                <span class="text-red-400 font-bold">6/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 60%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>模型扩展性</span>
+                                <span class="text-red-400 font-bold">9/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 90%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>社区生态</span>
+                                <span class="text-red-400 font-bold">6/10</span>
+                            </div>
+                            <div class="score-bar bg-gray-700 w-full"><div class="score-bar bg-red-500" style="width: 60%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decision Flow -->
+            <div class="bg-gray-900 rounded-xl p-6">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fas fa-compass text-purple-400"></i> 选型决策
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3 p-4 bg-blue-500/5 rounded-lg border border-blue-500/20">
+                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fab fa-java text-blue-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-blue-400">选 Spring AI Alibaba 如果你...</h4>
+                            <ul class="text-xs text-gray-400 mt-1 space-y-0.5 list-disc list-inside">
+                                <li>团队以 Java / Spring 技术栈为主</li>
+                                <li>需要将 AI 能力集成到现有企业微服务中</li>
+                                <li>看重生产级运维（监控、限流、配置中心）</li>
+                                <li>主要使用通义千问 / DashScope 平台</li>
+                                <li>核心需求是"单 Agent + 工具调用"</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-4 bg-red-500/5 rounded-lg border border-red-500/20">
+                        <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fab fa-python text-red-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-red-400">选 AgentScope 如果你...</h4>
+                            <ul class="text-xs text-gray-400 mt-1 space-y-0.5 list-disc list-inside">
+                                <li>团队以 Python / AI 算法背景为主</li>
+                                <li>核心需求是构建 <strong class="text-yellow-400">多 Agent 协作系统</strong></li>
+                                <li>需要分布式 Agent 部署（跨进程/跨机器）</li>
+                                <li>使用开源模型（ModelScope / HuggingFace）</li>
+                                <li>需要快速实验和迭代 Agent 行为</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-4 bg-purple-500/5 rounded-lg border border-purple-500/20">
+                        <div class="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-handshake text-purple-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-purple-400">混合策略（可行！）</h4>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Spring AI Alibaba 作为 <strong class="text-blue-400">API 网关层</strong>（认证、限流、模型路由），
+                                AgentScope 作为 <strong class="text-red-400">多 Agent 编排层</strong>（复杂任务分解、多角色协作），
+                                通过 REST / gRPC / Message Queue 桥接两层。这充分利用了两者各自的优势。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-600 text-xs py-6 border-t border-gray-800">
+            <p>Spring AI Alibaba vs AgentScope · 选择适合你的框架，而不是最流行的框架</p>
+        </div>
+
+    </div>
+</body>
+</html>

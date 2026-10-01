@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 沙箱安全机制 — 多层防御体系</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flow-box { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); }
+        .layer-card { transition: all 0.2s ease; }
+        .layer-card:hover { transform: translateX(4px); }
+        .pseudo-code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/30">
+                    <i class="fas fa-shield-halved text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Agent 沙箱安全机制</h1>
+                    <p class="text-gray-400">多层防御体系 — 从权限管控到进程隔离的完整安全架构</p>
+                </div>
+            </div>
+            <div class="text-gray-400 text-sm border-l-4 border-red-500 pl-4 bg-red-500/5 py-3 rounded-r-lg">
+                Claude CLI 的沙箱不是"一个"机制，而是 <strong class="text-red-400">6 层嵌套的安全防御体系</strong>。从权限管控、Bash 沙箱、文件状态追踪，到 Worktree 隔离、MCP 进程隔离、上下文约束，每一层解决不同维度的安全问题，共同构建了生产级 Agent 的安全底座。
+            </div>
+        </div>
+
+        <!-- 目录 -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-red-400"></i> 目录
+            </h2>
+            <ol class="list-decimal list-inside space-y-1 text-gray-300">
+                <li>沙箱安全全景图</li>
+                <li>第一层：权限管控引擎</li>
+                <li>第二层：Bash 沙箱</li>
+                <li>第三层：文件状态追踪</li>
+                <li>第四层：Worktree 隔离</li>
+                <li>第五层：MCP 进程隔离</li>
+                <li>第六层：上下文约束</li>
+                <li>完整安全链路伪代码</li>
+                <li>与 Docker 沙箱对比</li>
+            </ol>
+        </div>
+
+        <!-- Section 1: 全景图 -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">1</span>
+                沙箱安全全景图
+            </h2>
+            <p class="text-gray-300 mb-4">
+                Claude CLI 的 Agent 沙箱采用<strong class="text-red-400">分层防御（Defense in Depth）</strong>设计。每个工具调用必须依次通过所有适用的安全层，任何一层拒绝即终止执行。
+            </p>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Agent 沙箱安全全景图                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  User Input                                                                  │
+│     │                                                                        │
+│     ▼                                                                        │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 1: 权限管控引擎 (Permission Engine)         │                         │
+│  │  ├── Deny List 匹配  → ❌ 直接拒绝                   │                         │
+│  │  ├── Allow List 匹配  → ✅ 自动放行                   │                         │
+│  │  └── Prompt 用户确认  → ⏳ 等待用户决策                │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 通过                                               │
+│                          ▼                                                   │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 2: Bash 沙箱 (Shell Sandbox)               │                         │
+│  │  ├── 超时控制 (Timeout)                            │                         │
+│  │  ├── 命令模式匹配 (Pattern Match)                    │                         │
+│  │  ├── 沙箱模式开关 (Sandbox Flag)                     │                         │
+│  │  └── 非交互式 Shell (No TTY)                        │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 通过                                               │
+│                          ▼                                                   │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 3: 文件状态追踪 (File State Tracking)       │                         │
+│  │  ├── Read-before-Edit 强制约束                      │                         │
+│  │  ├── 文件内容缓存一致性校验                           │                         │
+│  │  └── 写操作审计日志                                 │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 通过                                               │
+│                          ▼                                                   │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 4: Worktree 隔离 (Git Isolation)           │                         │
+│  │  └── 当 isolation: "worktree" 时启用               │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 通过                                               │
+│                          ▼                                                   │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 5: MCP 进程隔离 (Process Isolation)        │                         │
+│  │  └── MCP 服务器运行在独立子进程中                    │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 通过                                               │
+│                          ▼                                                   │
+│  ┌─────────────────────────────────────────────────┐                         │
+│  │  Layer 6: 上下文约束 (Context Guardrails)          │                         │
+│  │  ├── 最大迭代次数                                   │                         │
+│  │  ├── Token 预算上限                                 │                         │
+│  │  ├── 并发槽位限制                                   │                         │
+│  │  └── 用户中断信号                                   │                         │
+│  └───────────────────────┬─────────────────────────┘                         │
+│                          │ 全部通过                                           │
+│                          ▼                                                   │
+│                    ✅ 执行工具 (Tool Executed)                                  │
+└─────────────────────────────────────────────────────────────────────────────┘</div>
+        </div>
+
+        <!-- Section 2: Permission Engine -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">2</span>
+                第一层：权限管控引擎
+            </h2>
+            <p class="text-gray-300 mb-4">
+                最外层的安全门。每次工具调用必须过权限检查，采用<strong class="text-yellow-400">拒绝优先（Deny First）</strong>策略：一旦命中 Deny List，连弹窗都没有，直接驳回。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-green-500/10 rounded-lg p-4 border border-green-500/30 layer-card">
+                    <h4 class="text-green-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-check-circle"></i> Allow — 自动放行
+                    </h4>
+                    <p class="text-gray-400 text-sm">读操作（Read、Glob、Grep）默认允许。用户可通过 allowlist 预设更多自动放行规则。</p>
+                </div>
+                <div class="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/30 layer-card">
+                    <h4 class="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-question-circle"></i> Prompt — 弹窗确认
+                    </h4>
+                    <p class="text-gray-400 text-sm">写操作（Edit、Write、Bash）默认弹窗。用户可选 Allow/Allow Always/Deny/Deny Always。</p>
+                </div>
+                <div class="bg-red-500/10 rounded-lg p-4 border border-red-500/30 layer-card">
+                    <h4 class="text-red-400 font-bold mb-2 flex items-center gap-2">
+                        <i class="fas fa-ban"></i> Deny — 拒绝执行
+                    </h4>
+                    <p class="text-gray-400 text-sm">危险操作（如 <code class="text-yellow-400">rm -rf /*</code>、<code class="text-yellow-400">curl | sh</code>）被策略禁止。命中后直接拒绝，不弹窗。</p>
+                </div>
+            </div>
+
+            <!-- Permission Engine 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed mb-4">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 1: PermissionEngine — 权限管控引擎</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">PermissionEngine</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    constructor() {</div>
+                    <div class="ml-8">        <span class="text-gray-500">// 权限策略：从 settings.json 加载</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.allowlist = []        <span class="text-gray-600">// [{tool, pattern?}]</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.denylist = []         <span class="text-gray-600">// [{tool, pattern?}]</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.sessionAllowCache = [] <span class="text-gray-600">// 本次会话已确认的权限</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.permissionMode = <span class="text-green-400">'normal'</span> <span class="text-gray-600">// permissive | normal | quiet</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 核心方法：检查权限 ----------</span></div>
+                    <div><span class="text-blue-400">async</span> <span class="text-yellow-400">checkPermission</span>(toolName, args) {</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">    // Step 1: 检查 Deny List（拒绝优先）</div>
+                    <div class="ml-8">    denyMatch = <span class="text-blue-400">this</span>.<span class="text-yellow-400">matchPolicy</span>(<span class="text-blue-400">this</span>.denylist, toolName, args)</div>
+                    <div class="ml-8">    <span class="text-blue-400">if</span> (denyMatch) {</div>
+                    <div class="ml-12">        <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">            decision: <span class="text-green-400">'deny'</span>,</div>
+                    <div class="ml-16">            reason: <span class="text-green-400">`操作被策略禁止: ${denyMatch.pattern}`</span>,</div>
+                    <div class="ml-16">            autoDeny: <span class="text-blue-300">true</span>  <span class="text-gray-600">// true = 不弹窗</span></div>
+                    <div class="ml-12">        }</div>
+                    <div class="ml-8">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">    // Step 2: 检查 Allow List</div>
+                    <div class="ml-8">    allowMatch = <span class="text-blue-400">this</span>.<span class="text-yellow-400">matchPolicy</span>(<span class="text-blue-400">this</span>.allowlist, toolName, args)</div>
+                    <div class="ml-8">    <span class="text-blue-400">if</span> (allowMatch) {</div>
+                    <div class="ml-12">        <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'allow'</span>, autoAllow: <span class="text-blue-300">true</span> }</div>
+                    <div class="ml-8">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">    // Step 3: 检查本次会话是否已确认过</div>
+                    <div class="ml-8">    cached = <span class="text-blue-400">this</span>.sessionAllowCache.<span class="text-yellow-400">find</span>(</div>
+                    <div class="ml-12">        c => c.tool === toolName &amp;&amp; <span class="text-yellow-400">argsMatch</span>(c.args, args)</div>
+                    <div class="ml-8">    )</div>
+                    <div class="ml-8">    <span class="text-blue-400">if</span> (cached) {</div>
+                    <div class="ml-12">        <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'allow'</span>, fromCache: <span class="text-blue-300">true</span> }</div>
+                    <div class="ml-8">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">    // Step 4: 根据 mode 决定是否弹窗</div>
+                    <div class="ml-8">    <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.permissionMode === <span class="text-green-400">'permissive'</span>) {</div>
+                    <div class="text-gray-500 ml-12">        // 宽松模式：写操作也自动放行（不推荐生产）</div>
+                    <div class="ml-12">        <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'allow'</span>, mode: <span class="text-green-400">'permissive'</span> }</div>
+                    <div class="ml-8">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">    <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.permissionMode === <span class="text-green-400">'quiet'</span>) {</div>
+                    <div class="text-gray-500 ml-12">        // 安静模式：直接拒绝未授权的所有操作</div>
+                    <div class="ml-12">        <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'deny'</span>, reason: <span class="text-green-400">'安静模式，未授权操作'</span> }</div>
+                    <div class="ml-8">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">    // Step 5: 弹窗让用户选择</div>
+                    <div class="ml-8">    userChoice = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">showPermissionDialog</span>(toolName, args)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">    <span class="text-blue-400">switch</span> (userChoice.action) {</div>
+                    <div class="ml-12">        <span class="text-blue-400">case</span> <span class="text-green-400">'allow'</span>:</div>
+                    <div class="ml-16">            <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'allow'</span> }</div>
+                    <div class="ml-12">        <span class="text-blue-400">case</span> <span class="text-green-400">'allow_always'</span>:</div>
+                    <div class="text-gray-500 ml-16">        // 加入会话缓存</div>
+                    <div class="ml-16">            <span class="text-blue-400">this</span>.sessionAllowCache.<span class="text-yellow-400">push</span>({ tool: toolName })</div>
+                    <div class="ml-16">            <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'allow'</span>, cached: <span class="text-blue-300">true</span> }</div>
+                    <div class="ml-12">        <span class="text-blue-400">case</span> <span class="text-green-400">'deny'</span>:</div>
+                    <div class="ml-16">            <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'deny'</span>, reason: <span class="text-green-400">'用户拒绝'</span> }</div>
+                    <div class="ml-12">        <span class="text-blue-400">case</span> <span class="text-green-400">'deny_always'</span>:</div>
+                    <div class="ml-16">            <span class="text-blue-400">this</span>.denylist.<span class="text-yellow-400">push</span>({ tool: toolName, pattern: <span class="text-yellow-400">toPattern</span>(args) })</div>
+                    <div class="ml-16">            <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'deny'</span>, persistent: <span class="text-blue-300">true</span> }</div>
+                    <div class="ml-12">        <span class="text-blue-400">case</span> <span class="text-green-400">'timeout'</span>:</div>
+                    <div class="text-gray-500 ml-16">        // 用户超时未响应 → 默认拒绝</div>
+                    <div class="ml-16">            <span class="text-blue-400">return</span> { decision: <span class="text-green-400">'deny'</span>, reason: <span class="text-green-400">'用户超时未响应'</span> }</div>
+                    <div class="ml-8">    }</div>
+                    <div>    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">    // ---------- 策略匹配 ----------</div>
+                    <div class="ml-4">    <span class="text-yellow-400">matchPolicy</span>(policies, toolName, args) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> policies.<span class="text-yellow-400">find</span>(policy => {</div>
+                    <div class="text-gray-500 ml-12">        // 工具名称必须匹配</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (policy.tool !== toolName) <span class="text-blue-400">return</span> <span class="text-blue-300">false</span></div>
+                    <div class="text-gray-500 ml-12">        // 如果有 pattern，对参数做模式匹配</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (policy.pattern) {</div>
+                    <div class="text-gray-500 ml-16">            // 将参数序列化为字符串，正则匹配</div>
+                    <div class="ml-16">                argStr = <span class="text-yellow-400">JSON.stringify</span>(args)</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">RegExp</span>(policy.pattern).<span class="text-yellow-400">test</span>(argStr)</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> <span class="text-blue-300">true</span> <span class="text-gray-600">// 无 pattern = 匹配该工具下所有调用</span></div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">    // ---------- 权限弹窗（UI 层） ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">showPermissionDialog</span>(toolName, args) {</div>
+                    <div class="ml-8">        <span class="text-gray-500">// 在终端中弹出一个交互式选择框</span></div>
+                    <div class="ml-8">        <span class="text-gray-500">// 显示工具名称、参数预览、风险等级</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-yellow-400">terminal.showPrompt</span>({</div>
+                    <div class="ml-12">            type: <span class="text-green-400">'permission'</span>,</div>
+                    <div class="ml-12">            title: <span class="text-green-400">`允许执行 ${toolName}?`</span>,</div>
+                    <div class="ml-12">            detail: <span class="text-yellow-400">formatArgs</span>(args),</div>
+                    <div class="ml-12">            choices: [</div>
+                    <div class="ml-16">                { label: <span class="text-green-400">'✅ 允许'</span>, value: <span class="text-green-400">'allow'</span> },</div>
+                    <div class="ml-16">                { label: <span class="text-green-400">'✅ 始终允许'</span>, value: <span class="text-green-400">'allow_always'</span> },</div>
+                    <div class="ml-16">                { label: <span class="text-green-400">'❌ 拒绝'</span>, value: <span class="text-green-400">'deny'</span> },</div>
+                    <div class="ml-16">                { label: <span class="text-green-400">'🚫 始终拒绝'</span>, value: <span class="text-green-400">'deny_always'</span> },</div>
+                    <div class="ml-12">            ],</div>
+                    <div class="ml-12">            timeout: <span class="text-green-400">30_000</span>  <span class="text-gray-600">// 30s 超时</span></div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Bash Sandbox -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">3</span>
+                第二层：Bash 沙箱
+            </h2>
+            <p class="text-gray-300 mb-4">
+                Bash 是最危险的工具——它可以直接执行任意系统命令。因此它有<strong class="text-yellow-400">最严格的多重保护</strong>。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-red-400 font-bold mb-2">⏱️ 超时控制</h4>
+                    <p class="text-gray-400 text-sm">每个命令有默认超时（120s），防止死循环或挂起。通过 <code class="text-yellow-400">timeout</code> 参数可自定义。超时后返回错误，不阻塞 Harness。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-red-400 font-bold mb-2">🔍 命令模式匹配</h4>
+                    <p class="text-gray-400 text-sm">通过 <code class="text-yellow-400">pattern</code> 字段匹配命令内容。粗粒度管控：<code>rm -rf</code>、<code>curl | sh</code>、<code>dd</code> 等危险命令默认被禁止。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-red-400 font-bold mb-2">🚫 沙箱模式开关</h4>
+                    <p class="text-gray-400 text-sm"><code class="text-yellow-400">dangerouslyDisableSandbox: true</code> 默认关闭，需要用户明确授权才能绕过。这是最后一道防线。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-red-400 font-bold mb-2">💻 非交互式 Shell</h4>
+                    <p class="text-gray-400 text-sm">Bash 运行在非交互模式下（POSIX sh，不是 cmd.exe/PowerShell）。<code>git rebase -i</code>、<code>vim</code> 等交互式命令无法执行。</p>
+                </div>
+            </div>
+
+            <!-- Bash Sandbox 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 2: BashSandbox — Shell 执行沙箱</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">BashSandbox</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>(config) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.defaultTimeout = config.timeout || <span class="text-green-400">120_000</span> <span class="text-gray-600">// 默认 120s</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.sandboxEnabled = config.sandboxEnabled ?? <span class="text-blue-300">true</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.dangerousPatterns = [</div>
+                    <div class="ml-12">            <span class="text-green-400">/rm\s+-rf\s+\/*/</span>,     <span class="text-gray-600">// 删除根目录</span></div>
+                    <div class="ml-12">            <span class="text-green-400">/curl\s+.*\s*\|\s*(ba)?sh/</span>, <span class="text-gray-600">// curl 到 shell</span></div>
+                    <div class="ml-12">            <span class="text-green-400">/wget\s+.*\s*-O\s*-\s*\|\s*(ba)?sh/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/dd\s+if=.*of=.*/</span>,     <span class="text-gray-600">// 磁盘写入</span></div>
+                    <div class="ml-12">            <span class="text-green-400">/>\s*\/dev\//</span>,          <span class="text-gray-600">// 直接写设备</span></div>
+                    <div class="ml-8">        ]</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">execute</span>(command, options = {}) {</div>
+                    <div class="ml-8">        timeout = options.timeout || <span class="text-blue-400">this</span>.defaultTimeout</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 1: 沙箱安全检查</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.sandboxEnabled) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">for</span> (<span class="text-blue-400">const</span> pattern <span class="text-blue-400">of</span> <span class="text-blue-400">this</span>.dangerousPatterns) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">if</span> (pattern.<span class="text-yellow-400">test</span>(command)) {</div>
+                    <div class="ml-20">                    <span class="text-blue-400">throw</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">SandboxError</span>(</div>
+                    <div class="ml-24">                        <span class="text-green-400">`沙箱禁止的操作: ${pattern}`</span></div>
+                    <div class="ml-20">                    )</div>
+                    <div class="ml-16">                }</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 2: 检测是否是交互式命令</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.<span class="text-yellow-400">isInteractive</span>(command)) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                exitCode: <span class="text-green-400">1</span>,</div>
+                    <div class="ml-16">                stdout: <span class="text-green-400">''</span>,</div>
+                    <div class="ml-16">                stderr: <span class="text-green-400">'交互式命令不被支持（无 TTY）'</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // Phase 3: 执行（带超时）</div>
+                    <div class="ml-8">        <span class="text-blue-400">try</span> {</div>
+                    <div class="ml-12">            result = <span class="text-blue-400">await</span> <span class="text-yellow-400">execShell</span>(command, {</div>
+                    <div class="ml-16">                timeout,</div>
+                    <div class="ml-16">                shell: <span class="text-blue-400">this</span>.<span class="text-yellow-400">getShellPath</span>(),  <span class="text-gray-600">// Git Bash / sh</span></div>
+                    <div class="ml-16">                cwd: options.cwd</div>
+                    <div class="ml-12">            })</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                exitCode: result.code,</div>
+                    <div class="ml-16">                stdout: result.stdout,</div>
+                    <div class="ml-16">                stderr: result.stderr,</div>
+                    <div class="ml-16">                duration: result.duration</div>
+                    <div class="ml-12">            }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        } <span class="text-blue-400">catch</span> (err) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (err.<span class="text-yellow-400">name</span> === <span class="text-green-400">'TimeoutError'</span>) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-20">                    exitCode: <span class="text-green-400">124</span>, <span class="text-gray-600">// timeout exit code</span></div>
+                    <div class="ml-20">                    stdout: <span class="text-green-400">''</span>,</div>
+                    <div class="ml-20">                    stderr: <span class="text-green-400">`命令超时 (${timeout}ms)`</span></div>
+                    <div class="ml-16">                }</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-12">            <span class="text-blue-400">throw</span> err  <span class="text-gray-600">// 其他异常继续上抛</span></div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">    // ---------- 交互式命令检测 ----------</div>
+                    <div class="ml-4">    <span class="text-yellow-400">isInteractive</span>(command) {</div>
+                    <div class="ml-8">        interactivePatterns = [</div>
+                    <div class="ml-12">            <span class="text-green-400">/git\s+rebase\s+-i/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/git\s+commit\s+--amend/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/vim?\s+/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/nano\s+/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/top\s*$/</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">/less\s+/</span>,</div>
+                    <div class="ml-8">        ]</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> interactivePatterns.<span class="text-yellow-400">some</span>(p => p.<span class="text-yellow-400">test</span>(command))</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-4">    // ---------- 后台进程执行 ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeBackground</span>(command, options = {}) {</div>
+                    <div class="text-gray-500 ml-8">        // 后台进程在独立进程中运行，不阻塞主循环</div>
+                    <div class="ml-8">        pid = <span class="text-blue-400">await</span> <span class="text-yellow-400">spawnDetached</span>(command, {</div>
+                    <div class="ml-12">            stdio: <span class="text-green-400">'pipe'</span>,</div>
+                    <div class="ml-12">            cwd: options.cwd</div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> { pid, status: <span class="text-green-400">'running'</span> }</div>
+                    <div class="text-gray-500 ml-8">        // 输出通过后续的 TaskOutput 工具获取</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: File State Tracking -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">4</span>
+                第三层：文件状态追踪
+            </h2>
+            <p class="text-gray-300 mb-4">
+                这是防止"脏写"的关键机制——<strong class="text-yellow-400">强制要求 Read-before-Edit</strong>，确保每次写入都基于最新的文件状态。
+            </p>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre mb-4">
+  Read("src/main.py")
+       │
+       ▼
+  Harness 记录: [src/main.py] 已读，缓存内容摘要
+       │
+       ▼
+  Edit("src/main.py", "xxx" → "yyy")
+       │
+       ▼
+  ┌── 检查: 是否先 Read 过该文件？
+  │   ├─ ✅ 是 → 允许写入，更新文件状态缓存
+  │   └─ ❌ 否 → 拒绝！返回错误："必须先 Read 该文件"
+  │
+  ▼
+  Read("src/main.py")
+       │
+       ▼
+  直接从内存缓存返回（无需重新读磁盘）
+  保证读写一致性</div>
+
+            <!-- File State Tracking 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 3: FileStateTracker — 文件状态追踪</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">FileStateTracker</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.fileStates = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()  <span class="text-gray-600">// path → FileState</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.auditLog = []  <span class="text-gray-600">// 写操作审计日志</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 记录读操作 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">recordRead</span>(filePath, content) {</div>
+                    <div class="ml-8">        existing = <span class="text-blue-400">this</span>.fileStates.<span class="text-yellow-400">get</span>(filePath)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.fileStates.<span class="text-yellow-400">set</span>(filePath, {</div>
+                    <div class="ml-12">            path: filePath,</div>
+                    <div class="ml-12">            content,</div>
+                    <div class="ml-12">            contentHash: <span class="text-yellow-400">hashContent</span>(content),</div>
+                    <div class="ml-12">            lastReadAt: <span class="text-yellow-400">now</span>(),</div>
+                    <div class="ml-12">            version: (existing?.version || <span class="text-green-400">0</span>) + <span class="text-green-400">1</span>,</div>
+                    <div class="ml-12">            isDirty: <span class="text-blue-300">false</span>   <span class="text-gray-600">// 读操作不会标记为脏</span></div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 写前检查 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">checkBeforeWrite</span>(filePath, newContent) {</div>
+                    <div class="ml-8">        state = <span class="text-blue-400">this</span>.fileStates.<span class="text-yellow-400">get</span>(filePath)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 检查: 之前有没有 Read 过？</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!state) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">throw</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">WriteWithoutReadError</span>(</div>
+                    <div class="ml-16">                <span class="text-green-400">`必须先 Read 再编辑: ${filePath}`</span></div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 检查: 文件在磁盘上是否已被外部修改？</div>
+                    <div class="ml-8">        diskContent = <span class="text-blue-400">await</span> <span class="text-yellow-400">readFileFromDisk</span>(filePath)</div>
+                    <div class="ml-8">        diskHash = <span class="text-yellow-400">hashContent</span>(diskContent)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (diskHash !== state.contentHash) {</div>
+                    <div class="text-gray-500 ml-12">            // 文件已被外部修改！有冲突风险</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (state.isDirty) {</div>
+                    <div class="text-gray-500 ml-16">                // Agent 已修改过 + 外部也修改了 → 冲突</div>
+                    <div class="ml-16">                <span class="text-blue-400">throw</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">FileConflictError</span>(</div>
+                    <div class="ml-20">                    <span class="text-green-400">`文件冲突: ${filePath} 已被外部修改`</span></div>
+                    <div class="ml-16">                )</div>
+                    <div class="ml-12">            }</div>
+                    <div class="text-gray-500 ml-12">            // 只读未改 + 外部修改 → 重新 Read 更新缓存</div>
+                    <div class="ml-12">            <span class="text-blue-400">this</span>.<span class="text-yellow-400">recordRead</span>(filePath, diskContent)</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> { allowed: <span class="text-blue-300">true</span>, state }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 记录写操作 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">recordWrite</span>(filePath, result) {</div>
+                    <div class="ml-8">        state = <span class="text-blue-400">this</span>.fileStates.<span class="text-yellow-400">get</span>(filePath)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (state) {</div>
+                    <div class="ml-12">            state.content = result.content</div>
+                    <div class="ml-12">            state.contentHash = <span class="text-yellow-400">hashContent</span>(result.content)</div>
+                    <div class="ml-12">            state.isDirty = <span class="text-blue-300">true</span></div>
+                    <div class="ml-12">            state.lastWriteAt = <span class="text-yellow-400">now</span>()</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 写入审计日志</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.auditLog.<span class="text-yellow-400">push</span>({</div>
+                    <div class="ml-12">            timestamp: <span class="text-yellow-400">now</span>(),</div>
+                    <div class="ml-12">            action: <span class="text-green-400">'write'</span>,</div>
+                    <div class="ml-12">            filePath,</div>
+                    <div class="ml-12">            contentHash: <span class="text-yellow-400">hashContent</span>(result.content)</div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 从缓存获取文件内容 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">getCachedContent</span>(filePath) {</div>
+                    <div class="ml-8">        state = <span class="text-blue-400">this</span>.fileStates.<span class="text-yellow-400">get</span>(filePath)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (state &amp;&amp; state.isDirty) {</div>
+                    <div class="text-gray-500 ml-12">        // 如果文件已被写入，距离上次写入不超过 5s，返回缓存</div>
+                    <div class="ml-12">            age = <span class="text-yellow-400">now</span>() - state.lastWriteAt</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (age &lt; <span class="text-green-400">5000</span>) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> state.content  <span class="text-gray-600">// 缓存命中</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-blue-300">null</span>  <span class="text-gray-600">// 缓存过期/无缓存</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Worktree -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">5</span>
+                第四层：Worktree 隔离
+            </h2>
+            <p class="text-gray-300 mb-4">
+                最强大的隔离机制——将 Agent 限在独立的 Git Worktree 中运行，<strong class="text-yellow-400">主分支完全不受影响</strong>。
+            </p>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre mb-4">
+  主工作目录 (main)
+      │
+      ├── .git/worktrees/wt_abc123/    ← 独立的 git 元数据
+      ├── wt_abc123/src/               ← 代码的隔离副本
+      │
+      └── Agent 在这个隔离目录中操作
+           ├ 可以任意修改文件
+           ├ 可以执行 git rebase、git reset
+           ├ 可以试验破坏性操作
+           └ 主分支完全不受影响！
+
+  如果 Agent 没有做有效修改 → worktree 自动清理
+  如果 Agent 做了有效修改   → 可选择性地合并到主分支</div>
+
+            <!-- Worktree 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 4: WorktreeIsolation — Git 工作树隔离</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">WorktreeIsolation</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>(repoPath) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.repoPath = repoPath</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.worktrees = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()  <span class="text-gray-600">// agentId → worktreePath</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.cleanupTimers = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 创建隔离工作树 ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">createIsolatedWorktree</span>(agentId, branch) {</div>
+                    <div class="text-gray-500 ml-8">        // 生成唯一名称</div>
+                    <div class="ml-8">        worktreeName = <span class="text-green-400">`agent-${agentId}-${Date.now()}`</span></div>
+                    <div class="ml-8">        worktreePath = <span class="text-yellow-400">path.join</span>(<span class="text-blue-400">this</span>.repoPath, <span class="text-green-400">'..'</span>, worktreeName)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 创建新的 git worktree</div>
+                    <div class="ml-8">        <span class="text-blue-400">await</span> <span class="text-yellow-400">execGit</span>([</div>
+                    <div class="ml-12">            <span class="text-green-400">'git'</span>, <span class="text-green-400">'worktree'</span>, <span class="text-green-400">'add'</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">'--detach'</span>,           <span class="text-gray-600">// 不切换分支</span></div>
+                    <div class="ml-12">            worktreePath,</div>
+                    <div class="ml-12">            branch || <span class="text-green-400">'HEAD'</span></div>
+                    <div class="ml-8">        ])</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.worktrees.<span class="text-yellow-400">set</span>(agentId, {</div>
+                    <div class="ml-12">            path: worktreePath,</div>
+                    <div class="ml-12">            createdAt: <span class="text-yellow-400">now</span>(),</div>
+                    <div class="ml-12">            hasChanges: <span class="text-blue-300">false</span></div>
+                    <div class="ml-8">        })</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 设置自动清理（如果无修改）</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.<span class="text-yellow-400">scheduleCleanup</span>(agentId, <span class="text-green-400">3_600_000</span>) <span class="text-gray-600">// 1h 后清理</span></div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-12">            worktreePath,</div>
+                    <div class="ml-12">            worktreeName</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 在隔离环境中执行 Agent ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">runInIsolation</span>(agentId, agentFn) {</div>
+                    <div class="ml-8">        info = <span class="text-blue-400">this</span>.worktrees.<span class="text-yellow-400">get</span>(agentId)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!info) <span class="text-blue-400">throw</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">Error</span>(<span class="text-green-400">'Worktree not found'</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 保存当前目录，切换到 worktree</div>
+                    <div class="ml-8">        originalCwd = process.cwd()</div>
+                    <div class="ml-8">        process.chdir(info.path)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">try</span> {</div>
+                    <div class="text-gray-500 ml-12">            // Agent 在隔离目录中执行</div>
+                    <div class="ml-12">            result = <span class="text-blue-400">await</span> agentFn()</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // 检查是否有未提交的修改</div>
+                    <div class="ml-12">            status = <span class="text-blue-400">await</span> <span class="text-yellow-400">execGit</span>([<span class="text-green-400">'git'</span>, <span class="text-green-400">'status'</span>, <span class="text-green-400">'--porcelain'</span>])</div>
+                    <div class="ml-12">            info.hasChanges = status.stdout.<span class="text-yellow-400">trim</span>().<span class="text-yellow-400">length</span> &gt; <span class="text-green-400">0</span></div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                result,</div>
+                    <div class="ml-16">                hasChanges: info.hasChanges,</div>
+                    <div class="ml-16">                worktreePath: info.path</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        } <span class="text-blue-400">finally</span> {</div>
+                    <div class="ml-12">            process.chdir(originalCwd)</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 清理 ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">cleanup</span>(agentId) {</div>
+                    <div class="ml-8">        info = <span class="text-blue-400">this</span>.worktrees.<span class="text-yellow-400">get</span>(agentId)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!info) <span class="text-blue-400">return</span></div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (info.hasChanges) {</div>
+                    <div class="text-gray-500 ml-12">            // 有修改 → 保留，记录日志</div>
+                    <div class="ml-12">            <span class="text-yellow-400">logger</span>.<span class="text-yellow-400">info</span>(<span class="text-green-400">`Agent ${agentId} 有未提交修改，保留 worktree`</span>)</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span></div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 无修改 → 安全删除</div>
+                    <div class="ml-8">        <span class="text-blue-400">await</span> <span class="text-yellow-400">execGit</span>([</div>
+                    <div class="ml-12">            <span class="text-green-400">'git'</span>, <span class="text-green-400">'worktree'</span>, <span class="text-green-400">'remove'</span>,</div>
+                    <div class="ml-12">            <span class="text-green-400">'--force'</span>, info.path</div>
+                    <div class="ml-8">        ])</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.worktrees.<span class="text-yellow-400">delete</span>(agentId)</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.<span class="text-yellow-400">clearCleanupTimer</span>(agentId)</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: MCP Process Isolation -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">6</span>
+                第五层：MCP 进程隔离
+            </h2>
+            <p class="text-gray-300 mb-4">
+                MCP（Model Context Protocol）服务器运行在<strong class="text-yellow-400">独立子进程</strong>中，通过 <code class="text-yellow-400">stdin/stdout JSON-RPC</code> 通信，彼此之间没有共享内存。
+            </p>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre mb-4">
+  ┌──────────────────────────────────────────────┐
+  │            Claude CLI (主进程)                  │
+  │                                               │
+  │  ┌─────────────┐  ┌─────────────┐  ┌────────┐ │
+  │  │ Harness     │  │ Loop        │  │ Memory │ │
+  │  │ 执行框架     │  │ 主循环       │  │ 记忆   │ │
+  │  └──────┬──────┘  └─────────────┘  └────────┘ │
+  └─────────┼────────────────────────────────────┘
+            │ JSON-RPC over stdin/stdout
+            │
+  ┌─────────┴────────────────────────────────────┐
+  │   MCP Server A (子进程) — 文件系统工具          │
+  │   ├ 只能操作授权目录                            │
+  │   ├ 独立资源限制                                │
+  │   └ 崩溃不影响主进程                            │
+  ├──────────────────────────────────────────────┤
+  │   MCP Server B (子进程) — 数据库工具            │
+  │   ├ 只能连接配置的数据库                         │
+  │   └ 完全隔离的进程空间                          │
+  └──────────────────────────────────────────────┘</div>
+
+            <!-- MCP 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 5: MCPProcessManager — MCP 进程隔离</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">MCPProcessManager</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.servers = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()  <span class="text-gray-600">// serverId → MCPProcess</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.nextServerId = <span class="text-green-400">0</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 启动 MCP 服务器（子进程） ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">startServer</span>(name, command, args, env) {</div>
+                    <div class="ml-8">        serverId = <span class="text-green-400">`mcp-${name}-${++this.nextServerId}`</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 启动子进程</div>
+                    <div class="ml-8">        child = <span class="text-yellow-400">spawn</span>(command, args, {</div>
+                    <div class="ml-12">            stdio: [<span class="text-green-400">'pipe'</span>, <span class="text-green-400">'pipe'</span>, <span class="text-green-400">'pipe'</span>],</div>
+                    <div class="text-gray-500 ml-12">            // 隔离的环境变量</div>
+                    <div class="ml-12">            env: {</div>
+                    <div class="ml-16">                ...env,</div>
+                    <div class="ml-16">                MCP_SERVER_ID: serverId,</div>
+                    <div class="ml-16">                PATH: process.env.PATH,  <span class="text-gray-600">// 只继承必要变量</span></div>
+                    <div class="ml-12">            },</div>
+                    <div class="ml-12">            cwd: <span class="text-blue-400">this</span>.<span class="text-yellow-400">getServerWorkDir</span>(name)</div>
+                    <div class="ml-8">        })</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        server = {</div>
+                    <div class="ml-12">            id: serverId,</div>
+                    <div class="ml-12">            name,</div>
+                    <div class="ml-12">            child,</div>
+                    <div class="ml-12">            stdin: child.stdin,</div>
+                    <div class="ml-12">            stdout: child.stdout,</div>
+                    <div class="ml-12">            tools: [],  <span class="text-gray-600">// 服务器注册的工具列表</span></div>
+                    <div class="ml-12">            status: <span class="text-green-400">'starting'</span>,</div>
+                    <div class="ml-12">            lastHeartbeat: <span class="text-yellow-400">now</span>()</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 监听子进程退出</div>
+                    <div class="ml-8">        child.on(<span class="text-green-400">'exit'</span>, (code) => {</div>
+                    <div class="ml-12">            server.status = <span class="text-green-400">`exited:${code}`</span></div>
+                    <div class="ml-12">            <span class="text-yellow-400">logger</span>.<span class="text-yellow-400">warn</span>(<span class="text-green-400">`MCP ${name} 进程退出: ${code}`</span>)</div>
+                    <div class="text-gray-500 ml-12">            // 自动重启（可选）</div>
+                    <div class="ml-8">        })</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 等待工具列表注册</div>
+                    <div class="ml-8">        server.tools = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">waitForToolRegistration</span>(server)</div>
+                    <div class="ml-8">        server.status = <span class="text-green-400">'running'</span></div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.servers.<span class="text-yellow-400">set</span>(serverId, server)</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> serverId</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 通过 JSON-RPC 调用 MCP 工具 ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">callTool</span>(serverId, toolName, args) {</div>
+                    <div class="ml-8">        server = <span class="text-blue-400">this</span>.servers.<span class="text-yellow-400">get</span>(serverId)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!server || server.status !== <span class="text-green-400">'running'</span>) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">'MCP 服务器不可用'</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 构建 JSON-RPC 请求</div>
+                    <div class="ml-8">        request = {</div>
+                    <div class="ml-12">            jsonrpc: <span class="text-green-400">'2.0'</span>,</div>
+                    <div class="ml-12">            id: <span class="text-yellow-400">generateId</span>(),</div>
+                    <div class="ml-12">            method: <span class="text-green-400">'tools/call'</span>,</div>
+                    <div class="ml-12">            params: { name: toolName, arguments: args }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 通过 stdin 发送</div>
+                    <div class="ml-8">        server.stdin.<span class="text-yellow-400">write</span>(<span class="text-yellow-400">JSON.stringify</span>(request) + <span class="text-green-400">'\n'</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 通过 stdout 等待响应（带超时）</div>
+                    <div class="ml-8">        response = <span class="text-blue-400">await</span> <span class="text-yellow-400">readJSONRPCResponse</span>(server.stdout, <span class="text-green-400">30_000</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (response.error) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: response.error.message }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        server.lastHeartbeat = <span class="text-yellow-400">now</span>()</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> { result: response.result }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 安全关闭 ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">shutdownServer</span>(serverId) {</div>
+                    <div class="ml-8">        server = <span class="text-blue-400">this</span>.servers.<span class="text-yellow-400">get</span>(serverId)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!server) <span class="text-blue-400">return</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 发送关闭信号</div>
+                    <div class="ml-8">        server.child.<span class="text-yellow-400">kill</span>(<span class="text-green-400">'SIGTERM'</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 等待优雅退出</div>
+                    <div class="ml-8">        exited = <span class="text-blue-400">await</span> <span class="text-yellow-400">waitForExit</span>(server.child, <span class="text-green-400">5000</span>)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!exited) {</div>
+                    <div class="ml-12">            server.child.<span class="text-yellow-400">kill</span>(<span class="text-green-400">'SIGKILL'</span>)  <span class="text-gray-600">// 强制结束</span></div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.servers.<span class="text-yellow-400">delete</span>(serverId)</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 7: Context Guardrails -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">7</span>
+                第六层：上下文约束
+            </h2>
+            <p class="text-gray-300 mb-4">
+                在"应用逻辑"层的安全控制——防止 Agent 资源失控。这些不是"安全"的直译，但它们是<strong class="text-yellow-400">生产级 Agent 防止失控的必需组件</strong>。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-orange-400 font-bold mb-2">🔄 最大迭代次数</h4>
+                    <p class="text-gray-400 text-sm">防止 Agent 陷入无限工具调用循环。单次交互默认最多 50 次工具调用，达到上限后强制结束，防止 Token 失控。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-orange-400 font-bold mb-2">💰 Token 预算上限</h4>
+                    <p class="text-gray-400 text-sm">用户可指定 <code class="text-yellow-400">+500k</code> 等 Token 预算（仅 Claude Code 支持），超出后停止工作。Workflow 中也通过 <code class="text-yellow-400">budget.total/spent/remaining()</code> 动态控制。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-orange-400 font-bold mb-2">🧵 并发槽位限制</h4>
+                    <p class="text-gray-400 text-sm">并发 Agent 调用上限为 <code class="text-yellow-400">min(16, CPU 核心数 - 2)</code>，超出排队等待，防止资源耗尽导致系统响应变慢。</p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                    <h4 class="text-orange-400 font-bold mb-2">🛑 用户中断信号</h4>
+                    <p class="text-gray-400 text-sm">用户可以随时通过快捷键或取消按钮中断正在执行的 Agent 循环。Harness 检测到中断信号后停止所有正在执行的工具调用。</p>
+                </div>
+            </div>
+
+            <!-- Guardrails 伪代码 -->
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Layer 6: ContextGuardrails — 上下文约束</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">ContextGuardrails</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>(config) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.maxIterations = config.maxIterations || <span class="text-green-400">50</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.maxTokens = config.maxTokens || <span class="text-green-400">200_000</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.maxConcurrency = config.maxConcurrency</div>
+                    <div class="ml-8">            || <span class="text-yellow-400">Math</span>.<span class="text-yellow-400">min</span>(<span class="text-green-400">16</span>, <span class="text-yellow-400">os</span>.<span class="text-yellow-400">cpus</span>().<span class="text-yellow-400">length</span> - <span class="text-green-400">2</span>)</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.abortController = <span class="text-blue-400">new</span> <span class="text-yellow-400">AbortController</span>()</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.tokenBudget = <span class="text-blue-400">null</span>  <span class="text-gray-600">// { total, spent, remaining }</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 检查是否应该继续循环 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">shouldContinue</span>(iteration, tokensUsed) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.abortController.signal.aborted) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                ok: <span class="text-blue-300">false</span>,</div>
+                    <div class="ml-16">                reason: <span class="text-green-400">'用户中断'</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (iteration &gt;= <span class="text-blue-400">this</span>.maxIterations) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                ok: <span class="text-blue-300">false</span>,</div>
+                    <div class="ml-16">                reason: <span class="text-green-400">`达到最大迭代次数 (${this.maxIterations})`</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.tokenBudget) {</div>
+                    <div class="ml-12">            remaining = <span class="text-blue-400">this</span>.tokenBudget.total - tokensUsed</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (remaining &lt;= <span class="text-green-400">0</span>) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-20">                    ok: <span class="text-blue-300">false</span>,</div>
+                    <div class="ml-20">                    reason: <span class="text-green-400">'Token 预算已耗尽'</span></div>
+                    <div class="ml-16">                }</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> { ok: <span class="text-blue-300">true</span> }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 并发槽位管理 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">acquireSlot</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">Promise</span>(resolve => {</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.activeSlots &lt; <span class="text-blue-400">this</span>.maxConcurrency) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.activeSlots++</div>
+                    <div class="ml-16">                resolve()</div>
+                    <div class="ml-12">            } <span class="text-blue-400">else</span> {</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.waitQueue.<span class="text-yellow-400">push</span>(resolve)  <span class="text-gray-600">// 排队等待</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        })</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">releaseSlot</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.waitQueue.<span class="text-yellow-400">length</span> &gt; <span class="text-green-400">0</span>) {</div>
+                    <div class="ml-12">            next = <span class="text-blue-400">this</span>.waitQueue.<span class="text-yellow-400">shift</span>()</div>
+                    <div class="ml-12">            next()  <span class="text-gray-600">// 唤醒下一个等待者</span></div>
+                    <div class="ml-8">        } <span class="text-blue-400">else</span> {</div>
+                    <div class="ml-12">            <span class="text-blue-400">this</span>.activeSlots--</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 8: 完整安全链路 -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">8</span>
+                完整安全链路伪代码
+            </h2>
+            <p class="text-gray-300 mb-4">
+                以下伪代码展示了整个 Harness 如何串联 6 层安全机制，执行一次完整的工具调用：
+            </p>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ===============================================================</div>
+                    <div class="text-gray-500 mb-2">// SandboxedHarness — 6 层安全串联的完整工具执行</div>
+                    <div class="text-gray-500 mb-2">// ===============================================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">SandboxedHarness</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    <span class="text-yellow-400">constructor</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.permissionEngine = <span class="text-blue-400">new</span> <span class="text-yellow-400">PermissionEngine</span>()  <span class="text-gray-600">// 第1层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.bashSandbox = <span class="text-blue-400">new</span> <span class="text-yellow-400">BashSandbox</span>()              <span class="text-gray-600">// 第2层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.fileTracker = <span class="text-blue-400">new</span> <span class="text-yellow-400">FileStateTracker</span>()          <span class="text-gray-600">// 第3层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.worktreeIsolation = <span class="text-blue-400">new</span> <span class="text-yellow-400">WorktreeIsolation</span>()  <span class="text-gray-600">// 第4层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.mcpManager = <span class="text-blue-400">new</span> <span class="text-yellow-400">MCPProcessManager</span>()        <span class="text-gray-600">// 第5层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.guardrails = <span class="text-blue-400">new</span> <span class="text-yellow-400">ContextGuardrails</span>()        <span class="text-gray-600">// 第6层</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.schemas = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()                          <span class="text-gray-600">// Tool Schema 注册表</span></div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.toolExecutors = <span class="text-blue-400">new</span> <span class="text-yellow-400">Map</span>()                    <span class="text-gray-600">// 工具执行器映射</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 注册工具 ----------</span></div>
+                    <div class="ml-4">    <span class="text-yellow-400">registerTool</span>(name, schema, executor) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.schemas.<span class="text-yellow-400">set</span>(name, schema)</div>
+                    <div class="text-gray-500 ml-8">        // executor 有两种类型：本地执行 or MCP 代理</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.toolExecutors.<span class="text-yellow-400">set</span>(name, executor)</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- ⭐ 核心：安全地执行一次工具调用 ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeSafely</span>(toolCall, context = {}) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">const</span> {</div>
+                    <div class="ml-12">            iteration,        <span class="text-gray-600">// 当前循环次数</span></div>
+                    <div class="ml-12">            tokensUsed,       <span class="text-gray-600">// 已用 Token 数</span></div>
+                    <div class="ml-12">            agentId,          <span class="text-gray-600">// Agent ID（用于 Worktree）</span></div>
+                    <div class="ml-12">            isolationMode     <span class="text-gray-600">// 'worktree' | null</span></div>
+                    <div class="ml-8">        } = context</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ===== 第6层：上下文约束 =====</div>
+                    <div class="ml-8">        check = <span class="text-blue-400">this</span>.guardrails.<span class="text-yellow-400">shouldContinue</span>(iteration, tokensUsed)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!check.ok) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: check.reason }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ----- 解析工具调用 -----</div>
+                    <div class="ml-8">        toolName = toolCall.function.name</div>
+                    <div class="ml-8">        args = <span class="text-yellow-400">JSON.parse</span>(toolCall.function.arguments)</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ----- 查找 Schema & 校验参数 -----</div>
+                    <div class="ml-8">        schema = <span class="text-blue-400">this</span>.schemas.<span class="text-yellow-400">get</span>(toolName)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!schema) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">`未知工具: ${toolName}`</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-8">        valid = <span class="text-yellow-400">validateJSONSchema</span>(schema.parameters, args)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (!valid.ok) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> { error: <span class="text-green-400">`参数校验失败: ${valid.error}`</span> }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ===== 第1层：权限管控 =====</div>
+                    <div class="ml-8">        permResult = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.permissionEngine.<span class="text-yellow-400">checkPermission</span>(toolName, args)</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (permResult.decision === <span class="text-green-400">'deny'</span>) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-16">                error: <span class="text-green-400">`权限拒绝: ${permResult.reason}`</span>,</div>
+                    <div class="ml-16">                permissionDenied: <span class="text-blue-300">true</span></div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ===== 第3层：文件状态追踪（写操作） =====</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-yellow-400">isWriteOperation</span>(toolName)) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">try</span> {</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.fileTracker.<span class="text-yellow-400">checkBeforeWrite</span>(</div>
+                    <div class="ml-20">                    args.file_path || args.path, args.content || args.new_string</div>
+                    <div class="ml-16">                )</div>
+                    <div class="ml-12">            } <span class="text-blue-400">catch</span> (err) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> { error: err.message }</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ===== 第2层：Bash 沙箱 =====</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (toolName === <span class="text-green-400">'Bash'</span>) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">executeBashSafely</span>(args)</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ===== 第4层：Worktree 隔离 =====</div>
+                    <div class="ml-8">        executor = <span class="text-blue-400">this</span>.toolExecutors.<span class="text-yellow-400">get</span>(toolName)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (isolationMode === <span class="text-green-400">'worktree'</span> &amp;&amp; agentId) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.worktreeIsolation.<span class="text-yellow-400">runInIsolation</span>(</div>
+                    <div class="ml-16">                agentId,</div>
+                    <div class="ml-16">                () => <span class="text-blue-400">this</span>.<span class="text-yellow-400">runExecutor</span>(toolName, executor, args)</div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-8">        // ----- 正常执行 -----</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runExecutor</span>(toolName, executor, args)</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 安全执行 Bash ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeBashSafely</span>(args) {</div>
+                    <div class="ml-8">        command = args.command</div>
+                    <div class="ml-8">        options = { timeout: args.timeout, cwd: args.cwd }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 检查沙箱模式</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (args.dangerouslyDisableSandbox) {</div>
+                    <div class="text-gray-500 ml-12">            // 用户明确绕过沙箱 → 记录高危操作，仍然检查 denylist</div>
+                    <div class="ml-12">            <span class="text-yellow-400">logger</span>.<span class="text-yellow-400">warn</span>(<span class="text-green-400">`高危: 沙箱已禁用, 命令: ${command}`</span>)</div>
+                    <div class="ml-12">            permResult = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.permissionEngine.<span class="text-yellow-400">checkPermission</span>(<span class="text-green-400">'Bash'</span>, args)</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (permResult.decision === <span class="text-green-400">'deny'</span>) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> { error: <span class="text-green-400">`权限拒绝: ${permResult.reason}`</span> }</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-yellow-400">execShell</span>(command, options)</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 走标准沙箱路径</div>
+                    <div class="ml-8">        result = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.bashSandbox.<span class="text-yellow-400">execute</span>(command, options)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-12">            exitCode: result.exitCode,</div>
+                    <div class="ml-12">            stdout: result.stdout,</div>
+                    <div class="ml-12">            stderr: result.stderr</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 执行器路由（本地/MCP） ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">runExecutor</span>(toolName, executor, args) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (executor.<span class="text-yellow-400">type</span> === <span class="text-green-400">'mcp'</span>) {</div>
+                    <div class="text-gray-500 ml-12">            // ===== 第5层：MCP 进程隔离 =====</div>
+                    <div class="ml-12">            result = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.mcpManager.<span class="text-yellow-400">callTool</span>(</div>
+                    <div class="ml-16">                executor.serverId, toolName, args</div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        } <span class="text-blue-400">else</span> {</div>
+                    <div class="text-gray-500 ml-12">            // 本地执行（内置工具）</div>
+                    <div class="ml-12">            result = <span class="text-blue-400">await</span> <span class="text-yellow-400">withTimeout</span>(</div>
+                    <div class="ml-16">                executor.<span class="text-yellow-400">handler</span>(args),</div>
+                    <div class="ml-16">                schema.timeout || <span class="text-green-400">120_000</span></div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 写操作后更新文件状态</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-yellow-400">isWriteOperation</span>(toolName) &amp;&amp; !result.error) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">this</span>.fileTracker.<span class="text-yellow-400">recordWrite</span>(</div>
+                    <div class="ml-16">                args.file_path || args.path, result</div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-12">            role: <span class="text-green-400">'tool'</span>,</div>
+                    <div class="ml-12">            tool_call_id: toolCall.id,</div>
+                    <div class="ml-12">            content: result.error</div>
+                    <div class="ml-16">                ? <span class="text-green-400">`Error: ${result.error}`</span></div>
+                    <div class="ml-16">                : <span class="text-yellow-400">formatToolResult</span>(result)</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="ml-4">    <span class="text-gray-500">// ---------- 批量执行（支持并行） ----------</span></div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">executeBatch</span>(toolCalls, context) {</div>
+                    <div class="ml-8">        <span class="text-gray-500">// 区分读写：读操作可以并行，写操作串行</span></div>
+                    <div class="ml-8">        reads = toolCalls.<span class="text-yellow-400">filter</span>(tc => <span class="text-yellow-400">isReadOperation</span>(tc.function.name))</div>
+                    <div class="ml-8">        writes = toolCalls.<span class="text-yellow-400">filter</span>(tc => !<span class="text-yellow-400">isReadOperation</span>(tc.function.name))</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        readResults = <span class="text-blue-400">await</span> <span class="text-yellow-400">Promise</span>.all(</div>
+                    <div class="ml-12">            reads.<span class="text-yellow-400">map</span>(tc => <span class="text-blue-400">this</span>.<span class="text-yellow-400">executeSafely</span>(tc, context))</div>
+                    <div class="ml-8">        )</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        writeResults = []</div>
+                    <div class="ml-8">        <span class="text-blue-400">for</span> (<span class="text-blue-400">const</span> tc <span class="text-blue-400">of</span> writes) {</div>
+                    <div class="ml-12">            writeResults.<span class="text-yellow-400">push</span>(</div>
+                    <div class="ml-16">                <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">executeSafely</span>(tc, context)</div>
+                    <div class="ml-12">            )</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> [...readResults, ...writeResults]</div>
+                    <div class="ml-4">    }</div>
+                    <div>}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 9: 对比 -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">9</span>
+                与 Docker 沙箱对比
+            </h2>
+
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-red-400">维度</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-red-400">Claude CLI 沙箱</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-red-400">Docker 容器</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">隔离粒度</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">进程级 + 文件级 + 权限级</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">操作系统级（完整内核命名空间）</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">资源限制</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">Token + 并发槽位 + 超时</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">CPU + 内存 + 网络 + 磁盘</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">安全模型</td>
+                            <td class="px-4 py-3 text-sm text-gray-400"><strong class="text-yellow-400">信任模型</strong>：用户可覆盖权限</td>
+                            <td class="px-4 py-3 text-sm text-gray-400"><strong class="text-yellow-400">强制隔离</strong>：默认拒绝所有</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">启动速度</td>
+                            <td class="px-4 py-3 text-sm text-gray-400"><strong class="text-green-400">毫秒级</strong></td>
+                            <td class="px-4 py-3 text-sm text-gray-400">秒级</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">主要目标</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">防止误操作和权限滥用</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">防止恶意代码逃逸</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">适用场景</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">开发辅助、代码分析</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">生产部署、不可信代码运行</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 text-sm font-bold">权限层级</td>
+                            <td class="px-4 py-3 text-sm text-gray-400"><strong class="text-green-400">6 层嵌套</strong>：从弹窗到进程隔离</td>
+                            <td class="px-4 py-3 text-sm text-gray-400">用户/命名空间/capabilities</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-lg p-4 border border-red-500/30">
+                <h4 class="text-yellow-400 font-bold mb-2">🎯 核心设计理念</h4>
+                <p class="text-gray-400 text-sm">
+                    Claude CLI 的沙箱是<strong class="text-white">面向信任增强</strong>的设计，不是<strong class="text-white">面向完全隔离</strong>的设计。它假设用户和 Agent 之间有基本的信任基础，但通过 6 层机制防止"意外"和"越权"。而 Docker 是面向"零信任"的完全隔离。<br><br>
+                    <strong class="text-red-400">一句话总结</strong>：Claude CLI 的沙箱不是阻止 Agent 做事，而是确保 Agent 做的每一件事都经过用户明确或隐式的授权，并且在可控范围内执行。
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/30 p-6 mb-6 text-center">
+            <p class="text-red-400 font-bold text-lg">
+                <i class="fas fa-shield-halved mr-2"></i>安全不是功能，而是架构 — 6 层防御，层层递进，守护 Agent 的每一次操作
+            </p>
+            <p class="text-gray-500 text-sm mt-2">
+                权限管控 → Bash 沙箱 → 文件追踪 → Worktree 隔离 → MCP 进程隔 -> 上下文约束
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

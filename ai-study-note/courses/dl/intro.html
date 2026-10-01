@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神经网络基础 - 深度学习</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-cyan-400 mb-2">
+                <i class="fas fa-microscope mr-2"></i>神经网络基础
+            </h1>
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4">
+                神经网络是深度学习的基石，灵感来源于人脑的神经元结构。
+            </p>
+        </div>
+
+        <!-- 人工神经元 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-dna text-cyan-400"></i>人工神经元
+            </h2>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">生物神经元 vs 人工神经元</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+生物神经元:                     人工神经元:
+┌──────────────┐              ┌──────────────────┐
+│  树突 ──→    │              │  x₁ ──w₁──       │
+│  细胞体 ──→  │              │  x₂ ──w₂──  Σ → σ → 输出
+│  轴突 ──→    │              │  ...      +b     │
+│  突触        │              │  xₙ ──wₙ──       │
+└──────────────┘              └──────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">数学表达</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-6">
+线性组合:    z = w₁x₁ + w₂x₂ + ... + wₙxₙ + b
+
+激活输出:    a = σ(z)
+
+其中:
+  wᵢ = 权重 (Weight) — 连接强度
+  xᵢ = 输入 (Input) — 特征值
+  b  = 偏置 (Bias) — 阈值偏移
+  σ  = 激活函数 (Activation Function)</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">单层感知机 (Perceptron)</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+ ┌─────┐    w₁    ┌──────────┐
+ │ x₁  │────────→│          │
+ └─────┘         │   Σ + σ  │──→ ŷ (输出)
+ ┌─────┐    w₂    │          │
+ │ x₂  │────────→│          │
+ └─────┘         └──────────┘
+ ┌─────┘    b
+ │ bias │
+ └─────┘</div>
+        </div>
+
+        <!-- 激活函数 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-bolt text-cyan-400"></i>激活函数
+            </h2>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">为什么需要激活函数？—— 引入非线性！</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-6">
+如果没有激活函数:
+    多层线性 = 一层线性 (表达能力有限)
+
+    ŷ = W₂(W₁x + b₁) + b₂ = (W₂W₁)x + (W₂b₁ + b₂) = W'x + b'
+
+    ❌ 无论叠加多少层，仍然只是线性变换！
+
+有了非线性激活函数:
+    ✅ 可以拟合任意复杂函数（万能近似定理）</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">常见激活函数对比</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+ReLU (修正线性单元)
+    f(x) = max(0, x)
+
+    f(x)
+    │        ╱
+    │       ╱
+    │      ╱
+    │     ╱
+    ─────╱──────→ x
+    │   ╱
+
+    ✅ 计算简单，缓解梯度消失  ❌ 神经元"死亡"
+
+Sigmoid
+    f(x) = 1 / (1 + e⁻ˣ)
+
+    f(x)
+   1 ┤░░░░░░░░░░░░
+    │         ░░░░
+    │           ░░
+   0 ┤───────────░─→ x
+
+    ✅ 输出范围 (0,1)，适合概率  ❌ 梯度饱和，梯度消失
+
+Tanh
+    f(x) = tanh(x)
+
+    f(x)
+   1 ┤░░░░░░░░░░░░
+    │    ░░░░
+   0 ┤───×─────────→ x
+    │ ░░░░
+  -1 ┤░░░░
+
+    ✅ 输出范围 (-1,1)，零中心  ❌ 仍有梯度饱和</div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">函数</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">公式</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">输出范围</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">特点</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">ReLU</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">max(0, x)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">[0, +∞)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">最常用，简单高效</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Sigmoid</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">1/(1+e⁻ˣ)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">(0, 1)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">二分类输出层</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Tanh</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">tanh(x)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">(-1, 1)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">零中心化</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Softmax</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">eˣⁱ/Σeˣʲ</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">(0,1)</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">多分类概率分布</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 反向传播 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-rotate text-cyan-400"></i>反向传播 (Backpropagation)
+            </h2>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">核心思想</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+反向传播 = 链式法则 + 梯度下降
+
+              前向传播 (Forward)
+    ┌───────────────────────────────┐
+    │                               ▼
+ 输入 → 层1 → 层2 → ... → 输出 → 计算损失
+    ↑                               │
+    └───────────────────────────────┘
+              反向传播 (Backward)</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">四步训练过程</h3>
+
+            <div class="space-y-4 mb-6">
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Step 1: 前向传播</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  输入数据通过网络从输入层传到输出层，计算预测值                    │
+│                                                                  │
+│  x → h₁ = σ(W₁x + b₁) → h₂ = σ(W₂h₁ + b₂) → ŷ = W₃h₂ + b₃    │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Step 2: 计算损失</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  计算预测值 ŷ 与真实值 y 之间的差距                               │
+│                                                                  │
+│  Loss = (ŷ - y)²  （回归任务）                                   │
+│  Loss = -[y·log(ŷ) + (1-y)·log(1-ŷ)]  （分类任务）              │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Step 3: 反向传播梯度</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  从输出层开始，逐层计算每个参数的梯度（链式法则）                  │
+│                                                                  │
+│  ∂Loss/∂W₃ = ∂Loss/∂ŷ · ∂ŷ/∂W₃                                │
+│  ∂Loss/∂W₂ = ∂Loss/∂ŷ · ∂ŷ/∂h₂ · ∂h₂/∂W₂                    │
+│  ∂Loss/∂W₁ = ∂Loss/∂ŷ · ∂ŷ/∂h₂ · ∂h₂/∂h₁ · ∂h₁/∂W₁        │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Step 4: 更新权重</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  沿梯度反方向更新参数，减小损失                                  │
+│                                                                  │
+│  W_new = W_old - η · ∂Loss/∂W_old                              │
+│  （η = 学习率 Learning Rate）                                    │
+└─────────────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">梯度消失与梯度爆炸</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300">
+使用 Sigmoid 时的梯度问题:
+
+梯度消失 (Vanishing):
+    深层网络的梯度越来越小 → 前层几乎不学习
+
+    层1      层2      层3      层4
+    σ'≈0.2   σ'≈0.2   σ'≈0.2   σ'≈0.2
+    ↓        ↓        ↓        ↓
+    g₁ = g₄ × 0.2³   ←  ｜←  ｜←  g₄
+    → 梯度几乎为0！
+
+解决方案:
+    ✅ 使用 ReLU 激活函数 (梯度恒为 0 或 1)
+    ✅ 残差连接 (ResNet)
+    ✅ Batch Normalization
+    ✅ 更好的初始化方法 (He / Xavier)</div>
+        </div>
+
+        <!-- 常见损失函数 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-line text-cyan-400"></i>常见损失函数
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">任务类型</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">损失函数</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">公式</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">回归</td>
+                            <td class="px-4 py-3 text-sm font-semibold text-white">MSE (均方误差)</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">(1/n)Σ(ŷᵢ - yᵢ)²</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">回归</td>
+                            <td class="px-4 py-3 text-sm font-semibold text-white">MAE (平均绝对误差)</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">(1/n)Σ|ŷᵢ - yᵢ|</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">二分类</td>
+                            <td class="px-4 py-3 text-sm font-semibold text-white">二元交叉熵</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">-[y·log(ŷ) + (1-y)·log(1-ŷ)]</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm text-gray-300">多分类</td>
+                            <td class="px-4 py-3 text-sm font-semibold text-white">类别交叉熵</td>
+                            <td class="px-4 py-3 text-sm font-mono text-blue-300">-Σ yᵢ·log(ŷᵢ)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

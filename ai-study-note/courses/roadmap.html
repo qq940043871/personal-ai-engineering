@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习路线图 - AI学习系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+    <!-- Hero -->
+    <div class="bg-gradient-to-br from-green-900 to-emerald-900 rounded-xl p-8 mb-8 border border-green-700/50">
+        <h1 class="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <i class="fas fa-map text-green-400"></i> AI 学习路线图
+        </h1>
+        <p class="text-green-200/80">从零基础到理解大语言模型，这是一份系统化的学习路线图！</p>
+    </div>
+
+    <!-- Learning Path Overview -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <i class="fas fa-route text-green-400"></i> 学习路径总览
+        </h2>
+        <div class="flex flex-col items-center">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg px-6 py-3 text-white text-sm font-semibold mb-6 text-center">
+                <i class="fas fa-bullseye mr-2"></i>目标：理解大语言模型 — 从 ML → DL → Transformer → LLM
+            </div>
+            <div class="space-y-4 w-full max-w-md">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-bold flex-shrink-0">4</div>
+                    <div class="bg-purple-900/40 rounded-lg px-4 py-3 flex-1 border border-purple-700/50">
+                        <span class="font-semibold text-purple-300">大语言模型</span>
+                        <span class="text-xs text-gray-500 ml-2">4-6 周</span>
+                    </div>
+                </div>
+                <div class="flex justify-center text-gray-600"><i class="fas fa-arrow-up text-lg"></i></div>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0">3</div>
+                    <div class="bg-purple-900/40 rounded-lg px-4 py-3 flex-1 border border-purple-700/50">
+                        <span class="font-semibold text-purple-300">Transformer</span>
+                        <span class="text-xs text-gray-500 ml-2">2-3 周</span>
+                    </div>
+                </div>
+                <div class="flex justify-center text-gray-600"><i class="fas fa-arrow-up text-lg"></i></div>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">2</div>
+                    <div class="bg-blue-900/40 rounded-lg px-4 py-3 flex-1 border border-blue-700/50">
+                        <span class="font-semibold text-blue-300">深度学习</span>
+                        <span class="text-xs text-gray-500 ml-2">3-5 周</span>
+                    </div>
+                </div>
+                <div class="flex justify-center text-gray-600"><i class="fas fa-arrow-up text-lg"></i></div>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold flex-shrink-0">1</div>
+                    <div class="bg-orange-900/40 rounded-lg px-4 py-3 flex-1 border border-orange-700/50">
+                        <span class="font-semibold text-orange-300">机器学习基础</span>
+                        <span class="text-xs text-gray-500 ml-2">2-4 周</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 1: ML -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                <span class="text-orange-400 font-bold">1</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">阶段 1：机器学习基础 <span class="text-sm font-normal text-gray-500">(2-4 周)</span></h2>
+        </div>
+        <div class="bg-gray-750 rounded-lg p-4 border border-gray-700 mb-4">
+            <h4 class="text-sm font-semibold text-orange-300 mb-2"><i class="fas fa-check-circle mr-2"></i>学习目标</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解机器学习的核心概念</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>掌握监督学习、无监督学习的区别</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>熟悉经典机器学习算法</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>学会模型评估与调优</div>
+            </div>
+        </div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-2">学习内容</h4>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase">
+                        <th class="px-4 py-2">主题</th><th class="px-4 py-2">核心知识点</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700 text-sm text-gray-300">
+                    <tr><td class="px-4 py-2 font-medium">基本概念</td><td class="px-4 py-2 text-gray-400">特征、标签、模型、损失函数</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">学习类型</td><td class="px-4 py-2 text-gray-400">监督/无监督/强化学习</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">线性模型</td><td class="px-4 py-2 text-gray-400">线性回归、逻辑回归</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">树模型</td><td class="px-4 py-2 text-gray-400">决策树、随机森林、XGBoost</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">SVM</td><td class="px-4 py-2 text-gray-400">最大间隔、核技巧</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">聚类与降维</td><td class="px-4 py-2 text-gray-400">k-Means、PCA</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">模型评估</td><td class="px-4 py-2 text-gray-400">混淆矩阵、AUC、交叉验证</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4">
+            <h4 class="text-sm font-semibold text-gray-300 mb-2">推荐资源</h4>
+            <div class="flex flex-wrap gap-2">
+                <span class="px-3 py-1.5 bg-gray-750 rounded-lg text-xs text-gray-400 border border-gray-700">📚 《机器学习》（西瓜书）— 周志华</span>
+                <span class="px-3 py-1.5 bg-gray-750 rounded-lg text-xs text-gray-400 border border-gray-700">📚 《统计学习方法》— 李航</span>
+                <span class="px-3 py-1.5 bg-gray-750 rounded-lg text-xs text-gray-400 border border-gray-700">🎥 吴恩达 Machine Learning — Coursera</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 2: DL -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <span class="text-blue-400 font-bold">2</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">阶段 2：深度学习入门 <span class="text-sm font-normal text-gray-500">(3-5 周)</span></h2>
+        </div>
+        <div class="bg-gray-750 rounded-lg p-4 border border-gray-700 mb-4">
+            <h4 class="text-sm font-semibold text-blue-300 mb-2"><i class="fas fa-check-circle mr-2"></i>学习目标</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解神经网络的基本原理</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>掌握反向传播和梯度下降</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>熟悉 CNN、RNN/LSTM 等架构</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>学会训练神经网络</div>
+            </div>
+        </div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-2">学习内容</h4>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase">
+                        <th class="px-4 py-2">主题</th><th class="px-4 py-2">核心知识点</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700 text-sm text-gray-300">
+                    <tr><td class="px-4 py-2 font-medium">神经元与感知机</td><td class="px-4 py-2 text-gray-400">线性组合、激活函数</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">反向传播</td><td class="px-4 py-2 text-gray-400">链式法则、梯度下降</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">CNN</td><td class="px-4 py-2 text-gray-400">卷积、池化、经典架构</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">RNN/LSTM/GRU</td><td class="px-4 py-2 text-gray-400">序列建模、门控机制</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">优化器</td><td class="px-4 py-2 text-gray-400">SGD、Momentum、Adam</td></tr>
+                    <tr><td class="px-4 py-2 font-medium">正则化</td><td class="px-4 py-2 text-gray-400">Dropout、Batch Norm、早停</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4">
+            <h4 class="text-sm font-semibold text-gray-300 mb-2">动手实践</h4>
+            <div class="flex flex-wrap gap-2">
+                <span class="px-3 py-1.5 bg-blue-900/30 rounded-lg text-xs text-blue-300 border border-blue-700/50">
+                    <i class="fas fa-brain mr-1"></i>打开 NN Playground 观察神经网络训练
+                </span>
+                <span class="px-3 py-1.5 bg-blue-900/30 rounded-lg text-xs text-blue-300 border border-blue-700/50">
+                    <i class="fas fa-code mr-1"></i>用 PyTorch/TensorFlow 实现 MLP
+                </span>
+                <span class="px-3 py-1.5 bg-blue-900/30 rounded-lg text-xs text-blue-300 border border-blue-700/50">
+                    <i class="fas fa-image mr-1"></i>用 CNN 做手写数字识别
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 3: Transformer -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <span class="text-purple-400 font-bold">3</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">阶段 3：Transformer 深入 <span class="text-sm font-normal text-gray-500">(2-3 周)</span></h2>
+        </div>
+        <div class="bg-gray-750 rounded-lg p-4 border border-gray-700 mb-4">
+            <h4 class="text-sm font-semibold text-purple-300 mb-2"><i class="fas fa-check-circle mr-2"></i>学习目标</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>深入理解自注意力机制</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>掌握多头注意力、位置编码</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解编码器-解码器架构</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解残差连接和层归一化</div>
+            </div>
+        </div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-2">动手实践</h4>
+        <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1.5 bg-purple-900/30 rounded-lg text-xs text-purple-300 border border-purple-700/50">
+                <i class="fas fa-search mr-1"></i>打开 Transformer Explainer 可视化注意力
+            </span>
+            <span class="px-3 py-1.5 bg-purple-900/30 rounded-lg text-xs text-purple-300 border border-purple-700/50">
+                <i class="fas fa-code mr-1"></i>从零实现一个小型 Transformer
+            </span>
+        </div>
+    </div>
+
+    <!-- Phase 4: LLM -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                <span class="text-pink-400 font-bold">4</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">阶段 4：大语言模型 <span class="text-sm font-normal text-gray-500">(4-6 周)</span></h2>
+        </div>
+        <div class="bg-gray-750 rounded-lg p-4 border border-gray-700 mb-4">
+            <h4 class="text-sm font-semibold text-pink-300 mb-2"><i class="fas fa-check-circle mr-2"></i>学习目标</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-400">
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解大语言模型的训练流程</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>掌握预训练、SFT、RLHF 三个阶段</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>理解推理优化技术</div>
+                <div class="flex items-start gap-2"><i class="fas fa-check text-green-500 mt-1"></i>了解经典论文和最新进展</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practice Projects -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <i class="fas fa-laptop-code text-yellow-400"></i> 实践项目推荐
+        </h2>
+        <p class="text-gray-400 text-sm mb-4">难度递增：</p>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase">
+                        <th class="px-4 py-3">项目</th><th class="px-4 py-3">技术栈</th><th class="px-4 py-3 text-center">难度</th><th class="px-4 py-3 text-center">建议时长</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700 text-sm">
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">手写数字识别</td><td class="px-4 py-3 text-gray-400">Python + PyTorch</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;</td><td class="px-4 py-3 text-center text-gray-400">1-2 天</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">文本情感分类</td><td class="px-4 py-3 text-gray-400">Python + RNN/LSTM</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">2-3 天</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">微调 BERT</td><td class="px-4 py-3 text-gray-400">Hugging Face</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">3-5 天</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">实现 Transformer</td><td class="px-4 py-3 text-gray-400">Python + NumPy</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">1 周</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">RAG 问答系统</td><td class="px-4 py-3 text-gray-400">LangChain + Vector DB</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">1-2 周</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">LLM 推理部署</td><td class="px-4 py-3 text-gray-400">vLLM + Docker</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">1-2 周</td></tr>
+                    <tr class="hover:bg-gray-750"><td class="px-4 py-3 text-gray-200">AI Agent</td><td class="px-4 py-3 text-gray-400">LangChain + Tools</td><td class="px-4 py-3 text-center text-yellow-400">&#9733;&#9733;&#9733;&#9733;&#9733;</td><td class="px-4 py-3 text-center text-gray-400">2-4 周</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recommended Resources -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <i class="fas fa-book-open text-indigo-400"></i> 推荐书籍与论文
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="text-sm font-semibold text-blue-300 mb-3"><i class="fas fa-book mr-2"></i>书籍</h4>
+                <div class="space-y-2">
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">《机器学习》（西瓜书）</span>
+                        <span class="text-gray-500 ml-2">— 周志华</span>
+                        <span class="ml-2 px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded">ML</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">《深度学习》（花书）</span>
+                        <span class="text-gray-500 ml-2">— Goodfellow et al.</span>
+                        <span class="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">DL</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">《动手学深度学习》</span>
+                        <span class="text-gray-500 ml-2">— 李沐 et al.</span>
+                        <span class="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">DL</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">《大规模语言模型》</span>
+                        <span class="text-gray-500 ml-2">— 张奇 et al.</span>
+                        <span class="ml-2 px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">LLM</span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-sm font-semibold text-green-300 mb-3"><i class="fas fa-file-alt mr-2"></i>经典论文</h4>
+                <div class="space-y-2">
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">Attention Is All You Need</span>
+                        <span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded ml-2">2017</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">BERT: Pre-training of Deep Bidirectional Transformers</span>
+                        <span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded ml-2">2018</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">GPT-3: Language Models are Few-Shot Learners</span>
+                        <span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded ml-2">2020</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">InstructGPT: Training language models to follow instructions</span>
+                        <span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded ml-2">2022</span>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-3 border border-gray-700 text-sm">
+                        <span class="text-gray-200">LLaMA: Open and Efficient Foundation Language Models</span>
+                        <span class="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded ml-2">2023</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-gray-500 text-sm py-6">
+        <i class="fas fa-rocket text-green-400 mr-1"></i> 祝你学习愉快，早日成为 AI 专家！
+    </div>
+</div>
+</body>
+</html>

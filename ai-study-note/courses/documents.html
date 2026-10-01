@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { display: flex; }
+
+        /* 左侧文档列表 */
+        .doc-sidebar {
+            width: 200px; min-width: 200px;
+            display: flex; flex-direction: column;
+            border-right: 1px solid #374151;
+            background: #1F2937;
+        }
+        .doc-sidebar-header {
+            padding: 14px 16px; border-bottom: 1px solid #374151;
+            font-size: 12px; font-weight: 600; color: #9CA3AF; letter-spacing: 0.05em; text-transform: uppercase;
+        }
+        .doc-list { flex: 1; overflow-y: auto; padding: 6px; }
+        .doc-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; border-radius: 6px;
+            cursor: pointer; margin-bottom: 1px;
+            transition: all 0.15s; border: 1px solid transparent;
+        }
+        .doc-item:hover { background: #374151; border-color: #4B5563; }
+        .doc-item.active { background: rgba(139,92,246,0.12); border-color: #8B5CF6; }
+        .doc-item-icon {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .doc-item-info { min-width: 0; }
+        .doc-item-name { font-size: 12px; font-weight: 600; color: #E5E7EB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .doc-item-desc { font-size: 10px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* 右侧查看器 */
+        .viewer-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .viewer-toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; background: #1F2937;
+            border-bottom: 1px solid #374151; flex-shrink: 0; gap: 8px; flex-wrap: wrap;
+        }
+        .viewer-toolbar-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .viewer-toolbar-title { font-size: 13px; font-weight: 600; color: #E5E7EB; white-space: nowrap; }
+        .viewer-toolbar-type {
+            font-size: 10px; padding: 2px 7px; border-radius: 4px;
+            background: rgba(139,92,246,0.15); color: #A78BFA; white-space: nowrap;
+        }
+
+        /* 工具栏按钮 */
+        .tb-btn {
+            padding: 4px 10px; border: 1px solid #4B5563; border-radius: 5px;
+            background: transparent; color: #D1D5DB; font-size: 12px;
+            cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 3px;
+            white-space: nowrap; user-select: none;
+        }
+        .tb-btn:hover { background: #374151; border-color: #6B7280; color: #fff; }
+        .tb-btn:disabled { opacity: 0.3; cursor: default; }
+        .tb-btn.active { background: rgba(139,92,246,0.2); border-color: #8B5CF6; color: #A78BFA; }
+
+        /* 页码跳转 */
+        .page-input {
+            width: 44px; padding: 4px 6px; border: 1px solid #4B5563; border-radius: 5px;
+            background: #111827; color: #E5E7EB; font-size: 12px; text-align: center;
+            outline: none; transition: border-color 0.15s;
+        }
+        .page-input:focus { border-color: #8B5CF6; }
+        .page-total { font-size: 12px; color: #6B7280; }
+
+        /* PDF 内容区 */
+        .viewer-content {
+            flex: 1; overflow: auto; background: #111827;
+            display: flex; justify-content: center;
+        }
+        .viewer-content canvas { display: block; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+
+        /* 默认提示 */
+        .viewer-placeholder {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; color: #4B5563; gap: 10px;
+            width: 100%; height: 100%;
+        }
+        .viewer-placeholder i { font-size: 40px; opacity: 0.3; }
+        .viewer-placeholder p { font-size: 13px; }
+
+        /* Lightbox */
+        .lightbox {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.93);
+            z-index: 9999; cursor: zoom-out;
+            align-items: center; justify-content: center;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox img {
+            max-width: 95vw; max-height: 92vh; object-fit: contain;
+            border-radius: 2px; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        }
+        .lightbox-close {
+            position: fixed; top: 16px; right: 16px; z-index: 10001;
+            width: 40px; height: 40px; border: none; border-radius: 8px;
+            background: rgba(255,255,255,0.1); color: #fff; font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+
+    <!-- 左侧文档列表 -->
+    <div class="doc-sidebar">
+        <div class="doc-sidebar-header">
+            <i class="fas fa-folder-open mr-2"></i>文档列表
+        </div>
+        <div class="doc-list" id="docList"></div>
+    </div>
+
+    <!-- 右侧查看器 -->
+    <div class="viewer-area">
+        <div class="viewer-toolbar" id="toolbar">
+            <div class="viewer-toolbar-left">
+                <span class="viewer-toolbar-title" id="viewerTitle">请选择文档</span>
+                <span class="viewer-toolbar-type" id="viewerType" style="display:none;"></span>
+            </div>
+            <!-- PDF 控制器 -->
+            <div class="flex items-center gap-1" id="pdfControls" style="display:none;">
+                <!-- 缩放按钮 -->
+                <button class="tb-btn" onclick="setZoom('fit-width')" id="btnFitWidth"><i class="fas fa-arrows-alt-h text-xs"></i> 适应宽度</button>
+                <button class="tb-btn" onclick="setZoom(1.0)">100%</button>
+                <button class="tb-btn" onclick="setZoom(1.5)">150%</button>
+                <button class="tb-btn" onclick="setZoom(2.0)">200%</button>
+                <!-- 分隔 -->
+                <span class="text-gray-600 mx-1">|</span>
+                <!-- 页码 -->
+                <button class="tb-btn" onclick="pdfPrevPage()" id="btnPdfPrev"><i class="fas fa-chevron-left text-xs"></i></button>
+                <input type="number" class="page-input" id="pageInput" min="1" value="1" onkeydown="if(event.key==='Enter')pdfGoToPage()">
+                <span class="page-total" id="pageTotal">/ 1</span>
+                <button class="tb-btn" onclick="pdfNextPage()" id="btnPdfNext"><i class="fas fa-chevron-right text-xs"></i></button>
+                <button class="tb-btn" onclick="pdfGoToPage()" title="跳转">GO</button>
+            </div>
+            <!-- PPTX 控制器 -->
+            <div class="flex items-center gap-2" id="pptxControls" style="display:none;">
+                <button class="tb-btn" onclick="prevSlide()" id="btnPrev"><i class="fas fa-chevron-left text-xs"></i> 上一页</button>
+                <span class="page-total" id="slideIndicator">1 / 1</span>
+                <button class="tb-btn" onclick="nextSlide()" id="btnNext">下一页 <i class="fas fa-chevron-right text-xs"></i></button>
+            </div>
+        </div>
+        <div class="viewer-content" id="viewerContent">
+            <div class="viewer-placeholder">
+                <i class="fas fa-arrow-left"></i>
+                <p>从左侧选择文档开始预览</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()"><i class="fas fa-times"></i></button>
+        <img id="lightbox-img" src="" alt="" />
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+        const documents = [
+            { name: 'Attention Is All You Need', type: 'pdf', path: '/documents/Attention-Is-All-You-Need.pdf', desc: 'Vaswani et al. 2017', icon: 'fa-file-pdf', color: '#EF4444' },
+            { name: 'Function Calling 与 MCP', type: 'pdf', path: '/documents/Function-Calling-MCP.pdf', desc: 'MCP 协议设计详解', icon: 'fa-file-pdf', color: '#EF4444' },
+            { name: 'Transformer 课件', type: 'pptx', totalSlides: 19, desc: '19页幻灯片', icon: 'fa-file-powerpoint', color: '#F97316' }
+        ];
+
+        let currentDoc = null;
+        let currentSlide = 1;
+
+        // ====== PDF 状态 ======
+        let pdfDoc = null;
+        let pdfPage = 1;
+        let pdfTotalPages = 0;
+        let pdfScale = 1.5;
+        let pdfFitWidth = false;
+        let renderTask = null;
+
+        function renderDocList() {
+            document.getElementById('docList').innerHTML = documents.map((doc, i) =>
+                `<div class="doc-item" onclick="selectDoc(${i})" id="docItem${i}">
+                    <div class="doc-item-icon" style="color:${doc.color}"><i class="fas ${doc.icon}"></i></div>
+                    <div class="doc-item-info">
+                        <div class="doc-item-name">${doc.name}</div>
+                        <div class="doc-item-desc">${doc.desc}</div>
+                    </div>
+                </div>`
+            ).join('');
+        }
+
+        function selectDoc(index) {
+            document.querySelectorAll('.doc-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('docItem' + index).classList.add('active');
+
+            // 清理旧的 PDF
+            if (renderTask) { renderTask.cancel(); renderTask = null; }
+            pdfDoc = null;
+
+            currentDoc = documents[index];
+            currentSlide = 1;
+            document.getElementById('viewerTitle').textContent = currentDoc.name;
+
+            const typeEl = document.getElementById('viewerType');
+            typeEl.style.display = 'inline';
+            typeEl.textContent = currentDoc.type.toUpperCase();
+
+            const pdfCtrls = document.getElementById('pdfControls');
+            const pptxCtrls = document.getElementById('pptxControls');
+            const content = document.getElementById('viewerContent');
+
+            if (currentDoc.type === 'pdf') {
+                pdfCtrls.style.display = 'flex';
+                pptxCtrls.style.display = 'none';
+                loadPdf(currentDoc.path);
+            } else {
+                pdfCtrls.style.display = 'none';
+                pptxCtrls.style.display = 'flex';
+                updateSlideView();
+            }
+        }
+
+        // ====== PDF 加载 & 渲染 ======
+        async function loadPdf(url) {
+            const content = document.getElementById('viewerContent');
+            content.innerHTML = '<div class="viewer-placeholder"><i class="fas fa-spinner fa-spin"></i><p>加载中...</p></div>';
+
+            // 用当前页面的 origin 拼接绝对路径
+            const fullUrl = new URL(url, window.location.href).href;
+            console.log('Loading PDF:', fullUrl);
+
+            try {
+                pdfDoc = await pdfjsLib.getDocument(fullUrl).promise;
+                pdfTotalPages = pdfDoc.numPages;
+                pdfPage = 1;
+                document.getElementById('pageTotal').textContent = '/ ' + pdfTotalPages;
+                document.getElementById('pageInput').value = 1;
+                document.getElementById('pageInput').max = pdfTotalPages;
+                renderPdfPage();
+            } catch (e) {
+                content.innerHTML = `<div class="viewer-placeholder"><i class="fas fa-exclamation-triangle"></i><p>加载失败: ${e.message}</p></div>`;
+            }
+        }
+
+        async function renderPdfPage() {
+            if (!pdfDoc) return;
+            if (renderTask) { renderTask.cancel(); }
+
+            const page = await pdfDoc.getPage(pdfPage);
+            const content = document.getElementById('viewerContent');
+            const containerWidth = content.clientWidth - 20;
+
+            // 计算缩放
+            let scale;
+            if (pdfFitWidth) {
+                const vp = page.getViewport({ scale: 1 });
+                scale = containerWidth / vp.width;
+            } else {
+                scale = pdfScale;
+            }
+
+            const viewport = page.getViewport({ scale });
+
+            // 创建/复用 canvas
+            let canvas = content.querySelector('canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                content.innerHTML = '';
+                content.appendChild(canvas);
+            }
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
+
+            const ctx = canvas.getContext('2d');
+            renderTask = page.render({ canvasContext: ctx, viewport });
+
+            try {
+                await renderTask.promise;
+                updatePdfNavState();
+            } catch (e) {
+                if (e.name !== 'RenderingCancelledException') console.error(e);
+            }
+        }
+
+        function updatePdfNavState() {
+            document.getElementById('pageInput').value = pdfPage;
+            document.getElementById('btnPdfPrev').disabled = pdfPage <= 1;
+            document.getElementById('btnPdfNext').disabled = pdfPage >= pdfTotalPages;
+        }
+
+        function pdfPrevPage() {
+            if (pdfPage > 1) { pdfPage--; renderPdfPage(); }
+        }
+        function pdfNextPage() {
+            if (pdfPage < pdfTotalPages) { pdfPage++; renderPdfPage(); }
+        }
+        function pdfGoToPage() {
+            const inp = document.getElementById('pageInput');
+            let p = parseInt(inp.value);
+            if (isNaN(p) || p < 1) p = 1;
+            if (p > pdfTotalPages) p = pdfTotalPages;
+            pdfPage = p;
+            inp.value = p;
+            renderPdfPage();
+        }
+
+        function setZoom(level) {
+            if (level === 'fit-width') {
+                pdfFitWidth = true;
+            } else {
+                pdfFitWidth = false;
+                pdfScale = level;
+            }
+            // 更新激活状态
+            document.querySelectorAll('#pdfControls .tb-btn').forEach(b => b.classList.remove('active'));
+            if (level === 'fit-width') {
+                document.getElementById('btnFitWidth').classList.add('active');
+            } else {
+                const btns = document.querySelectorAll('#pdfControls .tb-btn');
+                btns.forEach(b => { if (b.textContent.trim().startsWith(String(level * 100))) b.classList.add('active'); });
+            }
+            renderPdfPage();
+        }
+
+        // 窗口大小变化时重新适应
+        window.addEventListener('resize', function() {
+            if (pdfFitWidth && pdfDoc) renderPdfPage();
+        });
+
+        // ====== PPTX 查看 ======
+        function updateSlideView() {
+            const content = document.getElementById('viewerContent');
+            const num = String(currentSlide).padStart(3, '0');
+            content.innerHTML = `<img src="../assets/transformer-slides/slide_${num}.png" alt="Slide ${currentSlide}"
+                     onclick="event.stopPropagation(); openLightbox(this.src)" style="max-width:100%;max-height:100%;object-fit:contain;cursor:pointer;display:block;" />`;
+            document.getElementById('slideIndicator').textContent = `${currentSlide} / ${currentDoc.totalSlides}`;
+            document.getElementById('btnPrev').disabled = currentSlide <= 1;
+            document.getElementById('btnNext').disabled = currentSlide >= currentDoc.totalSlides;
+        }
+
+        function prevSlide() { if (currentSlide > 1) { currentSlide--; updateSlideView(); } }
+        function nextSlide() { if (currentSlide < currentDoc.totalSlides) { currentSlide++; updateSlideView(); } }
+
+        // ====== 键盘 ======
+        document.addEventListener('keydown', function(e) {
+            if (!currentDoc) return;
+            if (currentDoc.type === 'pptx') {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); nextSlide(); }
+            } else if (currentDoc.type === 'pdf') {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); pdfPrevPage(); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); pdfNextPage(); }
+            }
+            if (e.key === 'Escape') { closeLightbox(); }
+        });
+
+        // ====== Lightbox ======
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        renderDocList();
+
+        // 初始激活适应宽度
+        pdfFitWidth = true;
+    </script>
+</body>
+</html>

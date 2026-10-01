@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>普通智能体的多种实现方式 — Agentic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .pattern-card { border-left: 3px solid; transition: all 0.2s ease; }
+        .pattern-card:hover { transform: translateX(4px); }
+        .code-block { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9rem; }
+        .comparison-table th { background: rgba(139, 92, 246, 0.15); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <h1 class="text-3xl font-bold text-white mb-3">
+                <i class="fas fa-robot text-pink-400 mr-2"></i>普通智能体的多种实现方式
+            </h1>
+            <p class="text-gray-400 text-lg">从最简单的 ReAct 到复杂的多智能体协作，拆解 6 种主流 Agent 实现范式，理解各自的适用场景与工程权衡</p>
+            <div class="flex flex-wrap gap-2 mt-4">
+                <span class="tag bg-pink-500/20 text-pink-300">Agentic</span>
+                <span class="tag bg-blue-500/20 text-blue-300">ReAct</span>
+                <span class="tag bg-green-500/20 text-green-300">Plan & Execute</span>
+                <span class="tag bg-purple-500/20 text-purple-300">Function Calling</span>
+                <span class="tag bg-yellow-500/20 text-yellow-300">Multi-Agent</span>
+                <span class="tag bg-cyan-500/20 text-cyan-300">Code Agent</span>
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-pink-400"></i> 目录
+            </h2>
+            <nav class="space-y-2 text-gray-300">
+                <a href="#intro" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">0.</span> 什么是"普通智能体"？
+                </a>
+                <a href="#react" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">1.</span> ReAct 模式 — 推理与行动循环
+                </a>
+                <a href="#plan-execute" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">2.</span> Plan & Execute — 先规划后执行
+                </a>
+                <a href="#function-calling" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">3.</span> Function Calling — 工具调用范式
+                </a>
+                <a href="#conversation" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">4.</span> Conversation Agent — 对话驱动型
+                </a>
+                <a href="#code-agent" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">5.</span> Code Agent — 代码即行动
+                </a>
+                <a href="#multi-agent" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">6.</span> Multi-Agent — 多智能体协作
+                </a>
+                <a href="#comparison" class="flex items-center gap-2 hover:text-pink-400 transition-colors">
+                    <span class="text-pink-400 font-bold">7.</span> 对比与选型建议
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section 0: Introduction -->
+        <div id="intro" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center text-pink-400 text-sm font-bold">0</span>
+                什么是"普通智能体"？
+            </h2>
+            <p class="text-gray-300 mb-4">
+                在 AI Agent 的语境中，<strong class="text-pink-400">"普通智能体"</strong> 指的是<strong class="text-yellow-400">不依赖超大规模算力、不依赖特定硬件、可在通用 API 上调用的智能体实现</strong>。它们通常由以下核心组件构成：
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl mb-2">🧠</div>
+                    <div class="text-sm font-semibold text-white">LLM 大脑</div>
+                    <div class="text-xs text-gray-400 mt-1">推理与决策核心</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl mb-2">🔧</div>
+                    <div class="text-sm font-semibold text-white">工具集</div>
+                    <div class="text-xs text-gray-400 mt-1">与环境交互的接口</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl mb-2">💾</div>
+                    <div class="text-sm font-semibold text-white">记忆</div>
+                    <div class="text-xs text-gray-400 mt-1">短期/长期上下文</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4 text-center">
+                    <div class="text-2xl mb-2">🔄</div>
+                    <div class="text-sm font-semibold text-white">控制循环</div>
+                    <div class="text-xs text-gray-400 mt-1">决定何时调用什么</div>
+                </div>
+            </div>
+            <p class="text-gray-400 text-sm border-l-4 border-pink-500/50 pl-4">
+                <strong>核心洞察：</strong>不同的实现方式本质上是对这 4 个组件的<em>编排策略</em>不同。选择哪种方式，取决于你的任务复杂度、对延迟的容忍度、以及需要多少可解释性。
+            </p>
+        </div>
+
+        <!-- Section 1: ReAct -->
+        <div id="react" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 text-sm font-bold">1</span>
+                ReAct 模式 — 推理与行动循环
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-blue-500/20 text-blue-300">经典范式</span>
+                <span class="tag bg-gray-600 text-gray-300">论文: ReAct (ICLR 2023)</span>
+                <span class="tag bg-green-500/20 text-green-300">易于实现</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                <strong class="text-blue-400">ReAct</strong> = <strong>Rea</strong>soning + <strong>Act</strong>ing。它让 LLM 在<strong class="text-yellow-400">"思考→行动→观察→再思考"</strong>的循环中完成任务。每一步，模型输出一个"思考"（Thought）和一个"行动"（Action），然后根据行动结果更新上下文。
+            </p>
+
+            <!-- Flow Diagram -->
+            <div class="bg-gray-900 rounded-lg p-6 mb-4 overflow-x-auto">
+                <div class="flex items-center justify-center gap-2 text-sm code-block">
+                    <span class="text-blue-400">Thought</span>
+                    <span class="text-gray-500">→</span>
+                    <span class="text-green-400">Action</span>
+                    <span class="text-gray-500">→</span>
+                    <span class="text-yellow-400">Observation</span>
+                    <span class="text-gray-500">→</span>
+                    <span class="text-blue-400">Thought</span>
+                    <span class="text-gray-500">→</span>
+                    <span class="text-gray-400">... 循环直到 Final Answer</span>
+                </div>
+            </div>
+
+            <!-- Pseudo-code -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4 overflow-x-auto">
+                <pre class="code-block text-sm text-gray-300">
+<span class="text-gray-500"># ReAct 伪代码 — 最简实现仅需 ~50 行</span>
+<span class="text-blue-400">def</span> react_agent(prompt, tools, max_steps=<span class="text-orange-400">10</span>):
+    messages = [{<span class="text-green-400">"role"</span>: <span class="text-green-400">"system"</span>, <span class="text-green-400">"content"</span>: system_prompt}]
+    messages.append({<span class="text-green-400">"role"</span>: <span class="text-green-400">"user"</span>, <span class="text-green-400">"content"</span>: prompt})
+
+    <span class="text-blue-400">for</span> step <span class="text-blue-400">in</span> range(max_steps):
+        response = llm.chat(messages, tools=tool_defs)  <span class="text-gray-500"># ← 模型返回 Thought + Action</span>
+
+        <span class="text-blue-400">if</span> response.has_final_answer():
+            <span class="text-blue-400">return</span> response.final_answer
+
+        action = parse_action(response)                 <span class="text-gray-500"># 解析工具调用</span>
+        observation = execute_tool(action)              <span class="text-gray-500"># 执行工具</span>
+        messages.append(response)                       <span class="text-gray-500"># 追加思考+行动</span>
+        messages.append({<span class="text-green-400">"role"</span>: <span class="text-green-400">"tool"</span>, <span class="text-green-400">"content"</span>: observation})  <span class="text-gray-500"># 追加观察</span>
+
+    <span class="text-blue-400">return</span> <span class="text-green-400">"Max steps reached"</span></pre>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>实现简单，核心逻辑可写在一页内</li>
+                        <li>每一步可解释（Thought 就是推理链）</li>
+                        <li>灵活适应各种任务类型</li>
+                        <li>无需提前规划，边做边想</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>可能陷入循环（同一个错误反复犯）</li>
+                        <li>无全局规划，可能走弯路</li>
+                        <li>Token 消耗随步数线性增长</li>
+                        <li>对模型推理能力要求较高</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> LangChain ReAct Agent, AutoGPT (早期), 手写 ReAct Loop
+            </p>
+        </div>
+
+        <!-- Section 2: Plan & Execute -->
+        <div id="plan-execute" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center text-green-400 text-sm font-bold">2</span>
+                Plan & Execute — 先规划后执行
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-green-500/20 text-green-300">结构化</span>
+                <span class="tag bg-gray-600 text-gray-300">代表: Plan-and-Solve (ICLR 2023)</span>
+                <span class="tag bg-yellow-500/20 text-yellow-300">适合复杂任务</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                与 ReAct 的"边想边做"不同，<strong class="text-green-400">Plan & Execute</strong> 将任务分为两个阶段：先由 <strong class="text-yellow-400">Planner</strong> 制定完整计划，再由 <strong class="text-yellow-400">Executor</strong> 按计划逐步执行。执行中遇到问题可以反馈给 Planner 调整计划。
+            </p>
+
+            <!-- Architecture Diagram -->
+            <div class="bg-gray-900 rounded-lg p-6 mb-4">
+                <div class="flex flex-col items-center gap-3 text-sm">
+                    <div class="bg-green-500/20 border border-green-500/40 rounded-lg px-6 py-3 text-green-400 font-bold">
+                        🗺️ Planner — 制定计划
+                    </div>
+                    <div class="text-gray-500"><i class="fas fa-arrow-down"></i></div>
+                    <div class="bg-gray-700 rounded-lg px-6 py-2 text-gray-300 text-xs">
+                        <span class="text-gray-500">1.</span> 搜索数据  <span class="text-gray-500">→</span>
+                        <span class="text-gray-500">2.</span> 清洗数据  <span class="text-gray-500">→</span>
+                        <span class="text-gray-500">3.</span> 统计分析  <span class="text-gray-500">→</span>
+                        <span class="text-gray-500">4.</span> 生成报告
+                    </div>
+                    <div class="text-gray-500"><i class="fas fa-arrow-down"></i></div>
+                    <div class="bg-blue-500/20 border border-blue-500/40 rounded-lg px-6 py-3 text-blue-400 font-bold">
+                        ⚡ Executor — 按步执行
+                    </div>
+                    <div class="text-gray-500"><i class="fas fa-arrow-down"></i></div>
+                    <div class="bg-green-500/20 border border-green-500/40 rounded-lg px-6 py-2 text-green-300 text-xs">
+                        ✅ 完成 → 输出最终结果
+                    </div>
+                    <div class="text-gray-400 text-xs">← 遇到错误可回退给 Planner 重新规划</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>全局视野，避免局部最优</li>
+                        <li>计划可审查、可人工干预</li>
+                        <li>适合长链路、多步骤任务</li>
+                        <li>执行阶段可复用相同 Plan</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>计划可能过于理想化（脱离实际）</li>
+                        <li>环境变化时计划失效</li>
+                        <li>两阶段增加延迟</li>
+                        <li>需要额外维护计划状态</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> LangChain Plan-and-Execute Agent, BabyAGI, HuggingGPT
+            </p>
+        </div>
+
+        <!-- Section 3: Function Calling -->
+        <div id="function-calling" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">3</span>
+                Function Calling — 工具调用范式
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-purple-500/20 text-purple-300">API 原生</span>
+                <span class="tag bg-gray-600 text-gray-300">OpenAI / Claude 原生支持</span>
+                <span class="tag bg-green-500/20 text-green-300">生产首选</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                <strong class="text-purple-400">Function Calling</strong> 是现代 LLM API 原生支持的 Agent 范式。模型在生成回复时，<strong class="text-yellow-400">不是输出文本格式的"Action"，而是直接输出结构化的工具调用请求</strong>（JSON）。框架负责将工具结果回传给模型。
+            </p>
+
+            <!-- Code Example -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4 overflow-x-auto">
+                <pre class="code-block text-sm text-gray-300">
+<span class="text-gray-500">// 工具定义（JSON Schema 格式）</span>
+<span class="text-blue-400">const</span> tools = [{
+    name: <span class="text-green-400">"get_weather"</span>,
+    description: <span class="text-green-400">"获取指定城市的天气"</span>,
+    parameters: {
+        type: <span class="text-green-400">"object"</span>,
+        properties: {
+            city: { type: <span class="text-green-400">"string"</span>, description: <span class="text-green-400">"城市名"</span> }
+        },
+        required: [<span class="text-green-400">"city"</span>]
+    }
+}]
+
+<span class="text-gray-500">// 调用时传入工具定义</span>
+<span class="text-blue-400">const</span> response = await client.chat.completions.create({
+    model: <span class="text-green-400">"claude-sonnet-4-6"</span>,
+    messages: [{ role: <span class="text-green-400">"user"</span>, content: <span class="text-green-400">"北京今天冷吗？"</span> }],
+    tools: tools  <span class="text-gray-500">// ← 模型原生识别工具并调用</span>
+})
+
+<span class="text-gray-500">// 模型的响应可能包含:</span>
+<span class="text-gray-500">// { role: "assistant", content: null, tool_calls: [{</span>
+<span class="text-gray-500">//   function: { name: "get_weather", arguments: '{"city":"北京"}' }</span>
+<span class="text-gray-500">// }] }</span></pre>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>模型原生支持，输出格式稳定</li>
+                        <li>无需手工解析文本，可靠性高</li>
+                        <li>支持并行工具调用（同时调多个）</li>
+                        <li>主流模型（GPT/Claude/Gemini）均支持</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>依赖 API 原生支持（非通用）</li>
+                        <li>工具定义越多，Token 消耗越大</li>
+                        <li>复杂嵌套工具调用可能出错</li>
+                        <li>模型可能产生幻觉工具调用</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> OpenAI Assistants API, Claude Tool Use, LangChain Tool Calling Agent, Vercel AI SDK
+            </p>
+        </div>
+
+        <!-- Section 4: Conversation Agent -->
+        <div id="conversation" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center text-yellow-400 text-sm font-bold">4</span>
+                Conversation Agent — 对话驱动型
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-yellow-500/20 text-yellow-300">交互式</span>
+                <span class="tag bg-gray-600 text-gray-300">适合 Chatbot</span>
+                <span class="tag bg-blue-500/20 text-blue-300">有状态</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                对话驱动型 Agent 以<strong class="text-yellow-400">多轮对话</strong>为核心交互方式。它维护一个<strong class="text-yellow-400">对话状态</strong>，在每轮对话中判断是否需要调用工具、查询知识库或反问用户澄清。核心差异在于它<strong class="text-yellow-400">以对话轮次而非任务步骤</strong>为驱动单位。
+            </p>
+
+            <!-- State Machine -->
+            <div class="bg-gray-900 rounded-lg p-6 mb-4">
+                <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                    <span class="bg-gray-700 px-3 py-1.5 rounded-lg text-gray-300">👤 用户输入</span>
+                    <span class="text-gray-500"><i class="fas fa-arrow-right"></i></span>
+                    <span class="bg-yellow-500/20 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-yellow-300">🤔 意图识别</span>
+                    <span class="text-gray-500"><i class="fas fa-arrow-right"></i></span>
+                    <span class="bg-gray-700 px-3 py-1.5 rounded-lg text-gray-300">
+                        <span class="text-purple-400">🔧 工具调用</span> <span class="text-gray-500">|</span> <span class="text-blue-400">💬 直接回复</span> <span class="text-gray-500">|</span> <span class="text-red-400">❓ 追问澄清</span>
+                    </span>
+                    <span class="text-gray-500"><i class="fas fa-arrow-right"></i></span>
+                    <span class="bg-gray-700 px-3 py-1.5 rounded-lg text-gray-300">📦 回复用户</span>
+                </div>
+                <div class="text-center text-xs text-gray-500 mt-3">← 每轮对话重复此流程，状态在上下文中累积 →</div>
+            </div>
+
+            <div class="bg-gray-700/30 rounded-lg p-4 mb-4">
+                <h4 class="text-sm font-bold text-yellow-400 mb-2">🔑 关键设计要素</h4>
+                <ul class="text-xs text-gray-400 space-y-2">
+                    <li><strong class="text-white">对话状态管理：</strong>维护会话历史、用户意图、已收集信息</li>
+                    <li><strong class="text-white">槽位填充（Slot Filling）：</strong>逐步收集完成工具调用所需的参数</li>
+                    <li><strong class="text-white">主动澄清：</strong>信息不足时反问，而非猜测或报错</li>
+                    <li><strong class="text-white">上下文窗口管理：</strong>摘要历史、滑动窗口、丢弃不相关信息</li>
+                    <li><strong class="text-white">人格与风格：</strong>保持一致的回复风格和角色设定</li>
+                </ul>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>用户体验自然，交互友好</li>
+                        <li>渐进式信息收集，降低单次输入要求</li>
+                        <li>可处理模糊需求，通过澄清逐步明确</li>
+                        <li>适合客服、助手等场景</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>非任务最优（对话轮次多）</li>
+                        <li>状态管理复杂</li>
+                        <li>长时间对话容易"迷失"</li>
+                        <li>不适合批量/自动化处理</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> Rasa, Dialogflow, LangChain Conversation Agent, Coze Bot
+            </p>
+        </div>
+
+        <!-- Section 5: Code Agent -->
+        <div id="code-agent" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 text-sm font-bold">5</span>
+                Code Agent — 代码即行动
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-cyan-500/20 text-cyan-300">高自由度</span>
+                <span class="tag bg-gray-600 text-gray-300">代表: Code Interpreter</span>
+                <span class="tag bg-red-500/20 text-red-300">需沙箱</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                <strong class="text-cyan-400">Code Agent</strong> 的核心思想是让 LLM <strong class="text-yellow-400">生成代码片段</strong>（Python、JavaScript、Shell 等），然后由执行环境运行并返回结果。不同于调用预定义工具，代码可以表达任意逻辑，<strong class="text-yellow-400">灵活性最高但风险也最大</strong>。
+            </p>
+
+            <!-- Code Example -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4 overflow-x-auto">
+                <pre class="code-block text-sm text-gray-300">
+<span class="text-gray-500"># Code Agent 的典型交互流程</span>
+
+<span class="text-gray-500"># 用户请求：分析这份销售数据，画个趋势图</span>
+<span class="text-blue-400">User</span>: 帮我分析 sales.csv 的数据趋势
+
+<span class="text-gray-500"># 模型生成代码</span>
+<span class="text-blue-400">Assistant</span>:
+```python
+<span class="text-blue-400">import</span> pandas <span class="text-blue-400">as</span> pd
+<span class="text-blue-400">import</span> matplotlib.pyplot <span class="text-blue-400">as</span> plt
+
+df = pd.read_csv(<span class="text-green-400">'sales.csv'</span>)
+df[<span class="text-green-400">'date'</span>] = pd.to_datetime(df[<span class="text-green-400">'date'</span>])
+monthly = df.resample(<span class="text-green-400">'M'</span>, on=<span class="text-green-400">'date'</span>)[<span class="text-green-400">'revenue'</span>].sum()
+
+plt.figure(figsize=(<span class="text-orange-400">10</span>, <span class="text-orange-400">5</span>))
+plt.plot(monthly.index, monthly.values, marker=<span class="text-green-400">'o'</span>)
+plt.title(<span class="text-green-400">'月度营收趋势'</span>)
+plt.savefig(<span class="text-green-400">'trend.png'</span>)
+print(<span class="text-green-400">f"最高月: {monthly.idxmax().strftime('%Y-%m')} = {monthly.max():.0f}"</span>)
+```
+
+<span class="text-gray-500"># 执行环境返回结果</span>
+<span class="text-blue-400">System</span>:
+最高月: 2024-12 = 128000
+[图片: trend.png]</pre>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>表达力最强，无工具数量限制</li>
+                        <li>可处理全新、未见过的任务</li>
+                        <li>生成图表、文件等富输出</li>
+                        <li>适合数据分析、脚本编写</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>安全风险最高（代码执行）</li>
+                        <li>需要沙箱隔离环境</li>
+                        <li>生成的代码可能包含 bug</li>
+                        <li>调试困难，错误信息可能不明确</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> OpenAI Code Interpreter (GPT-4), Claude Code, Open Interpreter, NoteBook Agent
+            </p>
+        </div>
+
+        <!-- Section 6: Multi-Agent -->
+        <div id="multi-agent" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-400 text-sm font-bold">6</span>
+                Multi-Agent — 多智能体协作
+            </h2>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="tag bg-red-500/20 text-red-300">高级范式</span>
+                <span class="tag bg-gray-600 text-gray-300">代表: AutoGen, CrewAI</span>
+                <span class="tag bg-purple-500/20 text-purple-300">分布式</span>
+            </div>
+
+            <p class="text-gray-300 mb-4">
+                <strong class="text-red-400">Multi-Agent</strong> 系统由多个专用 Agent 组成，每个 Agent 有<strong class="text-yellow-400">独立的角色、工具、记忆</strong>，通过<strong class="text-yellow-400">消息传递</strong>协作完成任务。常见的协作模式包括：
+            </p>
+
+            <!-- Collaboration Patterns -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <div class="text-center mb-2">
+                        <span class="text-2xl">👑</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-yellow-400 text-center mb-2">Orchestrator</h4>
+                    <p class="text-xs text-gray-400 text-center">一个主 Agent 调度多个 Worker Agent，适合任务分解</p>
+                    <div class="text-xs text-gray-500 text-center mt-2">Orchestrator → Worker A, B, C</div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <div class="text-center mb-2">
+                        <span class="text-2xl">💬</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-blue-400 text-center mb-2">Debate</h4>
+                    <p class="text-xs text-gray-400 text-center">多个 Agent 辩论/讨论，达成共识，提高决策质量</p>
+                    <div class="text-xs text-gray-500 text-center mt-2">Agent A ↔ Agent B ↔ Agent C</div>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <div class="text-center mb-2">
+                        <span class="text-2xl">🔗</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-green-400 text-center mb-2">Pipeline</h4>
+                    <p class="text-xs text-gray-400 text-center">流水线式处理，每个 Agent 的输出是下一个的输入</p>
+                    <div class="text-xs text-gray-500 text-center mt-2">A → B → C → D</div>
+                </div>
+            </div>
+
+            <!-- Code Example -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4 overflow-x-auto">
+                <pre class="code-block text-sm text-gray-300">
+<span class="text-gray-500"># CrewAI 示例 — 多智能体协作写文章</span>
+<span class="text-blue-400">from</span> crewai <span class="text-blue-400">import</span> Agent, Task, Crew
+
+<span class="text-gray-500"># 定义 3 个角色</span>
+researcher = Agent(role=<span class="text-green-400">'研究员'</span>, goal=<span class="text-green-400">'收集和分析信息'</span>, tools=[search_tool])
+writer = Agent(role=<span class="text-green-400">'写手'</span>, goal=<span class="text-green-400">'撰写清晰的文章'</span>)
+reviewer = Agent(role=<span class="text-green-400">'审稿人'</span>, goal=<span class="text-green-400">'检查质量和准确性'</span>)
+
+<span class="text-gray-500"># 定义任务</span>
+research_task = Task(description=<span class="text-green-400">'收集 AI Agent 最新进展'</span>, agent=researcher)
+write_task = Task(description=<span class="text-green-400">'撰写技术文章'</span>, agent=writer)
+review_task = Task(description=<span class="text-green-400">'审核并修改文章'</span>, agent=reviewer)
+
+<span class="text-gray-500"># 组建团队</span>
+crew = Crew(agents=[researcher, writer, reviewer], tasks=[research_task, write_task, review_task])
+result = crew.kickoff()  <span class="text-gray-500"># ← 多 Agent 自动协作完成</span></pre>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-green-400 flex items-center gap-2"><i class="fas fa-check-circle"></i> 优点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>分工明确，每个 Agent 专精一项</li>
+                        <li>可模拟真实团队协作流程</li>
+                        <li>辩论模式提高输出质量</li>
+                        <li>系统整体鲁棒性更强</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-700/30 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-red-400 flex items-center gap-2"><i class="fas fa-exclamation-circle"></i> 缺点</h4>
+                    <ul class="text-xs text-gray-400 mt-2 space-y-1 list-disc list-inside">
+                        <li>系统复杂度大幅增加</li>
+                        <li>Token 消耗呈倍增长</li>
+                        <li>Agent 间协调困难</li>
+                        <li>调试和追踪极具挑战</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">
+                <strong>代表框架：</strong> AutoGen (Microsoft), CrewAI, LangGraph, MetaGPT, ChatDev
+            </p>
+        </div>
+
+        <!-- Section 7: Comparison -->
+        <div id="comparison" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 text-sm font-bold">7</span>
+                对比与选型建议
+            </h2>
+
+            <div class="overflow-x-auto mb-6">
+                <table class="comparison-table w-full text-sm text-gray-300 border-collapse">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">实现方式</th>
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">复杂度</th>
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">灵活性</th>
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">可控性</th>
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">Token 消耗</th>
+                            <th class="p-3 border-b border-gray-700 font-bold text-white">典型场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-blue-400 font-medium">ReAct</td>
+                            <td class="p-3 border-b border-gray-700">⭐ 低</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">问答、简单任务</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-green-400 font-medium">Plan & Execute</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">长链路任务、数据分析</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-purple-400 font-medium">Function Calling</td>
+                            <td class="p-3 border-b border-gray-700">⭐ 低</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐⭐ 极高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">API 调用、生产系统</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-yellow-400 font-medium">Conversation</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">客服、助手、Chatbot</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-cyan-400 font-medium">Code Agent</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐⭐ 极高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 低</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">数据分析、编程、脚本</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30">
+                            <td class="p-3 border-b border-gray-700 text-red-400 font-medium">Multi-Agent</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐⭐ 极高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐ 高</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐ 中</td>
+                            <td class="p-3 border-b border-gray-700">⭐⭐⭐⭐⭐ 极高</td>
+                            <td class="p-3 border-b border-gray-700">复杂协作、模拟系统</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Selection Guide -->
+            <div class="bg-gray-900 rounded-lg p-6">
+                <h3 class="text-lg font-bold text-white mb-4">📋 选型决策指南</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-start gap-3">
+                        <span class="text-blue-400 font-bold mt-0.5">1.</span>
+                        <div>
+                            <span class="text-white font-semibold">快速验证 / 原型：</span>
+                            <span class="text-gray-400">选 <strong class="text-blue-400">ReAct</strong> 或 <strong class="text-purple-400">Function Calling</strong>。实现简单，马上能看到效果。</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-400 font-bold mt-0.5">2.</span>
+                        <div>
+                            <span class="text-white font-semibold">生产级 API 服务：</span>
+                            <span class="text-gray-400">选 <strong class="text-purple-400">Function Calling</strong>。稳定性最好，API 原生支持。</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-yellow-400 font-bold mt-0.5">3.</span>
+                        <div>
+                            <span class="text-white font-semibold">复杂的多步骤任务：</span>
+                            <span class="text-gray-400">选 <strong class="text-green-400">Plan & Execute</strong>。先规划再执行，步骤可控。</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-red-400 font-bold mt-0.5">4.</span>
+                        <div>
+                            <span class="text-white font-semibold">用户交互式应用：</span>
+                            <span class="text-gray-400">选 <strong class="text-yellow-400">Conversation Agent</strong>。对话体验最重要。</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-cyan-400 font-bold mt-0.5">5.</span>
+                        <div>
+                            <span class="text-white font-semibold">数据分析 / 自动化：</span>
+                            <span class="text-gray-400">选 <strong class="text-cyan-400">Code Agent</strong>。灵活生成代码处理数据。</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-purple-400 font-bold mt-0.5">6.</span>
+                        <div>
+                            <span class="text-white font-semibold">复杂系统 / 模拟：</span>
+                            <span class="text-gray-400">选 <strong class="text-red-400">Multi-Agent</strong>。但先问自己：单 Agent 是否真的不够？</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-600 text-xs py-6 border-t border-gray-800">
+            <p>Agentic 实现模式 · 从简单到复杂，选择最适合你场景的方式</p>
+        </div>
+
+    </div>
+</body>
+</html>

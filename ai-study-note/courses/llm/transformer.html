@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer架构详解</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 图片容器 */
+        .img-zoom-wrapper {
+            position: relative;
+            cursor: zoom-in;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            transition: box-shadow 0.2s;
+        }
+        .img-zoom-wrapper:hover {
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.4);
+        }
+        .img-zoom-wrapper img {
+            width: 100%;
+            display: block;
+            transition: opacity 0.2s;
+        }
+        .img-zoom-overlay-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.6);
+            color: #a78bfa;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .img-zoom-wrapper:hover .img-zoom-overlay-icon {
+            opacity: 1;
+        }
+
+        /* Lightbox 遮罩 */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            cursor: zoom-out;
+            animation: lbFadeIn 0.2s ease;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .lightbox.active { display: flex; }
+        @keyframes lbFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .lightbox img {
+            max-width: 95vw;
+            max-height: 90vh;
+            object-fit: contain;
+            cursor: zoom-in;
+            border-radius: 4px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+        }
+
+        /* 工具栏 */
+        .lightbox-toolbar {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 10001;
+        }
+        .lightbox-toolbar button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .lightbox-toolbar button:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .lightbox-title {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            z-index: 10001;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 16px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-6">
+            <h1 class="text-3xl font-bold text-white mb-3">Transformer架构详解</h1>
+            <div class="text-gray-400 text-sm border-l-4 border-purple-500 pl-4">
+                2017 年，Google Brain 团队发表论文《Attention Is All You Need》，提出 Transformer 架构，彻底改变了 NLP 领域。
+            </div>
+        </div>
+
+        <!-- Directory -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i> 目录
+            </h2>
+            <ol class="list-decimal list-inside space-y-1 text-gray-300">
+                <li>整体架构概览</li>
+                <li>输入层：嵌入与位置编码</li>
+                <li>自注意力机制详解</li>
+                <li>多头注意力机制</li>
+                <li>前馈网络</li>
+                <li>编码器完整结构</li>
+                <li>解码器与掩码注意力</li>
+                <li>输出层</li>
+                <li>总结</li>
+            </ol>
+        </div>
+
+        <!-- Section 1: Overall Architecture -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">1</span>
+                整体架构概览
+            </h2>
+            <p class="text-gray-300 mb-4">Transformer 采用经典的编码器-解码器 (Encoder-Decoder) 架构：</p>
+
+            <!-- 架构全景图 -->
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">Encoder 整体概览</p>
+                <img src="../../assets/transformer/transformer-01-encoder-overview.png" alt="Transformer Encoder 整体架构" class="w-full rounded-lg border border-gray-700" />
+            </div>
+
+            <!-- Transformer Architecture Diagram -->
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              Transformer架构                            │
+├───────────────────────────────────────┬──────────────────────────────────┤
+│          Encoder (左侧)               │       Decoder (右侧)            │
+│                                       │                                  │
+│  ┌─────────────────────────────────┐ │  ┌─────────────────────────────┐│
+│  │  Input Embedding + Pos Enc     │ │  │ Output Embedding + Pos Enc ││
+│  └──────────────┬──────────────────┘ │  └──────────────┬──────────────┘│
+│                 ↓                    │                 ↓                │
+│  ┌─────────────────────────────────┐ │  ┌─────────────────────────────┐│
+│  │   Encoder Layer × N             │ │  │ Decoder Layer × N          ││
+│  │  ┌───────────────────────────┐ │ │  │ ┌─────────────────────────┐ ││
+│  │  │ Multi-Head Self Attention │ │ │  │ │ Masked Multi-Head Self Att│ ││
+│  │  └──────────────┬────────────┘ │ │  │ └──────────────┬────────────┘ ││
+│  │                 ↓ Residual     │ │  │                 ↓ Residual   ││
+│  │  ┌───────────────────────────┐ │ │  │ ┌─────────────────────────┐ ││
+│  │  │ Feed-Forward Network      │ │ │  │ │ Cross Attention (K,V from│ ││
+│  │  └──────────────┬────────────┘ │ │  │ │ Encoder Output)         │ ││
+│  │                 ↓ Residual     │ │  │ └──────────────┬────────────┘ ││
+│  │  ┌───────────────────────────┐ │ │  │ ┌─────────────────────────┐ ││
+│  │  │ (LayerNorm & Residual)    │ │ │  │ │ Feed-Forward Network    │ ││
+│  │  └───────────────────────────┘ │ │  │ └──────────────┬────────────┘ ││
+│  └──────────────┬──────────────────┘ │  │ (LayerNorm & Residual)   │ ││
+│                 ↓                    │  └──────────────┬──────────────┘││
+│  ┌─────────────────────────────────┐ │                 ↓                ││
+│  │ Encoder Output (K,V for Decoder)│ │  ┌─────────────────────────────┐││
+│  └─────────────────────────────────┘ │  │ Linear + Softmax Layer      │││
+│                                       │  └──────────────┬──────────────┘││
+└───────────────────────────────────────┴──────────────────────────────────┘
+                                        ↓
+                                  Output Probability</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">核心设计思想</h3>
+            <ul class="list-disc list-inside space-y-2 text-gray-300">
+                <li><span class="text-purple-400 font-bold">完全基于注意力机制</span> - 抛弃了传统的 RNN/CNN 结构</li>
+                <li><span class="text-purple-400 font-bold">高度可并行化</span> - 不再受序列长度限制</li>
+                <li><span class="text-purple-400 font-bold">长程依赖捕获能力强</span> - 注意力机制让模型看到整个序列</li>
+            </ul>
+        </div>
+
+        <!-- Section 2: Input Layer -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">2</span>
+                输入层：嵌入与位置编码
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">2.1 Token Embedding</h3>
+            <p class="text-gray-300 mb-4">将离散的 token 映射到连续向量空间：</p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入:
+  "The" "cat" "sat" "on" "the" "mat"
+   [1]   [2]   [3]   [4]   [1]   [5]
+
+嵌入查找表 Wₑ (Vocabulary Size × d_model):
+   [0.1 0.3 ...]
+   [0.2 0.5 ...] ← "The" 对应的向量
+   [0.8 0.9 ...] ← "cat" 对应的向量
+   ...
+
+输出:
+  ┌─────────────────┐ ┌─────────────────┐       ┌─────────────────┐
+  │ 0.2  0.5  ...  │ │ 0.8  0.9  ...  │       │ 0.7  0.6  ...  │
+  │ 0.3  0.1  ...  │ │ 0.4  0.2  ...  │ ...   │ 0.9  0.3  ...  │
+  │ ...            │ │ ...            │       │ ...            │
+  └─────────────────┘ └─────────────────┘       └─────────────────┘
+    d_model=512维        d_model=512维          d_model=512维</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">2.2 Positional Encoding</h3>
+            <p class="text-gray-300 mb-4">为了让模型理解单词的顺序，添加位置编码：</p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+             Positional Encoding (正弦/余弦函数)
+           ──────────────────────────────────────────
+
+位置 0:  [ sin(0/10000^0) cos(0/10000^0) sin(0/10000^2) ... ]
+位置 1:  [ sin(1/10000^0) cos(1/10000^0) sin(1/10000^2) ... ]
+位置 2:  [ sin(2/10000^0) cos(2/10000^0) sin(2/10000^2) ... ]
+位置 3:  [ sin(3/10000^0) cos(3/10000^0) sin(3/10000^2) ... ]
+...</div>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-4">
+PE(pos,2i)   = sin(pos / 10000^(2i/d_model))
+PE(pos,2i+1) = cos(pos / 10000^(2i/d_model))</div>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+为什么用正弦/余弦函数？
+- 可以外推到比训练时更长的序列
+- 相对位置可以通过线性变换表示 (sin(a+b))</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">2.3 最终输入</h3>
+            <p class="text-gray-300 mb-4">将 Token Embedding 和 Positional Encoding 逐元素相加：</p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+  Token Embedding      Positional Encoding      Final Input
+  ──────────────────── ──────────────────────── ──────────────────
+  [0.2 0.5 ...]    +   [0.0 1.0 ...]        =   [0.2 1.5 ...]
+  [0.8 0.9 ...]    +   [0.8 0.5 ...]        =   [1.6 1.4 ...]
+  [0.3 0.1 ...]    +   [-0.4 0.9 ...]       =   [-0.1 1.0 ...]
+  ...                  ...                     ...</div>
+        </div>
+
+        <!-- Section 3: Self-Attention -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">3</span>
+                自注意力机制详解
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.1 QKV 概念</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+                    ┌──────────────────────┐
+                    │     Query (Q)       │
+                    │ "我要查询谁？"        │
+                    └──────────────────────┘
+                              ↑
+                              │
+                    ┌──────────────────────┐
+                    │      Input X         │
+                    └──────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ↓               ↓               ↓
+        ┌──────────┐  ┌──────────┐  ┌──────────┐
+        │ Query (Q)│  │ Key (K)  │  │ Value (V)│
+        │查询向量    │  │键向量     │  │值向量     │
+        └──────────┘  └──────────┘  └──────────┘</div>
+            <p class="text-gray-300 mb-4"><strong class="text-purple-400">类比：搜索引擎</strong> — Query (Q) = 用户输入的搜索关键词，Key (K) = 网页标题用于匹配，Value (V) = 网页内容实际提供信息。</p>
+
+            <!-- QKV 计算可视化 -->
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：QKV 矩阵计算</p>
+                <img src="../../assets/transformer/encoder-03-qkv-computation.png" alt="QKV 计算过程" class="w-full rounded-lg border border-gray-700" />
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.2 QKV 的计算</h3>
+            <p class="text-gray-300 mb-4">通过可学习的权重矩阵线性变换：</p>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入 X (seq_len × d_model):
+┌─────────────────────────┐
+│ x₀  x₁  x₂  ...  x₅₁₂│
+│ x₀' x₁' x₂' ... x₅₁₂'│
+│ ...                     │
+└─────────────────────────┘
+        ↓ × W_Q  ↓ × W_K  ↓ × W_V
+    ┌─────────┐ ┌─────────┐ ┌─────────┐
+    │    Q    │ │    K    │ │    V    │
+    └─────────┘ └─────────┘ └─────────┘
+    (seq_len × d_k)</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.3 注意力分数计算</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+步骤 1: Q 和 K 的点积 (Dot Product)
+
+    Q矩阵                    K矩阵 (已转置)
+  ┌─────────┐          ┌───────────────┐
+  │ q₀₀ q₀₁ │          │k₀₀ k₁₀ k₂₀ k₃₀│
+  │ q₁₀ q₁₁ │      ×   │k₀₁ k₁₁ k₂₁ k₃₁│
+  │ q₂₀ q₂₁ │          └───────────────┘
+  └─────────┘
+
+          =
+
+  ┌─────────────────────────────────────────────────┐
+  │ q₀·k₀ q₀·k₁ q₀·k₂ q₀·k₃ │ ← 第0个位置的查询
+  │ q₁·k₀ q₁·k₁ q₁·k₂ q₁·k₃ │ ← 第1个位置的查询
+  │ q₂·k₀ q₂·k₁ q₂·k₂ q₂·k₃ │ ← 第2个位置的查询
+  └─────────────────────────────────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.4 缩放 (Scaling)</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+为什么除以 √d_k ?
+
+假设 d_k = 512
+如果 Q和K 的元素是均值为0，方差为1的随机变量
+那么 Q·K^T 的元素的方差为 512
+
+太大的值会导致 softmax 的梯度消失！
+
+所以我们除以 √d_k (√512 ≈ 22.6)</div>
+
+            <!-- Scaled Dot-Product Attention 可视化 -->
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Scaled Dot-Product Attention 计算流程</p>
+                <img src="../../assets/transformer/encoder-05-scaled-dot-product-attention.png" alt="Scaled Dot-Product Attention" class="w-full rounded-lg border border-gray-700" />
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.5 Mask (掩码) - 仅解码器需要</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+防止看到未来的词！
+
+掩码矩阵 M (下三角矩阵):
+┌─────────────────────────────┐
+│  1   0   0   0 │  第0个词只能看自己
+│  1   1   0   0 │  第1个词能看 0 和 1
+│  1   1   1   0 │  第2个词能看 0, 1, 2
+│  1   1   1   1 │  第3个词能看全部
+└─────────────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.6 Softmax 转换为权重</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+Softmax 函数将分数转换为概率分布 (0到1，总和为1):
+
+应用 Softmax:
+┌─────────────────────────────────────────┐
+│ 1.00 0.00 0.00 0.00 │ ← 位置0：只看自己
+│ 0.10 0.90 0.00 0.00 │ ← 位置1：主要看位置1
+│ 0.05 0.55 0.40 0.00 │ ← 位置2：看位置1和2
+│ 0.10 0.15 0.25 0.50 │ ← 位置3：看所有，但位置3最重要
+└─────────────────────────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.7 加权求和得到输出</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+用注意力权重乘以 Value 矩阵：
+
+输出矩阵 (seq_len × d_k):
+┌─────────────────────────────────────────┐
+│ v₀      │ ← 100% v₀
+│ 0.1v₀ + 0.9v₁     │ ← 10% v₀，90% v₁
+│ 0.05v₀ + 0.55v₁ + 0.4v₂ │
+│ ...     │
+└─────────────────────────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">3.8 完整公式</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-purple-400 text-center font-bold">
+Attention(Q, K, V) = softmax(QK^T / √d_k) V</div>
+        </div>
+
+        <!-- Section 4: Multi-Head Attention -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">4</span>
+                多头注意力机制
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">4.1 为什么要多头？</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+让模型同时关注不同类型的关系！
+
+比如翻译句子 "The cat sits on the mat":
+    头 1: 关注主谓一致 ("cat" ↔ "sits")
+    头 2: 关注动词-介词搭配 ("sits" ↔ "on")
+    头 3: 关注指代关系 ("mat" ↔ "the")
+    头 4: 关注长程依赖 ("The" ↔ "mat")
+    ...
+
+不同的头可以学习不同类型的注意力模式！</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">4.2 多头注意力结构</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入:
+       ┌───────────────────┐
+       │         X        │
+       └──────────┬────────┘
+                  ↓
+    ┌───────────────────────────────┐
+    │  Linear (Q)  Linear (K)  Linear (V)│ ← 3个独立的线性层
+    └──────────┬────────┬──────────┘
+               ↓        ↓        ↓
+      ┌─────────┐ ┌─────────┐ ┌─────────┐
+      │ Q       │ │ K       │ │ V       │
+      └─────────┘ └─────────┘ └─────────┘
+          ↓           ↓           ↓
+      ┌─────────────────────────────────┐
+      │ Split into h heads             │ ← 例如 h=8
+      └────┬────────────────────┬───────┘
+           ↓                    ↓
+    ┌─────────────────────────────────┐
+    │ Head 0  Head 1  ...  Head 7 │
+    │ [scaled dot product]  ...       │
+    └─────────────────────────────────┘
+           ↓                    ↓
+      ┌─────────────────────────────────┐
+      │ Concatenate all heads          │
+      └─────────────────────────────────┘
+                  ↓
+         ┌─────────────────┐
+         │  Linear layer  │
+         └─────────────────┘
+                  ↓
+          ┌─────────────────┐
+          │   Output      │
+          └─────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">4.3 数学表示</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-4">
+对于每个头 i (0 &lt;= i &lt; h):
+
+Q_i = Q * W_Q[:, (i*d_k) : (i+1)*d_k]
+K_i = K * W_K[:, (i*d_k) : (i+1)*d_k]
+V_i = V * W_V[:, (i*d_k) : (i+1)*d_k]
+
+每个头独立计算注意力:
+Head_i = Attention(Q_i, K_i, V_i)
+
+拼接所有头:
+MultiHead = Concat(Head_0, Head_1, ..., Head_{h-1})
+
+最后线性投影:
+Output = MultiHead * W_O</div>
+        </div>
+
+        <!-- Section 5: Feed-Forward Network -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">5</span>
+                前馈网络
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">5.1 网络结构</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入 (d_model 维)
+      │
+      ↓
+┌──────────────────────┐
+│  Linear Layer 1      │ ── 维度: d_model → d_ff
+│  (W₁, b₁)          │   例如: 512 → 2048
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  ReLU Activation     │ ── max(0, x)
+└──────────┬───────────┘
+           ↓
+┌──────────────────────┐
+│  Linear Layer 2      │ ── 维度: d_ff → d_model
+│  (W₂, b₂)          │   例如: 2048 → 512
+└──────────┬───────────┘
+           ↓
+      输出</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">5.2 数学公式</h3>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-4">
+FFN(x) = max(0, x * W₁ + b₁) * W₂ + b₂
+
+或者更简洁的写法:
+FFN(x) = ReLU(xW₁ + b₁) W₂ + b₂</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">5.3 为什么是这样的结构？</h3>
+            <ul class="list-disc list-inside space-y-2 text-gray-300">
+                <li>先扩展到高维 (d_ff = 4*d_model): 给模型更多的表达空间</li>
+                <li>再压缩回去: 提取最有用的信息</li>
+                <li>每个位置独立处理: 不像注意力那样混合不同位置的信息</li>
+            </ul>
+        </div>
+
+        <!-- Section 6: Encoder Structure -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">6</span>
+                编码器完整结构
+            </h2>
+
+            <!-- 编码器可视化 -->
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Encoder 输入层与位置编码</p>
+                <img src="../../assets/transformer/encoder-02-embedding-pe.png" alt="Encoder Embedding + Positional Encoding" class="w-full rounded-lg border border-gray-700" />
+            </div>
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Multi-Head Attention 多头合并</p>
+                <img src="../../assets/transformer/encoder-06-multi-head-merge.png" alt="Multi-Head Merge" class="w-full rounded-lg border border-gray-700" />
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">6.1 编码器层</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入 x
+   │
+   ├──────────────────────────────────────┐
+   ↓                                      │
+┌──────────────────────────┐             │
+│ Multi-Head Self-Attention│             │
+└──────────┬───────────────┘             │
+           ↓                              │
+┌──────────────────────────┐             │
+│        Dropout           │             │
+└──────────┬───────────────┘             │
+           ↓                              │
+┌──────────────────────────┐             │
+│    Add & LayerNorm       │ ← x + dropout│
+└──────────┬───────────────┘             │
+           ↓                              │
+┌──────────────────────────┐             │
+│ Feed-Forward Network     │             │
+└──────────┬───────────────┘             │
+           ↓                              │
+┌──────────────────────────┐             │
+│        Dropout           │             │
+└──────────┬───────────────┘             │
+           ↓                              │
+┌──────────────────────────┐             │
+│    Add & LayerNorm       │ ← + dropout │
+└──────────┬───────────────┘             │
+           ↓                              │
+      输出 ←──────────────────────────────┘</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">6.2 残差连接和层归一化</h3>
+            <p class="text-gray-300 mb-3">残差连接解决了深度网络中梯度消失的问题，直接"抄近路"过去！</p>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-4">
+Output = LayerNorm(x + SubLayer(x))</div>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+LayerNorm (层归一化):
+
+均值 μ = (x₀ + x₁ + ... + x_{d-1}) / d
+方差 σ² = Σ(x_i - μ)² / d
+
+LayerNorm(x) = γ * (x - μ)/√(σ² + ε) + β
+
+其中:
+  γ: 缩放参数 (可学习)
+  β: 偏移参数 (可学习)
+  ε: 小常数 (防止除以0)
+
+作用：将激活归一化到均值为0，方差为1的分布，加速训练</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">6.3 N层堆叠</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+完整编码器由 N 个相同的编码器层堆叠而成！
+论文中 N=6:
+
+Encoder Layer 0
+    ↓
+Encoder Layer 1
+    ↓
+...
+    ↓
+Encoder Layer 5 (第6层，索引从0开始)
+    ↓
+Encoder Output (作为 K 和 V 给解码器)</div>
+        </div>
+
+        <!-- Section 7: Decoder -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">7</span>
+                解码器与掩码注意力
+            </h2>
+
+            <!-- 解码器可视化 -->
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Decoder 整体概览</p>
+                <img src="../../assets/transformer/decoder-01-input-overview.png" alt="Decoder Overview" class="w-full rounded-lg border border-gray-700" />
+            </div>
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Masked Multi-Head Attention</p>
+                <img src="../../assets/transformer/decoder-03-qkv-masked-attention.png" alt="Masked Attention" class="w-full rounded-lg border border-gray-700" />
+            </div>
+            <div class="mb-4">
+                <p class="text-purple-400 text-sm font-bold mb-2">图解：Cross-Attention 机制</p>
+                <img src="../../assets/transformer/decoder-05-cross-attention.png" alt="Cross Attention" class="w-full rounded-lg border border-gray-700" />
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">7.1 解码器层</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+输入 x (已生成的部分)
+   │
+   ├──────────────────────────────────┐
+   ↓                                  │
+┌──────────────────────────┐         │
+│ Masked Multi-Head Self-Attn│ ← 掩码 │
+└──────────┬───────────────┘         │
+           ↓                          │
+┌──────────────────────────┐         │
+│ Dropout + Add & LayerNorm│         │
+└──────────┬───────────────┘         │
+           ↓                          │
+┌──────────────────────────────┐     │
+│  Encoder-Decoder Attention   │     │
+└──────────┬────────────────────┘     │
+           ↓                          │
+┌──────────────────────────┐         │
+│ Dropout + Add & LayerNorm│         │
+└──────────┬───────────────┘         │
+           ↓                          │
+┌──────────────────────────┐         │
+│ Feed-Forward Network     │         │
+└──────────┬───────────────┘         │
+           ↓                          │
+┌──────────────────────────┐         │
+│ Dropout + Add & LayerNorm│         │
+└──────────┬───────────────┘         │
+           ↓                          │
+      输出</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">7.2 编码器-解码器注意力</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+在翻译任务中，解码器需要关注编码器的输出！
+
+来源:
+  Q: 来自解码器 (Decoder Input)
+  K, V: 来自编码器 (Encoder Output)
+
+这样解码器可以看到整个输入序列！</div>
+        </div>
+
+        <!-- Section 8: Output Layer -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">8</span>
+                输出层
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">8.1 Linear + Softmax</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+Decoder 输出
+      │
+      ↓
+┌─────────────────────────┐
+│ Linear Layer          │
+│ W_out: d_model × vocab_size │
+└──────────┬───────────────┘
+           ↓
+┌─────────────────────────┐
+│ Softmax               │
+└──────────┬───────────────┘
+           ↓
+    ┌───────────────────┐
+    │ Vocab Size 维   │
+    │ 概率分布       │
+    │ (总和为1)       │
+    └───────────────────┘
+           ↓
+   Sampling (采样) - 生成下一个词</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">8.2 权重共享技巧</h3>
+            <p class="text-gray-300 mb-4">输出层的线性层权重 W_out 和输入层的嵌入矩阵 W_e 可以共享，减少参数量：</p>
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-4">
+logits = decoder_output * W_e^T</div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">8.3 采样策略</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+给定概率分布，如何选择下一个词？
+
+1. Greedy Search (贪心)
+   - 每次选概率最大的词
+
+2. Beam Search (集束搜索)
+   - 保留 top-k 个候选，最后选最优
+
+3. Sampling (采样)
+   - Top-k: 从概率最高的 k 个词中采样
+   - Top-p: 从累计概率达到 p 的最小词集中采样
+   - 温度参数 Temperature: T &lt; 1 更确定，T &gt; 1 更多样</div>
+        </div>
+
+        <!-- Section 9: Summary -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 text-sm font-bold">9</span>
+                总结
+            </h2>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">Transformer 核心组件回顾</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-4">
+1. 输入处理
+   - Token Embedding: 单词 → 向量
+   - Positional Encoding: 添加位置信息
+
+2. 自注意力
+   - Q/K/V: 查询/键/值
+   - Scaled Dot-Product: 缩放点积
+   - Softmax: 转为概率
+   - Weighted Sum: 加权求和
+
+3. 多头注意力
+   - 分成多个头，并行计算
+   - 学习不同类型的注意力
+
+4. 前馈网络
+   - 升维 → 激活 → 降维
+
+5. 残差连接与层归一化
+   - x + Sublayer(x)
+   - LayerNorm
+
+6. 编码器-解码器
+   - 编码器: N 层堆叠
+   - 解码器: N 层堆叠，包含编码器-解码器注意力</div>
+
+            <!-- 完整架构图可视化 -->
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">完整架构图解</h3>
+            <div class="space-y-4 mb-4">
+                <div>
+                    <p class="text-purple-400 text-sm font-bold mb-2">Encoder + Add & Norm + FFN</p>
+                    <img src="../../assets/transformer/transformer-05-encoder-addnorm-ffn.png" alt="Encoder AddNorm FFN" class="w-full rounded-lg border border-gray-700" />
+                </div>
+                <div>
+                    <p class="text-purple-400 text-sm font-bold mb-2">Decoder 整体概览与 Cross-Attention</p>
+                    <img src="../../assets/transformer/transformer-06-decoder-overview.png" alt="Decoder Overview" class="w-full rounded-lg border border-gray-700" />
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">原论文超参数</h3>
+            <div class="overflow-x-auto mb-4">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">参数</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">值</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-purple-400">说明</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">d_model</td><td class="px-4 py-3 text-sm">512</td><td class="px-4 py-3 text-sm text-gray-400">模型维度</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">h (heads)</td><td class="px-4 py-3 text-sm">8</td><td class="px-4 py-3 text-sm text-gray-400">注意力头数</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">d_k = d_v</td><td class="px-4 py-3 text-sm">64</td><td class="px-4 py-3 text-sm text-gray-400">每个头的维度 (512/8)</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">d_ff</td><td class="px-4 py-3 text-sm">2048</td><td class="px-4 py-3 text-sm text-gray-400">FFN中间维度</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">N (layers)</td><td class="px-4 py-3 text-sm">6</td><td class="px-4 py-3 text-sm text-gray-400">编码器/解码器层数</td></tr>
+                        <tr class="hover:bg-gray-700/30"><td class="px-4 py-3 text-sm font-mono">dropout</td><td class="px-4 py-3 text-sm">0.1</td><td class="px-4 py-3 text-sm text-gray-400">Dropout率</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-purple-400 mb-3">Transformer 的优势</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="bg-gray-700/50 rounded-lg p-4">
+                    <div class="text-purple-400 font-bold mb-1">1. 并行计算</div>
+                    <div class="text-gray-400 text-sm">不像 RNN 那样一步一步来</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4">
+                    <div class="text-purple-400 font-bold mb-1">2. 长程依赖</div>
+                    <div class="text-gray-400 text-sm">注意力机制可以看到整个序列</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4">
+                    <div class="text-purple-400 font-bold mb-1">3. 可扩展</div>
+                    <div class="text-gray-400 text-sm">参数量可以缩放 (GPT-3, PaLM, ...)</div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-4">
+                    <div class="text-purple-400 font-bold mb-1">4. 灵活</div>
+                    <div class="text-gray-400 text-sm">不仅限于文本，也可用于图像、音频等领域</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/30 p-6 mb-6 text-center">
+            <p class="text-purple-400 font-bold text-lg mb-2">恭喜你现在已经完全理解了 Transformer 架构！</p>
+            <p class="text-gray-400 text-sm">
+                接下来可以看一些经典论文：Attention Is All You Need (2017) · BERT (2018) · GPT 系列 (2018-2020)
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <div class="lightbox-toolbar">
+            <button onclick="closeLightbox()" title="关闭 (Esc)"><i class="fas fa-times"></i></button>
+        </div>
+        <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()" />
+        <div class="lightbox-title" id="lightbox-title"></div>
+    </div>
+
+    <script>
+        let zoomLevel = 1;
+
+        // 初始化所有带图片的容器
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.img-zoom-wrapper img, img[src*="assets/transformer"]').forEach(function(img) {
+                // 如果图片没有包裹在 zoom-wrapper 中，包装它
+                if (!img.closest('.img-zoom-wrapper') && img.closest('.mb-4')) {
+                    var wrapper = img.closest('.mb-4');
+                    wrapper.classList.add('img-zoom-wrapper');
+                    wrapper.setAttribute('onclick', 'event.stopPropagation(); openLightbox(this.querySelector("img"))');
+
+                    var icon = document.createElement('div');
+                    icon.className = 'img-zoom-overlay-icon';
+                    icon.innerHTML = '<i class="fas fa-search-plus"></i>';
+                    wrapper.appendChild(icon);
+                }
+            });
+
+            // 给独立的 img-zoom-wrapper 绑定点击
+            document.querySelectorAll('.img-zoom-wrapper').forEach(function(wrapper) {
+                if (!wrapper.hasAttribute('onclick')) {
+                    wrapper.setAttribute('onclick', 'event.stopPropagation(); openLightbox(this.querySelector("img"))');
+                }
+            });
+        });
+
+        zoomLevel = 1;
+        var isDragging = false;
+        var panX = 0, panY = 0;
+        var dragStartX = 0, dragStartY = 0;
+        var panStartX = 0, panStartY = 0;
+
+        function updateTransform() {
+            var img = document.getElementById('lightbox-img');
+            img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomLevel + ')';
+            img.style.transition = isDragging ? 'none' : 'transform 0.25s ease';
+            img.style.cursor = isDragging ? 'grabbing' : (zoomLevel > 1 ? 'grab' : 'zoom-in');
+        }
+
+        function openLightbox(imgEl) {
+            var lb = document.getElementById('lightbox');
+            var lbImg = document.getElementById('lightbox-img');
+
+            lbImg.src = imgEl.src;
+            zoomLevel = 1;
+            panX = 0; panY = 0;
+            lbImg.style.transform = 'translate(0, 0) scale(1)';
+            lbImg.style.transition = 'none';
+
+            // 找到最近的标题
+            var label = imgEl.closest('.mb-4, .img-zoom-wrapper');
+            var labelText = '';
+            if (label) {
+                var prev = label.previousElementSibling;
+                if (prev && prev.classList.contains('text-sm')) {
+                    labelText = prev.textContent.trim();
+                }
+            }
+            if (!labelText) {
+                labelText = imgEl.alt || '';
+            }
+            document.getElementById('lightbox-title').textContent = labelText;
+
+            lb.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            var lb = document.getElementById('lightbox');
+            lb.classList.remove('active');
+            document.body.style.overflow = '';
+            zoomLevel = 1;
+            panX = 0; panY = 0;
+            document.getElementById('lightbox-img').style.transform = 'translate(0, 0) scale(1)';
+        }
+
+        // --- 拖拽平移 ---
+        var lbImg = document.getElementById('lightbox-img');
+
+        lbImg.addEventListener('mousedown', function(e) {
+            if (zoomLevel <= 1) return; // 未放大时不拖拽
+            e.preventDefault();
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            panStartX = panX;
+            panStartY = panY;
+            updateTransform();
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            panX = panStartX + (e.clientX - dragStartX);
+            panY = panStartY + (e.clientY - dragStartY);
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (!isDragging) return;
+            isDragging = false;
+            updateTransform();
+        });
+
+        // 触摸拖拽支持
+        lbImg.addEventListener('touchstart', function(e) {
+            if (zoomLevel <= 1) return;
+            if (e.touches.length === 1) {
+                isDragging = true;
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+                panStartX = panX;
+                panStartY = panY;
+                updateTransform();
+            }
+        }, { passive: false });
+
+        lbImg.addEventListener('touchmove', function(e) {
+            if (!isDragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            panX = panStartX + (e.touches[0].clientX - dragStartX);
+            panY = panStartY + (e.touches[0].clientY - dragStartY);
+            updateTransform();
+        }, { passive: false });
+
+        lbImg.addEventListener('touchend', function() {
+            if (!isDragging) return;
+            isDragging = false;
+            updateTransform();
+        });
+
+        // 双击图片：适合屏幕
+        lbImg.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            zoomLevel = 1;
+            panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // 滚轮缩放
+        lbImg.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var delta = e.deltaY > 0 ? -0.15 : 0.15;
+            zoomLevel = Math.max(0.3, Math.min(5, zoomLevel + delta));
+            if (zoomLevel <= 1) {
+                panX = 0; panY = 0;
+            }
+            updateTransform();
+        });
+
+        // 点击图片切换缩放
+        lbImg.addEventListener('click', function(e) {
+            if (isDragging) return; // 拖拽后不触发点击
+            e.stopPropagation();
+            if (zoomLevel > 1) {
+                zoomLevel = 1;
+                panX = 0; panY = 0;
+            } else {
+                zoomLevel = 2.5;
+            }
+            updateTransform();
+        });
+
+        // Esc 关闭
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+    </script>
+</body>
+</html>

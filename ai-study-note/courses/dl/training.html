@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优化与正则化 - 深度学习</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-cyan-400 mb-2">
+                <i class="fas fa-bolt mr-2"></i>优化与正则化
+            </h1>
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4">
+                训练神经网络不仅是让损失下降，更是让模型学会泛化！
+            </p>
+        </div>
+
+        <!-- 优化器 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 text-sm font-bold">1</span>
+                优化器 (Optimizers)
+            </h2>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">梯度下降的演进</h3>
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+SGD (1986) ──→ Momentum ──→ AdaGrad ──→ RMSprop ──→ Adam (2014)
+   ↓             ↓            ↓           ↓             ↓
+  基础          加速        自适应        改进版       集大成者</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">各优化器对比</h3>
+
+            <div class="space-y-4 mb-6">
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">SGD (随机梯度下降)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  W = W - η·∇L(W)                                                │
+│                                                                  │
+│  每次用一个样本更新，波动大但可能跳出局部最优                      │
+│                                                                  │
+│  缺点: 学习率难调，在峡谷区域震荡                                 │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Momentum (动量)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  v = γ·v + η·∇L(W)                                              │
+│  W = W - v                                                       │
+│                                                                  │
+│  保留历史梯度方向，加速收敛，抑制震荡                              │
+│                                                                  │
+│  想像一个小球从山坡滚下：速度会越来越快！                          │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Adam (自适应矩估计)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  自适应学习率 + 动量 = Adam                                      │
+│                                                                  │
+│  特点:                                                           │
+│  ✅ 每个参数有自己的学习率                                       │
+│  ✅ 适合大规模数据和参数                                         │
+│  ✅ 默认超参数通常效果不错                                       │
+│  ✅ 目前最常用的优化器！                                         │
+└─────────────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">优化器选择</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">优化器</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">特点</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">SGD</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">简单，需手动调学习率</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">小数据量，研究实验</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">SGD + Momentum</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">加速收敛，抑制震荡</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">图像分类等经典任务</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">AdaGrad</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">自适应学习率</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">稀疏特征场景</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">RMSprop</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">解决 AdaGrad 学习率衰减问题</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">RNN / LSTM</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">
+                                <span class="text-yellow-400"><i class="fas fa-star mr-1"></i>Adam</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-300">最常用，默认首选</td>
+                            <td class="px-4 py-3 text-sm text-gray-300 font-semibold text-cyan-300">大多数情况！</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">AdamW</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">Adam + 权重衰减解耦</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">Transformer 训练</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 正则化技术 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 text-sm font-bold">2</span>
+                正则化技术 (Regularization)
+            </h2>
+
+            <p class="text-gray-400 text-sm border-l-4 border-cyan-500 pl-4 mb-6">防止过拟合的核心方法</p>
+
+            <div class="space-y-4 mb-6">
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">L1/L2 正则化</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  在损失函数中加入权重惩罚项，限制模型复杂度                       │
+│                                                                  │
+│  L1 (Lasso):    Loss' = Loss + λΣ|wᵢ|      → 产生稀疏权重      │
+│  L2 (Ridge):    Loss' = Loss + λΣwᵢ²       → 权重趋向均匀      │
+│                                                                  │
+│  λ 是正则化强度，越大→惩罚越重→模型越简单                        │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Dropout</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  训练时随机"丢弃"部分神经元，防止过拟合                           │
+│                                                                  │
+│  训练时:                        测试时:                          │
+│  ┌─────┐  ┌─────┐              ┌─────┐  ┌─────┐                │
+│  │ ○   │  │  ○  │              │ ○   │  │  ○  │                │
+│  │  × ○│  │○ ×  │   →         │  ○ ○│  │○ ○  │  ← 所有神经元│
+│  │ ○ × │  │  ○  │              │ ○   │  │  ○  │    乘以(1-p)  │
+│  └─────┘  └─────┘              └─────┘  └─────┘                │
+│  × = 被丢弃 (概率 p)                                             │
+│                                                                  │
+│  效果: 类似集成学习，防止神经元共适应                              │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">Batch Normalization (批归一化)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  对每一层的激活值进行归一化                                      │
+│                                                                  │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                   │
+│  │  层输入   │──→│ 归一化   │──→│ 缩放+偏移 │──→ 输出            │
+│  │          │    │ μ, σ²   │    │ γ, β    │                    │
+│  └──────────┘    └──────────┘    └──────────┘                   │
+│                                                                  │
+│  好处:                                                           │
+│  ✅ 加速训练（允许更大学习率）                                    │
+│  ✅ 减少对初始化的依赖                                           │
+│  ✅ 轻微正则化效果                                               │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">早停 (Early Stopping)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  当验证集性能不再提升时提前停止训练                               │
+│                                                                  │
+│  Loss                                                           │
+│   ░░░░░░░░░░░░░░░░░ 训练曲线                                    │
+│   ░░    ░░░░░░░░░░░░░░░░░                                         │
+│   ░░       ░░░░░░░░░░░░ 验证曲线                                │
+│   ░░          ░░░░                                               │
+│   └──────────────────────→ Epoch                                  │
+│              ↑                                                    │
+│          此处停止！                                              │
+└─────────────────────────────────────────────────────────────────┘</div>
+
+                <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto">
+<span class="text-cyan-400">数据增强 (Data Augmentation)</span>
+┌─────────────────────────────────────────────────────────────────┐
+│  通过对训练数据做变换生成更多样本，这是最有效的正则化！             │
+│                                                                  │
+│  图像数据:                         文本数据:                     │
+│    ┌──┐  ┌──┐  ┌──┐  ┌──┐         同义词替换                    │
+│    │原│  │翻│  │旋│  │裁│         随机插入                      │
+│    │图│  │转│  │转│  │剪│         随机交换                      │
+│    └──┘  └──┘  └──┘  └──┘         随机删除                      │
+└─────────────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">正则化方法总结</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">方法</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">原理</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">效果</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">L1/L2</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">权重惩罚</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">限制模型复杂度</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">所有模型</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Dropout</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">随机丢弃</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">防止共适应</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">全连接层</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Batch Norm</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">归一化激活</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">加速训练</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">CNN/MLP</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Layer Norm</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">层归一化</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">稳定训练</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">Transformer</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">早停</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">提前停止</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">防止过拟合</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">所有训练</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">数据增强</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">扩充数据</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">泛化最强</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">CNN/图像</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 学习率调度 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 text-sm font-bold">3</span>
+                学习率调度 (Learning Rate Scheduler)
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300 mb-6">
+学习率是训练中最重要的超参数！
+
+太大 → 震荡不收敛     太小 → 收敛太慢     合适 → 快速稳定收敛
+
+最佳策略: 开始时大，逐渐减小</div>
+
+            <h3 class="text-lg font-semibold text-cyan-300 mb-3">常见的调度策略</h3>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre overflow-x-auto mb-6">
+Step Decay (阶梯衰减):
+    η
+    │
+    │ ████
+    │     ████
+    │         ████
+    │             ████
+    └──────────────────→ epoch
+
+Cosine Annealing (余弦退火):
+    η
+    │ ████████
+    │ ██      ████
+    │ █          ████
+    │ █              ████
+    └──────────────────────→ epoch
+
+Reduce on Plateau (自适应):
+    η
+    │ ████████████
+    │             ████████
+    │                     ████████
+    └──────────────────────────────→ epoch
+    验证损失不再下降时，学习率减半</div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/60">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">调度器</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">策略</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Step Decay</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">每隔固定轮次减半</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">经典 CNN 训练</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Cosine Annealing</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">余弦函数平滑下降</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">Transformer 训练</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Reduce on Plateau</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">根据验证损失自适应</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">通用</td>
+                        </tr>
+                        <tr class="hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-semibold text-white">Warmup + Decay</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">先升后降的热身策略</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">大模型训练</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 实践建议 -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-bullseye text-cyan-400"></i>实践建议
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono text-gray-300">
+新手训练神经网络的最佳实践:
+
+<span class="text-cyan-400">1️⃣ 先用小数据集过拟合一个批次（确认模型能学习）</span>
+
+<span class="text-cyan-400">2️⃣ 选择合适的优化器:</span>
+   ┌───────────────────────────────────────┐
+   │   默认选择: Adam (lr=3e-4)            │
+   │   如果数据量很大: SGD + Momentum      │
+   └───────────────────────────────────────┘
+
+<span class="text-cyan-400">3️⃣ 加入正则化:</span>
+   ┌───────────────────────────────────────┐
+   │   全连接层 -&gt; Dropout(p=0.5)          │
+   │   卷积层   -&gt; Batch Norm              │
+   │   Transformer -&gt; Layer Norm           │
+   └───────────────────────────────────────┘
+
+<span class="text-cyan-400">4️⃣ 学习率调度:</span>
+   ┌───────────────────────────────────────┐
+   │   先用 Cosine Annealing               │
+   │   如果不好用换 Reduce on Plateau       │
+   └───────────────────────────────────────┘
+
+<span class="text-cyan-400">5️⃣ 监控训练:</span>
+   ┌───────────────────────────────────────┐
+   │   训练损失 ↓ 验证损失 ↓ → 正常训练    │
+   │   训练损失 ↓ 验证损失 ↑ → 过拟合！    │
+   │   训练损失 ↑ 验证损失 ↑ → 学习率太大  │
+   └───────────────────────────────────────┘</div>
+        </div>
+
+    </div>
+</body>
+</html>

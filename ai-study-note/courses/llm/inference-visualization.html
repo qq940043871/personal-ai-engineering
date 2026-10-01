@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推理流程可视化 - AI学习系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .step-active { animation: pulse-step 1.5s ease-in-out infinite; }
+        @keyframes pulse-step {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(168, 85, 247, 0); }
+        }
+        .token-pop { animation: tokenPop 0.3s ease-out; }
+        @keyframes tokenPop {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<div class="p-6 md:p-8 max-w-6xl mx-auto">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-br from-purple-900 via-violet-900 to-pink-900 rounded-xl p-8 mb-8 border border-purple-700/50">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <i class="fas fa-eye text-3xl text-purple-300"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-white">推理流程可视化</h1>
+                <p class="text-purple-200 text-lg mt-1">逐步观察大语言模型如何一个一个地生成文本 Token</p>
+            </div>
+        </div>
+        <p class="text-purple-100/70 text-sm leading-relaxed">
+            输入一段文本，观察模型自回归生成的完整过程：Token 化 → 嵌入 → Transformer 处理 → 概率分布 → 采样 → 生成下一个 Token
+        </p>
+    </div>
+
+    <!-- Interactive Demo -->
+    <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <i class="fas fa-play-circle text-purple-400"></i> 交互式推理演示
+        </h2>
+
+        <!-- Input -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-400 mb-2">输入提示文本</label>
+            <div class="flex gap-2">
+                <input id="promptInput" type="text" value="春风又绿江南"
+                    class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <button id="startBtn" onclick="startGeneration()"
+                    class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2">
+                    <i class="fas fa-play"></i> 开始生成
+                </button>
+                <button onclick="resetDemo()"
+                    class="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Generation Display -->
+        <div id="generationArea" class="bg-gray-900 rounded-lg p-6 border border-gray-700 mb-4 min-h-[80px]">
+            <div class="flex items-start flex-wrap gap-1">
+                <span id="generatedText" class="text-lg text-gray-300 font-mono"></span>
+                <span id="cursor" class="text-lg text-purple-400 inline-block w-0.5 h-6 bg-purple-400 ml-0.5" style="display:none;"></span>
+            </div>
+        </div>
+
+        <!-- Step Indicator -->
+        <div id="stepDisplay" class="flex items-center gap-2 text-sm text-gray-400 mb-4">
+            <span id="stepNumber">就绪</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-2" id="controls" style="display:none;">
+            <button id="stepBtn" onclick="singleStep()"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm flex items-center gap-2">
+                <i class="fas fa-step-forward"></i> 单步执行
+            </button>
+            <button id="autoBtn" onclick="toggleAuto()"
+                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                <i class="fas fa-forward"></i> 自动播放
+            </button>
+            <select id="speedSelect" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option value="1500">慢速</option>
+                <option value="800" selected>正常</option>
+                <option value="400">快速</option>
+                <option value="150">极速</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Process Visualization -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Token Generation Steps -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list-ol text-purple-400"></i> 当前步骤详情
+            </h2>
+            <div id="stepDetail" class="text-sm text-gray-400">
+                <p>点击"开始生成"观察推理流程</p>
+            </div>
+        </div>
+
+        <!-- Probability Chart -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-bar text-purple-400"></i> Token 概率分布
+            </h2>
+            <div class="h-56">
+                <canvas id="probChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- KV Cache & Flow -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- KV Cache Visualization -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-database text-purple-400"></i> KV Cache 状态
+            </h2>
+            <div class="overflow-x-auto">
+                <div id="kvCacheVis" class="min-h-[100px] flex items-center">
+                    <p class="text-sm text-gray-500">等待生成开始...</p>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-gray-500">
+                <span id="cacheInfo"></span>
+            </div>
+        </div>
+
+        <!-- Attention Flow -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-project-diagram text-purple-400"></i> 注意力流
+            </h2>
+            <div class="overflow-x-auto">
+                <canvas id="attentionCanvas" width="400" height="250" class="w-full rounded-lg bg-gray-900"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Overview -->
+    <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <i class="fas fa-sitemap text-purple-400"></i> 推理流程全景
+        </h2>
+        <div class="overflow-x-auto">
+            <div class="flex items-center gap-2 md:gap-4 min-w-[800px] py-4" id="pipelineFlow">
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-blue-900/30 border border-blue-700/50" id="pipe-tokenize">
+                    <i class="fas fa-font text-blue-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-blue-300">1. Token 化</span>
+                </div>
+                <div class="text-gray-600 text-lg"><i class="fas fa-arrow-right"></i></div>
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-purple-900/30 border border-purple-700/50" id="pipe-embed">
+                    <i class="fas fa-cubes text-purple-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-purple-300">2. 嵌入</span>
+                </div>
+                <div class="text-gray-600 text-lg"><i class="fas fa-arrow-right"></i></div>
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-pink-900/30 border border-pink-700/50" id="pipe-transformer">
+                    <i class="fas fa-cogs text-pink-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-pink-300">3. Transformer</span>
+                </div>
+                <div class="text-gray-600 text-lg"><i class="fas fa-arrow-right"></i></div>
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-green-900/30 border border-green-700/50" id="pipe-softmax">
+                    <i class="fas fa-chart-pie text-green-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-green-300">4. Softmax</span>
+                </div>
+                <div class="text-gray-600 text-lg"><i class="fas fa-arrow-right"></i></div>
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-orange-900/30 border border-orange-700/50" id="pipe-sample">
+                    <i class="fas fa-dice text-orange-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-orange-300">5. 采样</span>
+                </div>
+                <div class="text-gray-600 text-lg"><i class="fas fa-arrow-right"></i></div>
+                <div class="flex-shrink-0 text-center px-4 py-3 rounded-lg bg-red-900/30 border border-red-700/50" id="pipe-output">
+                    <i class="fas fa-flag-checkered text-red-400 text-xl mb-1 block"></i>
+                    <span class="text-xs text-red-300">6. 输出Token</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ---------- Demo State ----------
+    const VOCAB = [
+        { token: '岸', prob: 0.35, id: 101 },
+        { token: '春', prob: 0.25, id: 102 },
+        { token: '水', prob: 0.15, id: 103 },
+        { token: '风', prob: 0.10, id: 104 },
+        { token: '花', prob: 0.08, id: 105 },
+        { token: '雨', prob: 0.05, id: 106 },
+        { token: '山', prob: 0.02, id: 107 },
+    ];
+
+    const SCENARIOS = [
+        { prompt: '春风又绿江南', tokens: ['岸', ',', '明', '月', '何', '时', '照', '我', '还', '。'] },
+        { prompt: '人工智能是', tokens: ['一', '门', '改', '变', '世', '界', '的', '技', '术', '。'] },
+        { prompt: '今天天气', tokens: ['真', '好', ',', '万', '里', '无', '云', '！'] },
+        { prompt: '床前明月光', tokens: [',', '疑', '是', '地', '上', '霜', '。'] },
+    ];
+
+    let state = {
+        promptText: '',
+        generated: [],
+        currentStep: 0,
+        totalTokens: [],
+        autoInterval: null,
+        currentScenario: 0,
+    };
+
+    let probChart = null;
+
+    function initChart() {
+        const ctx = document.getElementById('probChart').getContext('2d');
+        probChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '概率',
+                    data: [],
+                    backgroundColor: [],
+                    borderColor: [],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 1.0,
+                        grid: { color: 'rgba(75,85,99,0.3)' },
+                        ticks: { color: '#9ca3af', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#d1d5db', font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    function startGeneration() {
+        const input = document.getElementById('promptInput').value.trim();
+        if (!input) return;
+
+        resetState();
+        state.promptText = input;
+        state.totalTokens = [...input];
+
+        document.getElementById('generatedText').textContent = input;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('controls').style.display = 'flex';
+        document.getElementById('cursor').style.display = 'inline-block';
+        document.getElementById('stepNumber').textContent = '准备生成...';
+        document.getElementById('stepDetail').innerHTML = `
+            <div class="space-y-2">
+                <p class="text-gray-300">输入文本: <span class="text-purple-400 font-mono">"${input}"</span></p>
+                <p class="text-gray-400">已将输入 Token 化，准备开始自回归生成</p>
+            </div>`;
+        updateKV('初始化 KV Cache', 0);
+        updatePipeline(null);
+    }
+
+    function resetState() {
+        state.generated = [];
+        state.currentStep = 0;
+        if (state.autoInterval) {
+            clearInterval(state.autoInterval);
+            state.autoInterval = null;
+        }
+        document.getElementById('autoBtn').innerHTML = '<i class="fas fa-forward"></i> 自动播放';
+    }
+
+    function resetDemo() {
+        resetState();
+        document.getElementById('generatedText').textContent = '';
+        document.getElementById('cursor').style.display = 'none';
+        document.getElementById('stepNumber').textContent = '就绪';
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('controls').style.display = 'none';
+        document.getElementById('stepDetail').innerHTML = '<p>点击"开始生成"观察推理流程</p>';
+        document.getElementById('kvCacheVis').innerHTML = '<p class="text-sm text-gray-500">等待生成开始...</p>';
+        document.getElementById('cacheInfo').textContent = '';
+        document.getElementById('promptInput').value = getNextScenario();
+        updatePipeline(null);
+        updateChart([], []);
+        drawAttention([], []);
+    }
+
+    function getNextScenario() {
+        state.currentScenario = (state.currentScenario + 1) % SCENARIOS.length;
+        return SCENARIOS[state.currentScenario].prompt;
+    }
+
+    function singleStep() {
+        const scenario = SCENARIOS[state.currentScenario];
+        if (state.generated.length >= scenario.tokens.length) {
+            document.getElementById('stepDetail').innerHTML = `
+                <div class="text-green-400">
+                    <i class="fas fa-check-circle mr-1"></i> 生成完成！共生成 ${state.generated.length} 个 Token。
+                </div>`;
+            document.getElementById('cursor').style.display = 'none';
+            document.getElementById('stepNumber').textContent = '完成 ✓';
+            updateKV('生成结束', state.totalTokens.length);
+            return;
+        }
+
+        const nextToken = scenario.tokens[state.generated.length];
+        state.generated.push(nextToken);
+        state.totalTokens.push(nextToken);
+        state.currentStep++;
+
+        // Update display
+        const fullText = state.totalTokens.join('');
+        document.getElementById('generatedText').textContent = fullText;
+        document.getElementById('stepNumber').textContent = `第 ${state.currentStep} 步`;
+
+        // Simulate probabilities
+        const offset = state.currentStep % VOCAB.length;
+        const probs = [...VOCAB].map((v, i) => {
+            const idx = (i + offset) % VOCAB.length;
+            return { ...VOCAB[idx], prob: v.prob + Math.random() * 0.05 };
+        });
+        probs.sort((a, b) => b.prob - a.prob);
+        const top5 = probs.slice(0, 5);
+
+        // Update chart
+        updateChart(top5.map(t => t.token), top5.map(t => t.prob));
+
+        // Update step detail
+        document.getElementById('stepDetail').innerHTML = `
+            <div class="space-y-3">
+                <div>
+                    <span class="text-gray-500">步骤:</span>
+                    <span class="text-purple-400 font-semibold">第 ${state.currentStep} 次前向传播</span>
+                </div>
+                <div class="bg-gray-750 rounded-lg p-3 border border-gray-700">
+                    <p class="text-xs text-gray-500 mb-1">模型输入序列:</p>
+                    <p class="text-sm font-mono text-gray-300">[${state.totalTokens.slice(0, -1).join(', ')}]</p>
+                </div>
+                <div class="bg-gray-750 rounded-lg p-3 border border-purple-700/50">
+                    <p class="text-xs text-purple-400 mb-1">生成 Token:</p>
+                    <p class="text-lg font-bold text-purple-300">"${nextToken}"</p>
+                </div>
+                <div class="bg-gray-750 rounded-lg p-3 border border-gray-700">
+                    <p class="text-xs text-gray-500 mb-1">解码策略: Top-k = 5, Temperature = 0.8</p>
+                    <p class="text-xs text-gray-400">实际选中的 Top-1 Token</p>
+                </div>
+            </div>`;
+
+        updateKV(`第 ${state.currentStep} 轮`, state.totalTokens.length);
+        updatePipeline(state.currentStep);
+        drawAttention(state.totalTokens.slice(0, -1), nextToken);
+    }
+
+    function toggleAuto() {
+        if (state.autoInterval) {
+            clearInterval(state.autoInterval);
+            state.autoInterval = null;
+            document.getElementById('autoBtn').innerHTML = '<i class="fas fa-forward"></i> 自动播放';
+            document.getElementById('autoBtn').classList.remove('bg-pink-600');
+            document.getElementById('autoBtn').classList.add('bg-purple-600', 'hover:bg-purple-700');
+        } else {
+            const speed = parseInt(document.getElementById('speedSelect').value);
+            const btn = document.getElementById('autoBtn');
+            btn.innerHTML = '<i class="fas fa-pause"></i> 暂停';
+            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            btn.classList.add('bg-pink-600', 'hover:bg-pink-700');
+
+            state.autoInterval = setInterval(() => {
+                const scenario = SCENARIOS[state.currentScenario];
+                if (state.generated.length >= scenario.tokens.length) {
+                    clearInterval(state.autoInterval);
+                    state.autoInterval = null;
+                    btn.innerHTML = '<i class="fas fa-forward"></i> 自动播放';
+                    btn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
+                    btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                    document.getElementById('stepDetail').innerHTML = `
+                        <div class="text-green-400">
+                            <i class="fas fa-check-circle mr-1"></i> 生成完成！共生成 ${state.generated.length} 个 Token。
+                        </div>`;
+                    return;
+                }
+                singleStep();
+            }, speed);
+        }
+    }
+
+    function updateChart(labels, data) {
+        if (!probChart) initChart();
+        const colors = labels.map((_, i) => {
+            const alpha = 0.9 - (i * 0.15);
+            return `rgba(168, 85, 247, ${alpha})`;
+        });
+        probChart.data.labels = labels;
+        probChart.data.datasets[0].data = data;
+        probChart.data.datasets[0].backgroundColor = colors;
+        probChart.data.datasets[0].borderColor = colors.map(() => 'rgba(168, 85, 247, 0.5)');
+        probChart.update();
+    }
+
+    function updateKV(step, cacheSize) {
+        const maxSize = Math.max(cacheSize, 1);
+        let html = '<div class="flex flex-wrap gap-1">';
+        for (let i = 0; i < maxSize; i++) {
+            const active = i < cacheSize;
+            const token = state.totalTokens[i] || '?';
+            html += `<div class="w-8 h-8 rounded flex items-center justify-center text-xs font-mono ${
+                active ? 'bg-purple-600/30 border border-purple-500/50 text-purple-300' : 'bg-gray-700/30 border border-gray-600/30 text-gray-600'
+            }">${token}</div>`;
+        }
+        html += '</div>';
+        document.getElementById('kvCacheVis').innerHTML = html;
+        document.getElementById('cacheInfo').textContent = `已缓存 ${cacheSize} 个 Token 的 Key/Value，避免重复计算`;
+    }
+
+    function updatePipeline(step) {
+        const steps = ['pipe-tokenize', 'pipe-embed', 'pipe-transformer', 'pipe-softmax', 'pipe-sample', 'pipe-output'];
+        const colors = ['blue', 'purple', 'pink', 'green', 'orange', 'red'];
+
+        steps.forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (step === null) {
+                el.className = el.className.replace(/bg-\w+-500\/20/, `bg-${colors[i]}-900/30`);
+            } else {
+                const currentStep = (step - 1) % 6;
+                if (i === currentStep) {
+                    el.className = el.className.replace(/bg-\w+-900\/30/, `bg-${colors[i]}-500/20`);
+                    el.classList.add('step-active');
+                } else {
+                    el.className = el.className.replace(/bg-\w+-500\/20/, `bg-${colors[i]}-900/30`);
+                    el.classList.remove('step-active');
+                }
+            }
+        });
+    }
+
+    function drawAttention(prevTokens, nextToken) {
+        const canvas = document.getElementById('attentionCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = 400, h = 250;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!prevTokens || prevTokens.length === 0) {
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('开始生成后将显示注意力连接', w/2, h/2);
+            return;
+        }
+
+        const n = prevTokens.length;
+        const srcY = 40, tgtY = 180;
+        const spacing = n > 0 ? Math.min(60, (w - 80) / n) : 60;
+        const startX = Math.max(20, (w - ((n-1) * spacing)) / 2);
+
+        // Draw source tokens
+        prevTokens.forEach((t, i) => {
+            const x = startX + i * spacing;
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#4b5563';
+            ctx.beginPath();
+            ctx.roundRect(x - 12, srcY - 10, 24, 24, 4);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(t.length > 2 ? t.slice(0,2)+'.' : t, x, srcY + 6);
+        });
+
+        // Draw target token
+        const targetX = startX + Math.min(n, n) * spacing;
+        ctx.fillStyle = '#3b0764';
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(targetX - 14, tgtY - 12, 28, 28, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '12px bold monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(nextToken || '?', targetX, tgtY + 5);
+
+        // Draw attention lines
+        prevTokens.forEach((_, i) => {
+            const x = startX + i * spacing;
+            const weight = 1 - (n - 1 - i) / (n * 1.5);
+            const alpha = 0.2 + weight * 0.6;
+            ctx.strokeStyle = `rgba(168, 85, 247, ${alpha})`;
+            ctx.lineWidth = 1 + weight * 2;
+            ctx.beginPath();
+            ctx.moveTo(x, srcY + 14);
+            ctx.lineTo(targetX, tgtY - 12);
+            ctx.stroke();
+
+            // Draw weight text
+            const midX = (x + targetX) / 2;
+            const midY = (srcY + tgtY) / 2;
+            ctx.fillStyle = `rgba(168, 85, 247, ${alpha})`;
+            ctx.font = '9px monospace';
+            ctx.fillText(weight.toFixed(2), midX, midY);
+        });
+
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Token 间注意力权重', w/2, h - 8);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        initChart();
+        drawAttention([], null);
+        document.getElementById('promptInput').value = SCENARIOS[0].prompt;
+    });
+</script>
+</body>
+</html>

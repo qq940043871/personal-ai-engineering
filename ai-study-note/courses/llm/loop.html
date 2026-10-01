@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loop 工程 — 主循环与上下文管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .content-card { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flow-box { background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); }
+        .highlight-card { border-left: 3px solid rgb(139, 92, 246); }
+        .diagram-line { white-space: pre; font-family: 'JetBrains Mono', monospace; line-height: 1.4; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="p-6 md:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="content-card mb-8">
+            <h1 class="text-3xl font-bold text-white mb-3">
+                <i class="fas fa-sync-alt text-purple-400 mr-2"></i>Loop 工程 — 主循环与上下文管理
+            </h1>
+            <p class="text-gray-400 text-lg">深入理解 AI Agent 的对话主循环：消息调度、上下文窗口管理、重试逻辑与状态维护</p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-purple-400"></i>目录
+            </h2>
+            <nav class="space-y-2 text-gray-300">
+                <a href="#overview" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">1.</span> Loop 是什么？
+                </a>
+                <a href="#message-loop" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">2.</span> 消息循环（Message Loop）
+                </a>
+                <a href="#context" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">3.</span> 上下文管理（Context Management）
+                </a>
+                <a href="#summarization" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">4.</span> 上下文压缩与总结
+                </a>
+                <a href="#retry" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">5.</span> 重试与容错
+                </a>
+                <a href="#hooks" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">6.</span> 生命周期钩子（Hooks）
+                </a>
+                <a href="#pseudocode" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">7.</span> 完整伪代码
+                </a>
+                <a href="#keypoints" class="flex items-center gap-2 hover:text-purple-400 transition-colors">
+                    <span class="text-purple-400 font-bold">8.</span> 关键点总结
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section 1: Overview -->
+        <div id="overview" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-cube text-purple-400"></i>1. Loop 是什么？
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-question-circle"></i> 核心定义
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    <span class="text-purple-300 font-semibold">Loop（主循环）</span>是整个 AI Agent 的<strong class="text-white">心脏</strong>。它是一个事件驱动的循环，持续地：
+                </p>
+                <ul class="list-disc list-inside space-y-1.5 text-gray-400 text-sm">
+                    <li>接收用户输入（文本、文件、命令等）</li>
+                    <li>构建消息上下文（System Prompt + 历史消息 + 新输入）</li>
+                    <li>调用 LLM API 获取响应</li>
+                    <li>解析 LLM 响应（文本 + Tool Calls）</li>
+                    <li>通过 Harness 执行工具调用</li>
+                    <li>将工具结果注入下一轮循环</li>
+                    <li>管理上下文窗口大小，防止超出 Token 限制</li>
+                </ul>
+            </div>
+
+            <!-- Loop State Machine -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-3">Loop 状态机：</div>
+                <div class="bg-gray-950 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed">
+                    <div class="flex items-center justify-center">
+                        <div class="text-center p-2 border border-green-500/50 rounded-lg bg-green-500/10 mx-1">
+                            <div class="text-green-400 font-bold">IDLE</div>
+                            <div class="text-gray-500 text-[10px]">等待输入</div>
+                        </div>
+                        <div class="text-gray-600 mx-1">&#8594;</div>
+                        <div class="text-center p-2 border border-blue-500/50 rounded-lg bg-blue-500/10 mx-1">
+                            <div class="text-blue-400 font-bold">BUILD</div>
+                            <div class="text-gray-500 text-[10px]">构建上下文</div>
+                        </div>
+                        <div class="text-gray-600 mx-1">&#8594;</div>
+                        <div class="text-center p-2 border border-yellow-500/50 rounded-lg bg-yellow-500/10 mx-1">
+                            <div class="text-yellow-400 font-bold">CALL</div>
+                            <div class="text-gray-500 text-[10px]">调用 LLM</div>
+                        </div>
+                        <div class="text-gray-600 mx-1">&#8594;</div>
+                        <div class="text-center p-2 border border-purple-500/50 rounded-lg bg-purple-500/10 mx-1">
+                            <div class="text-purple-400 font-bold">PARSE</div>
+                            <div class="text-gray-500 text-[10px]">解析响应</div>
+                        </div>
+                    </div>
+                    <div class="text-center text-gray-600 mt-2">&#8593; &#8595;</div>
+                    <div class="flex items-center justify-center">
+                        <div class="text-center p-2 border border-red-500/50 rounded-lg bg-red-500/10 mx-1" style="min-width: 120px;">
+                            <div class="text-red-400 font-bold">EXECUTE</div>
+                            <div class="text-gray-500 text-[10px]">执行工具（如有）</div>
+                        </div>
+                        <div class="text-gray-600 mx-1">&#8592;</div>
+                        <div class="text-center p-2 border border-orange-500/50 rounded-lg bg-orange-500/10 mx-1">
+                            <div class="text-orange-400 font-bold">CHECK</div>
+                            <div class="text-gray-500 text-[10px]">检查是否有 Tool Calls</div>
+                        </div>
+                    </div>
+                    <div class="text-center text-gray-500 mt-2">没 Tool Calls → 返回 IDLE，输出给用户</div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-purple-400 font-bold mb-2">与 Harness 的关系：</div>
+                <div class="flex items-center justify-center gap-4 text-xs">
+                    <div class="text-center p-3 border border-purple-500/50 rounded-lg bg-purple-500/10">
+                        <div class="text-purple-400 font-bold">Loop</div>
+                        <div class="text-gray-500">编排调度器</div>
+                        <div class="text-gray-400">负责"什么时候做什么"</div>
+                    </div>
+                    <div class="text-gray-600">&#8594; 调用 &#8594;</div>
+                    <div class="text-center p-3 border border-blue-500/50 rounded-lg bg-blue-500/10">
+                        <div class="text-blue-400 font-bold">Harness</div>
+                        <div class="text-gray-500">工具执行器</div>
+                        <div class="text-gray-400">负责"怎么做"</div>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-xs mt-2 text-center">Loop 调用 Harness 来执行工具，Harness 返回结果给 Loop，Loop 将结果送回 LLM。</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Message Loop -->
+        <div id="message-loop" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-redo text-purple-400"></i>2. 消息循环（Message Loop）
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-exchange-alt"></i> 单次交互流程
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">Step 1: 接收用户输入</div>
+                        <div class="text-gray-400">
+                            - 用户输入可能是文本、文件拖拽、命令（如 /commit）<br>
+                            - Loop 对输入进行预处理（如文件上传处理、命令解析）<br>
+                            - 将输入包装为 message { role: "user", content: "..." }
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">Step 2: 构建上下文</div>
+                        <div class="text-gray-400">
+                            - System Prompt（系统指令、工具定义）<br>
+                            - 历史消息（之前的对话和工具调用结果）<br>
+                            - 新的用户输入<br>
+                            - 如果上下文超过 token 限制 → 触发压缩
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">Step 3: 调用 LLM</div>
+                        <div class="text-gray-400">
+                            - 发送消息数组到 LLM API<br>
+                            - 携带工具定义（tool_definitions）<br>
+                            - 设置推理参数（temperature, max_tokens, top_p）<br>
+                            - 等待流式或非流式响应
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">Step 4: 解析响应</div>
+                        <div class="text-gray-400">
+                            - 提取 content（文本回复）<br>
+                            - 提取 tool_calls（工具调用请求）<br>
+                            - 处理流式输出（逐 token 渲染）
+                        </div>
+                    </div>
+
+                    <div class="text-center text-gray-600">&#8595;</div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">Step 5: 决策分支</div>
+                        <div class="text-gray-400">
+                            - 如果有 tool_calls → 交给 Harness 执行 → 回到 Step 2<br>
+                            - 如果没有 tool_calls → 输出给用户 → 回到 Step 1
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-700/50 rounded p-2 border border-yellow-500/30">
+                        <div class="text-yellow-400 font-bold mb-1">这就是"循环"名字的由来！</div>
+                        <div class="text-gray-400">只要 LLM 还在返回 tool_calls，Loop 就继续迭代，直到 LLM 给出最终回复。</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Context Management -->
+        <div id="context" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-layer-group text-purple-400"></i>3. 上下文管理（Context Management）
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-tasks"></i> 上下文内容结构
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-green-400 font-bold mb-1">1. System Prompt（系统级，不可见用户）</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p>- 角色定义："你是一个 AI 编程助手"</p>
+                            <p>- 行为规范："不要在回答中提及你是一个 AI"</p>
+                            <p>- 工具定义：所有注册工具的 Schema</p>
+                            <p>- 环境信息：工作目录、操作系统、Git 状态</p>
+                            <p>- 记忆信息：用户偏好、项目上下文</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-green-400 font-bold mb-1">2. 消息历史（Message History）</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p>- 用户消息 + AI 回复的交替序列</p>
+                            <p>- 工具调用（tool_calls）和工具结果（tool_results）</p>
+                            <p>- 上下文压缩后的摘要消息</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-green-400 font-bold mb-1">3. 新输入（New Input）</div>
+                        <div class="text-gray-400 space-y-1">
+                            <p>- 用户最新的消息</p>
+                            <p>- 或者本轮循环中工具调用的结果</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Budget -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm mb-4">
+                <div class="text-purple-400 font-bold mb-2">上下文 Token 预算管理</div>
+                <div class="bg-gray-800/80 rounded p-3 text-xs">
+                    <div class="text-gray-400 font-mono">
+                        <div class="text-purple-300 font-bold mb-1">Token 分配策略：</div>
+                        <div class="text-gray-500 mb-1">// 总预算 = 模型的最大上下文窗口 - 保留的余量</div>
+                        <div>maxContextTokens = model.getMaxContextTokens()  <span class="text-gray-600">// 例如 200K</span></div>
+                        <div>reservedTokens = 2000                         <span class="text-gray-600">// 保留给 API 响应</span></div>
+                        <div>budget = maxContextTokens - reservedTokens    <span class="text-gray-600">// 198K</span></div>
+                        <div>&nbsp;</div>
+                        <div class="text-purple-300 font-bold mb-1">优先级分配：</div>
+                        <div>1. System Prompt + Tool Definitions = 20K（固定）</div>
+                        <div>2. 最新的用户输入 = 变量</div>
+                        <div>3. 剩余预算 → 历史消息（从新到旧裁剪）</div>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-xs mt-2">当历史消息超过预算时，Loop 从最旧的消息开始丢弃</p>
+            </div>
+
+            <!-- Message Types -->
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-purple-400 font-bold mb-2">消息类型与角色：</div>
+                <div class="text-xs">
+                    <table class="min-w-full divide-y divide-gray-700">
+                        <thead><tr><th class="px-3 py-2 text-left text-gray-400">Role</th><th class="px-3 py-2 text-left text-gray-400">来源</th><th class="px-3 py-2 text-left text-gray-400">内容</th></tr></thead>
+                        <tbody class="divide-y divide-gray-700 text-gray-400">
+                            <tr><td class="px-3 py-1.5 text-green-400 font-mono">system</td><td class="px-3 py-1.5">系统</td><td class="px-3 py-1.5">系统指令、工具定义</td></tr>
+                            <tr><td class="px-3 py-1.5 text-blue-400 font-mono">user</td><td class="px-3 py-1.5">用户</td><td class="px-3 py-1.5">用户的输入消息</td></tr>
+                            <tr><td class="px-3 py-1.5 text-yellow-400 font-mono">assistant</td><td class="px-3 py-1.5">LLM</td><td class="px-3 py-1.5">AI 的回复（文本 + tool_calls）</td></tr>
+                            <tr><td class="px-3 py-1.5 text-orange-400 font-mono">tool</td><td class="px-3 py-1.5">Harness</td><td class="px-3 py-1.5">工具执行结果</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Summarization -->
+        <div id="summarization" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-compress-arrows-alt text-purple-400"></i>4. 上下文压缩与总结
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-cut"></i> 为什么需要压缩？
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    随着对话进行，消息历史不断增长。LLM 有最大上下文窗口限制（如 200K tokens），<br>
+                    当接近限制时，Loop 必须对历史进行压缩。
+                </p>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">策略 1：滑动窗口裁剪</div>
+                        <div class="text-gray-400">
+                            保留最新的 N 条消息，丢弃最旧的消息。<br>
+                            简单但会丢失早期上下文。
+                            <div class="bg-gray-950 rounded p-1 mt-1 font-mono text-gray-500">
+                                [msg1, msg2, msg3, ..., msg100] → 丢弃前50条 → [msg51, ..., msg100]
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">策略 2：摘要压缩</div>
+                        <div class="text-gray-400">
+                            将早期的对话用 LLM 总结为一句话/一段话，<br>
+                            用摘要消息替换原始对话。
+                            <div class="bg-gray-950 rounded p-1 mt-1 font-mono text-gray-500">
+                                [msg1..msg50] → <span class="text-green-400">[summary: "用户询问了项目结构，然后要求实现一个功能..."]</span> → [summary, msg51..msg100]
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">策略 3：工具结果降级（Truncation）</div>
+                        <div class="text-gray-400">
+                            - 工具返回的内容太长（如大文件）<br>
+                            - 只保留前 N 个字符 + "（...省略...）"<br>
+                            - 文件内容可以被替换为文件路径
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2">
+                        <div class="text-purple-400 font-bold mb-1">策略 4：选择性保留</div>
+                        <div class="text-gray-400">
+                            - 保留所有 tool_calls 和 tool_results 的结构<br>
+                            - 但裁剪 tool_result 中的 content<br>
+                            - 或者只保留最后一次迭代的上下文
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-purple-400 font-bold mb-2">实际场景中的 Token 消耗示例：</div>
+                <div class="bg-gray-800/80 rounded p-3 text-xs font-mono text-gray-400">
+                    <div><span class="text-gray-500">// 一个典型的 10 轮交互会话</span></div>
+                    <div>System Prompt: 15K tokens</div>
+                    <div>用户消息: 5K tokens</div>
+                    <div>AI 回复: 10K tokens</div>
+                    <div>工具调用: 10K tokens</div>
+                    <div>工具结果: 60K tokens <span class="text-red-400">← 一般是最大的</span></div>
+                    <div class="border-t border-gray-700 mt-1 pt-1">总计: ~100K tokens</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Retry & Fallback -->
+        <div id="retry" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-exclamation-triangle text-purple-400"></i>5. 重试与容错
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-shield-alt"></i> 错误处理策略
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div class="bg-gray-800/80 rounded p-2 border-l-2 border-yellow-500">
+                        <div class="text-yellow-400 font-bold mb-1">API 调用失败（网络错误、超时）</div>
+                        <div class="text-gray-400">
+                            &#8226; 指数退避重试（Exponential Backoff）：1s → 2s → 4s → 8s<br>
+                            &#8226; 最大重试次数：3次<br>
+                            &#8226; 如果持续失败 → 降级为本地模式或报错
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2 border-l-2 border-red-500">
+                        <div class="text-red-400 font-bold mb-1">API 返回错误（400, 401, 429）</div>
+                        <div class="text-gray-400">
+                            &#8226; 400 Bad Request：参数错误，需要调整请求<br>
+                            &#8226; 401 Unauthorized：认证失败，重新登录<br>
+                            &#8226; 429 Rate Limit：限流，等待后重试<br>
+                            &#8226; 500 Server Error：服务器问题，重试
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2 border-l-2 border-purple-500">
+                        <div class="text-purple-400 font-bold mb-1">截断（Cutoff）处理</div>
+                        <div class="text-gray-400">
+                            LLM 响应可能因为 token 限制被截断：<br>
+                            &#8226; finish_reason === "length" → 表示被截断<br>
+                            &#8226; Loop 检测到截断后，将已生成的内容作为上下文，继续请求 LLM<br>
+                            &#8226; 递归调用直到完整生成或达到最大迭代次数
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800/80 rounded p-2 border-l-2 border-green-500">
+                        <div class="text-green-400 font-bold mb-1">内容过滤（Content Filter）</div>
+                        <div class="text-gray-400">
+                            &#8226; LLM 可能因为安全策略拒绝回答<br>
+                            &#8226; finish_reason === "content_filter"<br>
+                            &#8226; Loop 需要重新措辞后重试
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Hooks -->
+        <div id="hooks" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-plug text-purple-400"></i>6. 生命周期钩子（Hooks）
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-5 mb-4 border border-purple-500/30 flow-box">
+                <div class="text-purple-400 font-bold text-sm mb-3 flex items-center gap-2">
+                    <i class="fas fa-calendar-alt"></i> Loop 生命周期事件
+                </div>
+                <p class="text-gray-300 text-sm mb-3">
+                    Loop 在关键节点触发钩子（Hook），允许用户或插件介入自定义行为。
+                </p>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">preProcessUserInput</span>
+                        <span class="text-gray-400">在用户输入被处理前触发。可用于命令解析、文件上传预处理。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">preBuildContext</span>
+                        <span class="text-gray-400">在构建消息上下文前触发。可注入额外的系统指令或上下文。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">postBuildContext</span>
+                        <span class="text-gray-400">上下文构建完毕，即将发送给 LLM。可检查/修改消息列表。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">preCallLLM</span>
+                        <span class="text-gray-400">在调用 LLM API 前触发。可修改请求参数。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">postCallLLM</span>
+                        <span class="text-gray-400">LLM 响应返回后触发。可检查/修改响应内容。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">postProcessResponse</span>
+                        <span class="text-gray-400">响应被解析后触发。决定是否继续循环或输出给用户。</span>
+                    </div>
+                    <div class="flex items-start gap-2 bg-gray-800/80 rounded p-2">
+                        <span class="text-purple-400 font-bold shrink-0">onLoopIteration</span>
+                        <span class="text-gray-400">每次循环迭代完成时触发。可用于进度报告或日志记录。</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-700/50 rounded-lg p-4 text-sm">
+                <div class="text-purple-400 font-bold mb-2">钩子配置示例（settings.json）：</div>
+                <div class="bg-gray-800/80 rounded p-3 font-mono text-xs">
+                    <div class="text-gray-400">{</div>
+                    <div class="text-gray-400 ml-4"><span class="text-purple-300">"hooks"</span>: {</div>
+                    <div class="text-gray-400 ml-8"><span class="text-purple-300">"preBuildContext"</span>: {</div>
+                    <div class="text-gray-400 ml-12"><span class="text-green-400">"command"</span>: <span class="text-green-400">"node scripts/inject-context.js"</span></div>
+                    <div class="text-gray-400 ml-8">},</div>
+                    <div class="text-gray-400 ml-8"><span class="text-purple-300">"postCallLLM"</span>: {</div>
+                    <div class="text-gray-400 ml-12"><span class="text-green-400">"command"</span>: <span class="text-green-400">"node scripts/log-response.js"</span></div>
+                    <div class="text-gray-400 ml-8">}</div>
+                    <div class="text-gray-400 ml-4">}</div>
+                    <div class="text-gray-400">}</div>
+                </div>
+                <p class="text-gray-500 text-xs mt-2">钩子让用户可以在不修改核心代码的情况下，扩展 Loop 的行为</p>
+            </div>
+        </div>
+
+        <!-- Section 7: Pseudocode -->
+        <div id="pseudocode" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-code text-purple-400"></i>7. 完整伪代码
+            </h2>
+
+            <div class="bg-gray-950 rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+                <div class="text-gray-300">
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div class="text-gray-500 mb-2">// Loop — 主循环与上下文管理 核心伪代码</div>
+                    <div class="text-gray-500 mb-2">// ============================================</div>
+                    <div>&nbsp;</div>
+                    <div><span class="text-blue-400">class</span> <span class="text-yellow-400">ConversationLoop</span> {</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    config = {</div>
+                    <div class="ml-8">        model: <span class="text-green-400">"claude-sonnet-4-6"</span>,</div>
+                    <div class="ml-8">        maxTokens: <span class="text-green-400">200_000</span>,</div>
+                    <div class="ml-8">        maxIterations: <span class="text-green-400">50</span>,    <span class="text-gray-600">// 单次交互最大循环次数</span></div>
+                    <div class="ml-8">        retryCount: <span class="text-green-400">3</span>,</div>
+                    <div class="ml-8">        temperature: <span class="text-green-400">0.7</span>,</div>
+                    <div class="ml-8">        systemPrompt: <span class="text-green-400">"..."</span></div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-4">    messages = []          <span class="text-gray-600">// 消息历史</span></div>
+                    <div class="ml-4">    hooks = {}             <span class="text-gray-600">// 生命周期钩子</span></div>
+                    <div class="ml-4">    harness = <span class="text-blue-400">new</span> <span class="text-yellow-400">ToolHarness</span>()  <span class="text-gray-600">// 工具执行框架</span></div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 主入口 ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">processUserInput</span>(userInput) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"preProcessUserInput"</span>, userInput)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 包装用户输入为消息</div>
+                    <div class="ml-8">        userMsg = { role: <span class="text-green-400">"user"</span>, content: userInput }</div>
+                    <div class="ml-8">        <span class="text-blue-400">this</span>.messages.push(userMsg)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 进入推理循环</div>
+                    <div class="ml-8">        iteration = 0</div>
+                    <div class="ml-8">        <span class="text-blue-400">while</span> (iteration &lt; <span class="text-blue-400">this</span>.config.maxIterations) {</div>
+                    <div class="ml-12">            iteration++</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // Step A: 构建上下文</div>
+                    <div class="ml-12">            context = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">buildContext</span>()</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // Step B: 调用 LLM</div>
+                    <div class="ml-12">            response = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">callLLM</span>(context)</div>
+                    <div class="ml-12">            <span class="text-blue-400">this</span>.messages.push({</div>
+                    <div class="ml-16">                role: <span class="text-green-400">"assistant"</span>,</div>
+                    <div class="ml-16">                content: response.content,</div>
+                    <div class="ml-16">                tool_calls: response.tool_calls</div>
+                    <div class="ml-12">            })</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // Step C: 检查是否有工具调用</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (response.tool_calls &amp;&amp; response.tool_calls.length &gt; 0) {</div>
+                    <div class="text-gray-500 ml-16">                // 通过 Harness 执行工具</div>
+                    <div class="ml-16">                toolResults = <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.harness</div>
+                    <div class="ml-20">                    .<span class="text-yellow-400">executeToolCalls</span>(response.tool_calls)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-16">                // 将工具结果加入消息历史</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.messages.push(...toolResults)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-16">                // 检查是否达到预算限制</div>
+                    <div class="ml-16">                <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.<span class="text-yellow-400">isNearTokenLimit</span>()) {</div>
+                    <div class="ml-20">                    <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">compressContext</span>()</div>
+                    <div class="ml-16">                }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-16">                // 继续循环（把工具结果发给 LLM）</div>
+                    <div class="ml-16">                <span class="text-blue-400">continue</span></div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            } <span class="text-blue-400">else</span> {</div>
+                    <div class="text-gray-500 ml-16">                // LLM 没有工具调用 → 返回文本给用户</div>
+                    <div class="ml-16">                <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"postProcessResponse"</span>, response)</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> response.content</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 达到最大迭代次数 → 报错</div>
+                    <div class="ml-8">        <span class="text-blue-400">throw</span> <span class="text-blue-400">new</span> <span class="text-yellow-400">Error</span>(<span class="text-green-400">"达到最大循环迭代次数"</span>)</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 构建上下文 ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">buildContext</span>() {</div>
+                    <div class="ml-8">        <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"preBuildContext"</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        systemMsg = {</div>
+                    <div class="ml-12">            role: <span class="text-green-400">"system"</span>,</div>
+                    <div class="ml-12">            content: <span class="text-blue-400">this</span>.config.systemPrompt</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 计算 token 数</div>
+                    <div class="ml-8">        totalTokens = <span class="text-yellow-400">countTokens</span>(systemMsg) + <span class="text-yellow-400">countTokens</span>(<span class="text-blue-400">this</span>.messages)</div>
+                    <div class="ml-8">        budget = <span class="text-blue-400">this</span>.config.maxTokens - <span class="text-green-400">2000</span>  <span class="text-gray-600">// 预留余量</span></div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-8">        // 如果超出预算，压缩历史</div>
+                    <div class="ml-8">        <span class="text-blue-400">while</span> (totalTokens &gt; budget) {</div>
+                    <div class="ml-12">            <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">compressContext</span>()</div>
+                    <div class="ml-12">            totalTokens = <span class="text-yellow-400">countTokens</span>(systemMsg) + <span class="text-yellow-400">countTokens</span>(<span class="text-blue-400">this</span>.messages)</div>
+                    <div class="ml-8">        }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        toolDefs = harness.<span class="text-yellow-400">getToolDefinitions</span>()</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"postBuildContext"</span>)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        <span class="text-blue-400">return</span> {</div>
+                    <div class="ml-12">            messages: [systemMsg, ...<span class="text-blue-400">this</span>.messages],</div>
+                    <div class="ml-12">            tools: toolDefs</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 调用 LLM API ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">callLLM</span>(context, retryCount = 0) {</div>
+                    <div class="ml-8">        <span class="text-blue-400">try</span> {</div>
+                    <div class="ml-12">            <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"preCallLLM"</span>, context)</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            response = <span class="text-blue-400">await</span> <span class="text-yellow-400">apiClient.createMessage</span>({</div>
+                    <div class="ml-16">                model: <span class="text-blue-400">this</span>.config.model,</div>
+                    <div class="ml-16">                messages: context.messages,</div>
+                    <div class="ml-16">                tools: context.tools,</div>
+                    <div class="ml-16">                max_tokens: <span class="text-blue-400">this</span>.config.maxTokens,</div>
+                    <div class="ml-16">                temperature: <span class="text-blue-400">this</span>.config.temperature</div>
+                    <div class="ml-12">            })</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">runHook</span>(<span class="text-green-400">"postCallLLM"</span>, response)</div>
+                    <div>&nbsp;</div>
+                    <div class="text-gray-500 ml-12">            // 处理截断</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (response.finish_reason === <span class="text-green-400">"length"</span>) {</div>
+                    <div class="ml-16">                <span class="text-blue-400">this</span>.messages.push({</div>
+                    <div class="ml-20">                    role: <span class="text-green-400">"assistant"</span>,</div>
+                    <div class="ml-20">                    content: response.content</div>
+                    <div class="ml-16">                })</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">callLLM</span>(<span class="text-blue-400">this</span>.<span class="text-yellow-400">buildContext</span>())</div>
+                    <div class="ml-12">            }</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-12">            <span class="text-blue-400">return</span> response</div>
+                    <div>&nbsp;</div>
+                    <div class="ml-8">        } <span class="text-blue-400">catch</span> (error) {</div>
+                    <div class="text-gray-500 ml-12">            // 指数退避重试</div>
+                    <div class="ml-12">            <span class="text-blue-400">if</span> (retryCount &lt; <span class="text-blue-400">this</span>.config.retryCount) {</div>
+                    <div class="ml-16">                waitMs = <span class="text-green-400">1000</span> * <span class="text-yellow-400">Math.pow</span>(<span class="text-green-400">2</span>, retryCount)</div>
+                    <div class="ml-16">                <span class="text-blue-400">await</span> <span class="text-yellow-400">sleep</span>(waitMs)</div>
+                    <div class="ml-16">                <span class="text-blue-400">return</span> <span class="text-blue-400">await</span> <span class="text-blue-400">this</span>.<span class="text-yellow-400">callLLM</span>(context, retryCount + 1)</div>
+                    <div class="ml-12">            }</div>
+                    <div class="ml-12">            <span class="text-blue-400">throw</span> error</div>
+                    <div class="ml-8">        }</div>
+                    <div class="ml-4">    }</div>
+                    <div>&nbsp;</div>
+
+                    <div class="text-gray-500 ml-4">    // ---------- 上下文压缩 ----------</div>
+                    <div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">compressContext</span>() {</div>
+                    <div class="text-gray-500 ml-8">        // 策略：找到最旧的消息块，替换为摘要</div>
+                    <div class="ml-8">        <span class="text-blue-400">if</span> (<span class="text-blue-400">this</span>.messages.length &lt; <span class="text-green-400">20</span>) {</div>
+<div class="ml-12">            <span class="text-blue-400">return</span>  <span class="text-gray-600">// 消息太少，不需要压缩</span></div>
+<div class="ml-8">        }</div>
+<div>&nbsp;</div>
+<div class="ml-8">        <span class="text-gray-500">// 提取前10条消息</span></div>
+<div class="ml-8">        oldMessages = <span class="text-blue-400">this</span>.messages.slice(<span class="text-green-400">0</span>, <span class="text-green-400">10</span>)</div>
+<div>&nbsp;</div>
+<div class="text-gray-500 ml-8">        // 用 LLM 生成摘要</div>
+<div class="ml-8">        summary = <span class="text-blue-400">await</span> <span class="text-yellow-400">apiClient.createMessage</span>({</div>
+<div class="ml-12">            messages: [</div>
+<div class="ml-16">                { role: <span class="text-green-400">"system"</span>, content: <span class="text-green-400">"请总结以下对话，保留关键信息"</span> },</div>
+<div class="ml-16">                ...oldMessages</div>
+<div class="ml-12">            ],</div>
+<div class="ml-12">            max_tokens: <span class="text-green-400">500</span></div>
+<div class="ml-8">        })</div>
+<div>&nbsp;</div>
+<div class="text-gray-500 ml-8">        // 替换为摘要消息</div>
+<div class="ml-8">        <span class="text-blue-400">this</span>.messages.splice(<span class="text-green-400">0</span>, <span class="text-green-400">10</span>, {</div>
+<div class="ml-12">            role: <span class="text-green-400">"user"</span>,</div>
+<div class="ml-12">            content: <span class="text-green-400">`[上下文摘要] ${summary.content}`</span></div>
+<div class="ml-8">        })</div>
+<div class="ml-4">    }</div>
+<div>&nbsp;</div>
+
+<div class="text-gray-500 ml-4">    // ---------- 钩子执行 ----------</div>
+<div class="ml-4">    <span class="text-blue-400">async</span> <span class="text-yellow-400">runHook</span>(hookName, ...args) {</div>
+<div class="ml-8">        hook = <span class="text-blue-400">this</span>.hooks[hookName]</div>
+<div class="ml-8">        <span class="text-blue-400">if</span> (hook) {</div>
+<div class="ml-12">            <span class="text-blue-400">await</span> hook(...args)</div>
+<div class="ml-8">        }</div>
+<div class="ml-4">    }</div>
+<div>&nbsp;</div>
+
+<div class="text-gray-500 ml-4">    // ---------- Token 预算检查 ----------</div>
+<div class="ml-4">    <span class="text-yellow-400">isNearTokenLimit</span>() {</div>
+<div class="ml-8">        used = <span class="text-yellow-400">countTokens</span>(<span class="text-blue-400">this</span>.messages)</div>
+<div class="ml-8">        limit = <span class="text-blue-400">this</span>.config.maxTokens</div>
+<div class="ml-8">        <span class="text-blue-400">return</span> used &gt; (limit * <span class="text-green-400">0.8</span>)  <span class="text-gray-600">// 使用超过 80% 时触发压缩</span></div>
+<div class="ml-4">    }</div>
+<div>}</div>
+</div>
+</div>
+</div>
+
+<!-- Section 8: Key Points -->
+<div id="keypoints" class="content-card bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+    <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <i class="fas fa-star text-purple-400"></i>8. 关键点总结
+    </h2>
+
+    <div class="space-y-4 text-sm">
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 1：循环的本质是"推理-执行"交替
+            </div>
+            <p class="text-gray-400">Loop 不是简单的"一问一答"，而是 <span class="text-purple-300 font-semibold">LLM 推理 → 工具执行 → LLM 再推理 → ... → 最终回复</span> 的多轮迭代。每次工具执行的结果都被喂回给 LLM，让它"看到"自己操作的结果。这就是 Agent 能自主完成复杂任务的根源。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 2：上下文窗口是有限资源
+            </div>
+            <p class="text-gray-400">LLM 的上下文窗口是<strong class="text-white">有限的</strong>（如 200K tokens），但对话和工具结果会不断增长。Loop 必须主动管理上下文预算：<strong class="text-white">裁剪</strong>、<strong class="text-white">摘要</strong>、<strong class="text-white">选择性丢弃</strong>。上下文管理的好坏直接决定了 Agent 的"记忆力"和表现。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 3：工具结果是上下文膨胀的主要来源
+            </div>
+            <p class="text-gray-400">工具执行返回的内容（文件内容、命令输出）往往是最大的 token 消耗者。读一个 2000 行文件 ≈ 50K tokens。Loop 需要对工具结果做<strong class="text-white">截断</strong>（只保留前 N 行）、<strong class="text-white">摘要</strong>（LLM 总结文件内容）、<strong class="text-white">引用</strong>（用文件路径替代内容）等优化。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 4：重试策略需要指数退避
+            </div>
+            <p class="text-gray-400">API 调用总会失败（网络抖动、限流、服务器错误）。Loop 使用 <span class="text-purple-300 font-semibold">Exponential Backoff</span>（1s → 2s → 4s → 8s）重试，而不是固定间隔。同时要区分<strong class="text-white">可重试错误</strong>（500、429、超时）和<strong class="text-white">不可重试错误</strong>（400、401）。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 5：截断恢复（Recovery from Cutoff）
+            </div>
+            <p class="text-gray-400">当 LLM 响应被截断（finish_reason === "length"），Loop 不 panic。它将已生成的内容作为上下文的一部分，<strong class="text-white">递归调用 LLM</strong> 继续生成。这让 Agent 能写出超出单次 max_tokens 限制的长内容。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 6：生命周期钩子让 Loop 可扩展
+            </div>
+            <p class="text-gray-400">Loop 不是封闭的黑盒。通过 <span class="text-purple-300 font-semibold">pre/post 钩子系统</span>，用户可以在每个关键节点注入自定义逻辑（日志、监控、上下文注入、行为修改）。这是 Loop 架构的<strong class="text-white">扩展点</strong>设计。</p>
+        </div>
+
+        <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+            <div class="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-key"></i> 关键点 7：安全终止（Guardrails）
+            </div>
+            <p class="text-gray-400">Loop 必须有安全终止条件：<strong class="text-white">最大迭代次数限制</strong>防止无限循环、<strong class="text-white">最大 token 预算</strong>防止失控、<strong class="text-white">用户取消信号</strong>允许手动中断。这些 guardrails 是生产级 Agent 的必要组件。</p>
+        </div>
+    </div>
+
+    <div class="bg-gray-700/50 rounded-lg p-4 mt-6">
+        <div class="text-purple-400 font-bold mb-2">思考题：</div>
+        <div class="text-gray-400 text-xs space-y-1">
+            <p>1. 如果一个工具调用返回了 100K tokens 的内容，上下文窗口总共只有 200K，Loop 应该怎么办？</p>
+            <p>2. 上下文压缩时，应该优先压缩用户消息、AI 回复还是工具结果？为什么？</p>
+            <p>3. 如果你的 Agent 在某次任务中需要 100 次工具调用才能完成，但 maxIterations 设了 50，怎么解决？</p>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="content-card text-center text-gray-500 text-sm py-4">
+    透彻理解 Loop 架构，你就掌握了 AI Agent 的"大脑"——它的调度与记忆机制！
+</div>
+
+</div>
+</body>
+</html>
