@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent 协同 - Agent Harness</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0c29; --bg2: #302b63; --bg3: #24243e;
+            --glass: rgba(255,255,255,0.03); --glass-border: rgba(255,255,255,0.08);
+            --text: #ffffff; --text2: rgba(255,255,255,0.7); --text3: rgba(255,255,255,0.4);
+            --blue: #60a5fa; --purple: #a78bfa; --cyan: #22d3ee;
+            --green: #4ade80; --red: #f87171; --orange: #fb923c;
+            --yellow: #facc15; --pink: #f472b6;
+        }
+
+        html, body, #app { height: 100%; width: 100%; overflow: hidden; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%); color: var(--text); }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+
+        .header {
+            background: var(--glass); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border);
+            padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo { font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--blue), var(--purple)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 4px 12px rgba(96,165,250,0.3); }
+        .nav-link { font-size: 13px; color: var(--text3); text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+        .nav-link.active { color: var(--cyan); background: rgba(34,211,238,0.1); }
+
+        .status-badge { padding: 4px 12px; border-radius: 16px; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+        .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+        .status-badge.idle { background: rgba(74,222,128,0.1); color: var(--green); }
+        .status-badge.idle::before { background: var(--green); }
+        .status-badge.running { background: rgba(96,165,250,0.15); color: var(--blue); animation: pulse 1.5s infinite; }
+        .status-badge.running::before { background: var(--blue); animation: blink 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.7} }
+        @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+        .main { display: flex; flex: 1; overflow: hidden; }
+
+        /* ===== Left Panel: Orchestrator + Worker Flow ===== */
+        .flow-panel {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden;
+            background: var(--glass); border-right: 1px solid var(--glass-border);
+        }
+        .panel-title { padding: 12px 16px; border-bottom: 1px solid var(--glass-border); font-size: 13px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+        .panel-title .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(96,165,250,0.15); color: var(--blue); }
+
+        .flow-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+        /* Orchestrator Card */
+        .orch-card {
+            width: 320px; padding: 16px 20px; border-radius: 14px; position: relative;
+            background: linear-gradient(135deg, rgba(96,165,250,0.12), rgba(167,139,250,0.12));
+            border: 2px solid rgba(96,165,250,0.3); text-align: center; flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .orch-card.active { border-color: var(--blue); box-shadow: 0 0 24px rgba(96,165,250,0.2); animation: cardPulse 2s infinite; }
+        .orch-card.completed { border-color: var(--green); box-shadow: 0 0 16px rgba(74,222,128,0.15); }
+        .orch-card.failed { border-color: var(--red); }
+        @keyframes cardPulse { 0%,100%{box-shadow:0 0 16px rgba(96,165,250,0.15)}50%{box-shadow:0 0 28px rgba(96,165,250,0.3)} }
+
+        .orch-icon { font-size: 28px; margin-bottom: 6px; }
+        .orch-title { font-size: 15px; font-weight: 700; background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .orch-status { font-size: 11px; margin-top: 4px; }
+        .orch-status.idle { color: var(--text3); }
+        .orch-status.running { color: var(--blue); }
+        .orch-status.completed { color: var(--green); }
+        .orch-status.failed { color: var(--red); }
+        .orch-msg { font-size: 11px; color: var(--text3); margin-top: 4px; min-height: 16px; }
+
+        /* Dispatch Arrow Zone */
+        .dispatch-zone {
+            display: flex; flex-direction: column; align-items: center; padding: 8px 0; flex-shrink: 0;
+            width: 100%; max-width: 700px; min-height: 40px; position: relative;
+        }
+        .dispatch-arrow {
+            display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 10px;
+            border-radius: 12px; animation: fadeSlideDown 0.4s ease-out;
+        }
+        .dispatch-arrow.down { color: var(--blue); background: rgba(96,165,250,0.1); }
+        .dispatch-arrow.up { color: var(--green); background: rgba(74,222,128,0.1); }
+        .dispatch-arrow.up.fail { color: var(--red); background: rgba(248,113,113,0.1); }
+        @keyframes fadeSlideDown { from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)} }
+
+        .dispatch-line {
+            width: 2px; height: 20px; background: var(--glass-border); flex-shrink: 0;
+        }
+        .dispatch-line.active { background: var(--blue); animation: lineFlow 1s infinite; }
+        .dispatch-line.done { background: var(--green); }
+        @keyframes lineFlow { 0%,100%{opacity:0.4}50%{opacity:1} }
+
+        /* Worker Grid */
+        .worker-grid {
+            display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+            width: 100%; max-width: 700px; min-height: 60px;
+        }
+
+        .worker-card {
+            width: 140px; padding: 12px 10px; border-radius: 10px; text-align: center;
+            background: rgba(0,0,0,0.15); border: 1.5px solid var(--glass-border);
+            transition: all 0.3s; cursor: default; position: relative;
+        }
+        .worker-card:hover { transform: translateY(-2px); }
+        .worker-card.reader { border-color: rgba(34,211,238,0.3); background: rgba(34,211,238,0.06); }
+        .worker-card.searcher { border-color: rgba(250,204,21,0.3); background: rgba(250,204,21,0.06); }
+        .worker-card.coder { border-color: rgba(74,222,128,0.3); background: rgba(74,222,128,0.06); }
+        .worker-card.reviewer { border-color: rgba(244,114,182,0.3); background: rgba(244,114,182,0.06); }
+        .worker-card.debugger { border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.06); }
+        .worker-card.running { animation: cardPulse 2s infinite; }
+        .worker-card.completed { border-width: 2px; }
+        .worker-card.completed.reader { border-color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,0.15); }
+        .worker-card.completed.searcher { border-color: var(--yellow); box-shadow: 0 0 12px rgba(250,204,21,0.15); }
+        .worker-card.completed.coder { border-color: var(--green); box-shadow: 0 0 12px rgba(74,222,128,0.15); }
+        .worker-card.completed.reviewer { border-color: var(--pink); box-shadow: 0 0 12px rgba(244,114,182,0.15); }
+        .worker-card.completed.debugger { border-color: var(--red); box-shadow: 0 0 12px rgba(248,113,113,0.15); }
+        .worker-card.failed { border-color: var(--red) !important; }
+
+        .worker-icon { font-size: 22px; }
+        .worker-name { font-size: 12px; font-weight: 600; margin-top: 4px; }
+        .worker-name.reader { color: var(--cyan); }
+        .worker-name.searcher { color: var(--yellow); }
+        .worker-name.coder { color: var(--green); }
+        .worker-name.reviewer { color: var(--pink); }
+        .worker-name.debugger { color: var(--red); }
+
+        .worker-desc { font-size: 9px; color: var(--text3); margin-top: 3px; line-height: 1.3; max-height: 28px; overflow: hidden; }
+        .worker-stats { font-size: 9px; color: var(--text3); margin-top: 4px; }
+        .worker-status-dot {
+            width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle;
+        }
+        .worker-status-dot.idle { background: var(--text3); }
+        .worker-status-dot.running { background: var(--blue); animation: blink 1s infinite; }
+        .worker-status-dot.completed { background: var(--green); }
+        .worker-status-dot.failed { background: var(--red); }
+
+        /* Result Card */
+        .result-card {
+            width: 320px; padding: 14px 18px; border-radius: 12px; margin-top: 8px; text-align: center; flex-shrink: 0;
+        }
+        .result-card.success { background: rgba(74,222,128,0.06); border: 1.5px solid rgba(74,222,128,0.25); }
+        .result-card.fail { background: rgba(248,113,113,0.06); border: 1.5px solid rgba(248,113,113,0.25); }
+        .result-card .result-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+        .result-card .result-body { font-size: 11px; color: var(--text2); line-height: 1.5; max-height: 120px; overflow-y: auto; white-space: pre-wrap; text-align: left; }
+
+        /* Empty */
+        .empty-flow {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 1; color: var(--text3); text-align: center;
+        }
+        .empty-flow .icon { font-size: 48px; margin-bottom: 16px; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)} }
+        .empty-flow .title { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+        .empty-flow .desc { font-size: 12px; max-width: 300px; line-height: 1.5; }
+
+        /* Legend */
+        .legend {
+            padding: 10px 16px; border-top: 1px solid var(--glass-border);
+            display: flex; gap: 14px; flex-wrap: wrap; background: rgba(0,0,0,0.1); flex-shrink: 0;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text3); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+        .legend-dot.orch { background: linear-gradient(135deg, var(--blue), var(--purple)); }
+        .legend-dot.reader { background: rgba(34,211,238,0.3); border: 1px solid var(--cyan); }
+        .legend-dot.searcher { background: rgba(250,204,21,0.3); border: 1px solid var(--yellow); }
+        .legend-dot.coder { background: rgba(74,222,128,0.3); border: 1px solid var(--green); }
+        .legend-dot.reviewer { background: rgba(244,114,182,0.3); border: 1px solid var(--pink); }
+        .legend-dot.debugger { background: rgba(248,113,113,0.3); border: 1px solid var(--red); }
+
+        /* ===== Right Panel: Timeline ===== */
+        .timeline-panel {
+            width: 380px; flex-shrink: 0;
+            background: var(--glass); backdrop-filter: blur(20px);
+            border-left: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .stats-bar {
+            display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;
+            background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--glass-border); flex-shrink: 0;
+        }
+        .stat-chip { display: flex; align-items: center; gap: 3px; padding: 3px 8px; background: rgba(255,255,255,0.03); border-radius: 5px; font-size: 10px; }
+        .stat-chip .label { color: var(--text3); }
+        .stat-chip .val { color: var(--cyan); font-weight: 600; }
+
+        .timeline-area { flex: 1; overflow-y: auto; padding: 10px; }
+        .timeline-item { display: flex; gap: 8px; margin-bottom: 8px; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)} }
+
+        .tl-marker { width: 24px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+        .tl-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--glass-border); flex-shrink: 0; }
+        .tl-dot.dispatch { border-color: var(--blue); background: rgba(96,165,250,0.4); }
+        .tl-dot.start { border-color: var(--cyan); background: rgba(34,211,238,0.3); }
+        .tl-dot.complete { border-color: var(--green); background: rgba(74,222,128,0.3); }
+        .tl-dot.return { border-color: var(--purple); background: rgba(167,139,250,0.3); }
+        .tl-dot.fail { border-color: var(--red); background: rgba(248,113,113,0.3); }
+        .tl-dot.plan { border-color: var(--purple); background: rgba(167,139,250,0.3); }
+        .tl-dot.system { border-color: var(--text3); background: rgba(255,255,255,0.1); }
+        .tl-line { width: 2px; flex: 1; background: var(--glass-border); margin-top: 2px; }
+
+        .tl-body { flex: 1; background: rgba(0,0,0,0.1); border-radius: 7px; padding: 6px 10px; min-width: 0; }
+        .tl-head { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .tl-tag { padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; text-transform: uppercase; }
+        .tl-tag.orchestrator { background: rgba(96,165,250,0.2); color: var(--blue); }
+        .tl-tag.dispatch-tag { background: rgba(96,165,250,0.2); color: var(--blue); }
+        .tl-tag.return-tag { background: rgba(167,139,250,0.2); color: var(--purple); }
+        .tl-tag.reader { background: rgba(34,211,238,0.2); color: var(--cyan); }
+        .tl-tag.searcher { background: rgba(250,204,21,0.2); color: var(--yellow); }
+        .tl-tag.coder { background: rgba(74,222,128,0.2); color: var(--green); }
+        .tl-tag.reviewer { background: rgba(244,114,182,0.2); color: var(--pink); }
+        .tl-tag.debugger { background: rgba(248,113,113,0.2); color: var(--red); }
+        .tl-tag.system { background: rgba(255,255,255,0.1); color: var(--text3); }
+        .tl-time { font-size: 8px; color: var(--text3); margin-left: auto; }
+        .tl-msg { font-size: 11px; color: var(--text2); line-height: 1.4; }
+        .tl-detail { margin-top: 4px; padding: 4px; background: rgba(0,0,0,0.2); border-radius: 3px; font-size: 9px; color: var(--text3); max-height: 60px; overflow-y: auto; white-space: pre-wrap; }
+
+        /* ===== Input Area ===== */
+        .input-area {
+            padding: 10px 16px 14px; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.2));
+            border-top: 1px solid var(--glass-border); flex-shrink: 0;
+        }
+        .input-row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+        .config-select { padding: 5px 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text); font-size: 11px; outline: none; cursor: pointer; }
+        .config-select option { background: #302b63; }
+        .config-label { font-size: 9px; color: var(--text3); margin-bottom: 2px; }
+        .config-group { display: flex; flex-direction: column; }
+
+        .input-wrapper {
+            display: flex; gap: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 4px; transition: all 0.3s;
+        }
+        .input-wrapper:focus-within { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(96,165,250,0.15); }
+        .prompt-input { flex: 1; background: transparent; border: none; color: var(--text); font-size: 12px; padding: 7px 10px; resize: none; outline: none; min-height: 36px; max-height: 70px; font-family: inherit; line-height: 1.5; }
+        .prompt-input::placeholder { color: var(--text3); }
+        .send-btn { padding: 7px 12px; color: white; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 4px; }
+        .send-btn.run { background: linear-gradient(135deg, var(--blue), var(--purple)); }
+        .send-btn.run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(96,165,250,0.3); }
+        .send-btn.stop { background: linear-gradient(135deg, var(--red), var(--orange)); }
+        .send-btn:disabled { background: rgba(255,255,255,0.1); color: var(--text3); cursor: not-allowed; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="app">
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-icon">🤖</div>
+                <span class="logo">Multi-Agent 协同</span>
+                <a href="/" class="nav-link">单智能体模式</a>
+                <a href="/multi-agent" class="nav-link active">多智能体协同</a>
+            </div>
+            <div :class="['status-badge', isRunning ? 'running' : 'idle']">
+                {{ isRunning ? '执行中' : '就绪' }}
+            </div>
+        </div>
+
+        <div class="main">
+            <!-- Left: Flow Panel -->
+            <div class="flow-panel">
+                <div class="panel-title">
+                    📊 智能体协同视图
+                    <span v-if="planTasks.length" class="badge">{{ completedCount }}/{{ planTasks.length }} 完成</span>
+                </div>
+
+                <div class="flow-content">
+                    <!-- Orchestrator -->
+                    <div :class="['orch-card', orchState.status]">
+                        <div class="orch-icon">🧠</div>
+                        <div class="orch-title">主智能体 Orchestrator</div>
+                        <div :class="['orch-status', orchState.status]">{{ orchStatusText }}</div>
+                        <div class="orch-msg">{{ orchState.msg }}</div>
+                    </div>
+
+                    <!-- Dispatch / Return Arrows between Orchestrator and Workers -->
+                    <div class="dispatch-zone" v-if="planTasks.length > 0">
+                        <template v-for="arrow in activeArrows" :key="arrow.id">
+                            <div :class="['dispatch-arrow', arrow.direction, arrow.fail ? 'fail' : '']">
+                                <span v-if="arrow.direction === 'down'">⬇ 派发 → {{ roleLabel(arrow.role) }}</span>
+                                <span v-else>⬆ {{ roleLabel(arrow.role) }} → 返回{{ arrow.fail ? ' ❌' : ' ✅' }}</span>
+                            </div>
+                        </template>
+                        <div :class="['dispatch-line', hasActiveTask ? 'active' : allDone ? 'done' : '']"></div>
+                    </div>
+
+                    <!-- Worker Cards Grid -->
+                    <div class="worker-grid" v-if="planTasks.length > 0">
+                        <div v-for="task in planTasks" :key="task.id"
+                             :class="['worker-card', task.role, task._status]">
+                            <div class="worker-icon">{{ roleIcon(task.role) }}</div>
+                            <div :class="['worker-name', task.role]">{{ roleLabel(task.role) }}</div>
+                            <div class="worker-desc">{{ task.description }}</div>
+                            <div class="worker-stats">
+                                <span :class="['worker-status-dot', task._status]"></span>
+                                {{ statusText(task._status) }}
+                                <span v-if="task._status === 'completed' && task._tokens"> · {{ task._tokens }} tok</span>
+                                <span v-if="task._status === 'completed' && task._duration"> · {{ (task._duration/1000).toFixed(1) }}s</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result -->
+                    <div v-if="finalResult" :class="['result-card', finalResult.status === 'completed' ? 'success' : 'fail']">
+                        <div class="result-title">{{ finalResult.status === 'completed' ? '✅ 任务完成' : '❌ 任务失败' }}</div>
+                        <div class="result-body">{{ finalResult.content }}</div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-if="planTasks.length === 0 && !isRunning" class="empty-flow">
+                        <div class="icon">🤝</div>
+                        <div class="title">多智能体协同</div>
+                        <div class="desc">输入任务后，主智能体将规划并派发子任务给专业子智能体执行</div>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot orch"></div>主智能体</div>
+                    <div class="legend-item"><div class="legend-dot reader"></div>读取器</div>
+                    <div class="legend-item"><div class="legend-dot searcher"></div>搜索器</div>
+                    <div class="legend-item"><div class="legend-dot coder"></div>编码器</div>
+                    <div class="legend-item"><div class="legend-dot reviewer"></div>审查器</div>
+                    <div class="legend-item"><div class="legend-dot debugger"></div>调试器</div>
+                </div>
+            </div>
+
+            <!-- Right: Timeline -->
+            <div class="timeline-panel">
+                <div class="panel-title">📝 执行日志</div>
+                <div class="stats-bar">
+                    <div class="stat-chip"><span class="label">子任务</span><span class="val">{{ completedCount }}/{{ planTasks.length }}</span></div>
+                    <div class="stat-chip"><span class="label">Token</span><span class="val">{{ totalTokens }}</span></div>
+                    <div class="stat-chip"><span class="label">成本</span><span class="val">${{ totalCost.toFixed(4) }}</span></div>
+                    <div class="stat-chip"><span class="label">耗时</span><span class="val">{{ totalDuration.toFixed(1) }}s</span></div>
+                </div>
+                <div class="timeline-area">
+                    <div v-if="events.length === 0" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;">
+                        等待任务执行...
+                    </div>
+                    <div v-for="(evt, idx) in events" :key="idx" class="timeline-item">
+                        <div class="tl-marker">
+                            <div :class="['tl-dot', evt.dotClass]"></div>
+                            <div v-if="idx < events.length - 1" class="tl-line"></div>
+                        </div>
+                        <div class="tl-body">
+                            <div class="tl-head">
+                                <span :class="['tl-tag', evt.tagClass]">{{ evt.tag }}</span>
+                                <span class="tl-time">{{ evt.time }}</span>
+                            </div>
+                            <div class="tl-msg">{{ evt.message }}</div>
+                            <div v-if="evt.detail" class="tl-detail">{{ evt.detail }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="input-area">
+            <div class="input-row">
+                <div class="config-group">
+                    <span class="config-label">Provider</span>
+                    <select class="config-select" v-model="config.provider_type">
+                        <option value="volcengine_plan">火山引擎 Coding Plan</option>
+                        <option value="doubao">豆包</option>
+                        <option value="claude">Claude</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="qwen">通义千问</option>
+                    </select>
+                </div>
+                <div class="config-group">
+                    <span class="config-label">规划器</span>
+                    <select class="config-select" v-model="plannerModel">
+                        <option value="">默认</option>
+                        <option value="doubao-pro-32k">豆包 Pro</option>
+                        <option value="claude-3-5-haiku-20241022">Claude Haiku</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    </select>
+                </div>
+                <div class="config-group">
+                    <span class="config-label">编码器</span>
+                    <select class="config-select" v-model="coderModel">
+                        <option value="">默认</option>
+                        <option value="doubao-pro-32k">豆包 Pro</option>
+                        <option value="claude-opus-4-5">Claude Opus</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                    </select>
+                </div>
+                <div class="config-group">
+                    <span class="config-label">并发</span>
+                    <select class="config-select" v-model.number="maxWorkers">
+                        <option :value="1">1</option>
+                        <option :value="2">2</option>
+                        <option :value="3">3</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-wrapper">
+                <textarea class="prompt-input" v-model="prompt" @keydown.enter.exact="sendMessage"
+                    placeholder="输入任务..." :disabled="isRunning" rows="1"></textarea>
+                <button v-if="!isRunning" class="send-btn run" @click="sendMessage" :disabled="!prompt.trim()">🚀</button>
+                <button v-else class="send-btn stop" @click="stopAgent">⏹</button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+
+createApp({
+    setup() {
+        const prompt = ref('');
+        const isRunning = ref(false);
+        const sessionId = ref('');
+        const ws = ref(null);
+
+        const config = reactive({ provider_type: 'volcengine_plan', api_key: '', model: '' });
+        const plannerModel = ref('');
+        const coderModel = ref('');
+        const maxWorkers = ref(3);
+
+        const events = ref([]);
+        const planTasks = ref([]);
+        const finalResult = ref(null);
+
+        const orchState = reactive({ status: 'idle', msg: '' });
+        const activeArrows = ref([]);
+        let arrowId = 0;
+
+        const totalTokens = computed(() => planTasks.value.reduce((s, t) => s + (t._tokens || 0), 0));
+        const totalCost = computed(() => planTasks.value.reduce((s, t) => s + (t._cost || 0), 0));
+        const totalDuration = computed(() => planTasks.value.reduce((s, t) => s + (t._duration || 0), 0) / 1000);
+        const completedCount = computed(() => planTasks.value.filter(t => t._status === 'completed').length);
+        const hasActiveTask = computed(() => planTasks.value.some(t => t._status === 'running'));
+        const allDone = computed(() => planTasks.value.length > 0 && planTasks.value.every(t => t._status === 'completed' || t._status === 'failed'));
+
+        const orchStatusText = computed(() => {
+            const m = { idle: '等待任务', running: '正在协调', completed: '任务完成', failed: '执行失败' };
+            return m[orchState.status] || '等待任务';
+        });
+
+        function roleIcon(role) {
+            return { orchestrator: '🧠', reader: '📖', searcher: '🔍', coder: '💻', reviewer: '🔎', debugger: '🐛' }[role] || '🤖';
+        }
+        function roleLabel(role) {
+            return { orchestrator: '主智能体', reader: '读取器', searcher: '搜索器', coder: '编码器', reviewer: '审查器', debugger: '调试器' }[role] || role;
+        }
+        function statusText(status) {
+            return { idle: '等待', pending: '等待', running: '执行中', completed: '已完成', failed: '失败', cancelled: '已取消' }[status] || '等待';
+        }
+
+        function pushArrow(direction, role, fail) {
+            const id = ++arrowId;
+            activeArrows.value.push({ id, direction, role, fail: !!fail });
+            setTimeout(() => {
+                activeArrows.value = activeArrows.value.filter(a => a.id !== id);
+            }, 4000);
+        }
+
+        function addEvent(evt) {
+            const now = new Date();
+            const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            events.value.push({ ...evt, time });
+            nextTick(() => {
+                const area = document.querySelector('.timeline-area');
+                if (area) area.scrollTop = area.scrollHeight;
+            });
+        }
+
+        function handleMultiAgentEvent(data) {
+            const event = data.event;
+
+            if (event === 'started') {
+                orchState.status = 'running';
+                orchState.msg = '启动中...';
+                addEvent({ dotClass: 'system', tagClass: 'system', tag: '启动', message: data.message });
+            }
+            else if (event === 'planning') {
+                orchState.msg = '正在规划任务...';
+                addEvent({ dotClass: 'plan', tagClass: 'orchestrator', tag: '主智能体', message: '🧠 正在规划任务...' });
+            }
+            else if (event === 'plan_ready') {
+                orchState.status = 'running';
+                orchState.msg = `规划完成，派发 ${data.tasks.length} 个子任务`;
+                planTasks.value = data.tasks.map(t => ({ ...t, _status: 'pending', _tokens: 0, _cost: 0, _duration: 0 }));
+                addEvent({ dotClass: 'plan', tagClass: 'orchestrator', tag: '主智能体', message: `📋 规划完成：${data.tasks.length} 个子任务，策略=${data.strategy}` });
+            }
+            else if (event === 'dispatch') {
+                pushArrow('down', data.role, false);
+                addEvent({ dotClass: 'dispatch', tagClass: 'dispatch-tag', tag: '派发', message: `🧠→${roleLabel(data.role)} 派发任务: ${data.description?.slice(0, 60) || ''}` });
+            }
+            else if (event === 'task_start') {
+                const task = planTasks.value.find(t => t.id === data.task_id);
+                if (task) { task._status = 'running'; task.assigned_to = data.assigned_to; }
+                addEvent({ dotClass: 'start', tagClass: data.role, tag: roleLabel(data.role), message: `▶ 开始执行: ${data.message?.slice(0, 80) || ''}` });
+            }
+            else if (event === 'task_completed') {
+                const task = planTasks.value.find(t => t.id === data.task_id);
+                if (task) {
+                    task._status = 'completed';
+                    task._tokens = data.tokens; task._cost = data.cost; task._duration = data.duration_ms;
+                }
+                addEvent({ dotClass: 'complete', tagClass: data.role, tag: roleLabel(data.role),
+                    message: `✅ 完成: tokens=${data.tokens}, 耗时=${(data.duration_ms/1000).toFixed(1)}s`, detail: data.result_preview });
+            }
+            else if (event === 'task_failed') {
+                const task = planTasks.value.find(t => t.id === data.task_id);
+                if (task) { task._status = 'failed'; task._tokens = data.tokens || 0; task._cost = data.cost || 0; }
+                addEvent({ dotClass: 'fail', tagClass: data.role, tag: roleLabel(data.role),
+                    message: `❌ 失败: ${data.message}`, detail: data.error });
+            }
+            else if (event === 'return') {
+                pushArrow('up', data.role, !data.success);
+                addEvent({ dotClass: 'return', tagClass: 'return-tag', tag: '返回',
+                    message: `${roleLabel(data.role)}→🧠 返回结果: ${data.success ? '✅ 成功' : '❌ 失败'}` });
+            }
+            else if (event === 'summarizing') {
+                orchState.msg = '正在汇总结果...';
+                addEvent({ dotClass: 'plan', tagClass: 'orchestrator', tag: '主智能体', message: '🧠 正在汇总子智能体结果...' });
+            }
+            else if (event === 'completed') {
+                orchState.status = 'completed';
+                orchState.msg = '任务完成';
+                finalResult.value = data.result;
+                isRunning.value = false;
+            }
+            else if (event === 'stopped') {
+                orchState.status = 'idle';
+                orchState.msg = '已停止';
+                isRunning.value = false;
+                addEvent({ dotClass: 'fail', tagClass: 'system', tag: '系统', message: data.message });
+            }
+            else if (event === 'error') {
+                orchState.status = 'failed';
+                orchState.msg = '执行失败';
+                isRunning.value = false;
+                addEvent({ dotClass: 'fail', tagClass: 'system', tag: '错误', message: data.message });
+            }
+        }
+
+        function connectWS() {
+            if (ws.value && ws.value.readyState === WebSocket.OPEN) return;
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            ws.value = new WebSocket(`${proto}://${location.host}/ws/${sessionId.value}`);
+            ws.value.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                console.log("[WebSocket] received:", data);
+                if (data.type === 'multi_agent') handleMultiAgentEvent(data);
+                else if (data.type === 'finished') {
+                    // 如果收到 finished 但 finalResult 还没设置，手动设置
+                    console.log("[WebSocket] finished event, setting finalResult");
+                    if (!finalResult.value) {
+                        finalResult.value = { status: data.status, content: data.result || "任务已完成" };
+                        orchState.status = 'completed';
+                        orchState.msg = '任务完成';
+                    }
+                    isRunning.value = false;
+                }
+                else if (data.type === 'error') {
+                    isRunning.value = false;
+                    addEvent({ dotClass: 'fail', tagClass: 'system', tag: '错误', message: data.message });
+                }
+            };
+            ws.value.onclose = () => {
+                console.log("[WebSocket] closed");
+                if (isRunning.value) {
+                    isRunning.value = false;
+                    addEvent({ dotClass: 'system', tagClass: 'system', tag: '系统', message: '连接已断开' });
+                }
+            };
+        }
+
+        async function createSession() {
+            try {
+                const res = await axios.post('/api/sessions', { config: { ...config } });
+                sessionId.value = res.data.session_id;
+                connectWS();
+            } catch (e) { console.error('创建会话失败:', e); }
+        }
+
+        async function sendMessage() {
+            if (!prompt.value.trim() || isRunning.value) return;
+            if (!sessionId.value) await createSession();
+
+            events.value = []; planTasks.value = []; finalResult.value = null;
+            activeArrows.value = []; arrowId = 0;
+            orchState.status = 'idle'; orchState.msg = '';
+            isRunning.value = true;
+
+            addEvent({ dotClass: 'system', tagClass: 'system', tag: '用户', message: `任务: ${prompt.value}` });
+
+            if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+                ws.value.send(JSON.stringify({
+                    action: 'run_multi_agent', prompt: prompt.value, workspace: '.',
+                    planner_model: plannerModel.value || null,
+                    coder_model: coderModel.value || null,
+                    max_workers: maxWorkers.value,
+                }));
+            }
+            prompt.value = '';
+        }
+
+        function stopAgent() {
+            if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+                ws.value.send(JSON.stringify({ action: 'stop' }));
+            }
+        }
+
+        onMounted(() => { createSession(); });
+
+        return {
+            prompt, isRunning, config, plannerModel, coderModel, maxWorkers,
+            events, planTasks, finalResult, orchState, activeArrows,
+            totalTokens, totalCost, totalDuration, completedCount, hasActiveTask, allDone,
+            orchStatusText,
+            roleIcon, roleLabel, statusText,
+            sendMessage, stopAgent,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

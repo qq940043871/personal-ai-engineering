@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大模型核心概念科普</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+        }
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #0a2463, #1e3a8a, #3b82f6);
+            overflow: hidden;
+        }
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.2;
+            background-image: url('https://picsum.photos/seed/neural-network-abstract/1280/720.jpg');
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: 2;
+        }
+        .content {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 0 100px;
+            text-align: center;
+        }
+        .title {
+            font-size: 64px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            opacity: 0;
+            transform: translateY(-50px);
+            animation: slideInFromTop 1s ease-out forwards;
+        }
+        .subtitle {
+            font-size: 28px;
+            font-weight: 500;
+            color: #a5f3fc;
+            max-width: 800px;
+            line-height: 1.5;
+            opacity: 0;
+            animation: fadeIn 1.5s ease-out 0.8s forwards;
+        }
+        .highlight {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+        .neural-circles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(59, 130, 246, 0) 70%);
+        }
+        .circle-1 {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            left: -100px;
+            animation: pulse 8s infinite alternate;
+        }
+        .circle-2 {
+            width: 400px;
+            height: 400px;
+            bottom: -150px;
+            right: -150px;
+            animation: pulse 10s infinite alternate-reverse;
+        }
+        .circle-3 {
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 10%;
+            animation: pulse 7s infinite alternate;
+        }
+        @keyframes slideInFromTop {
+            0% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="background"></div>
+        <div class="grid-overlay"></div>
+        <div class="neural-circles">
+            <div class="circle circle-1"></div>
+            <div class="circle circle-2"></div>
+            <div class="circle circle-3"></div>
+        </div>
+        <div class="content">
+            <h1 class="title">大模型核心概念科普</h1>
+            <p class="subtitle">从 <span class="highlight">Token</span> 到 <span class="highlight">Hallucination</span>，一图看懂大模型</p>
+        </div>
+    </div>
+</body>
+</html>

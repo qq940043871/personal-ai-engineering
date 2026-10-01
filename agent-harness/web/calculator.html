@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .calculator-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .calculator-title {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: right;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .expression {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            min-height: 20px;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', Monaco, monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result {
+            color: white;
+            font-size: 48px;
+            font-weight: 300;
+            font-family: 'SF Mono', Monaco, monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 60px;
+            line-height: 60px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: 500;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-number {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-operator {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            font-size: 24px;
+        }
+
+        .btn-operator:hover {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        }
+
+        .btn-function {
+            background: rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-function:hover {
+            background: rgba(102, 126, 234, 0.8);
+        }
+
+        .btn-equals {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            grid-column: span 2;
+            font-size: 28px;
+        }
+
+        .btn-equals:hover {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+        }
+
+        .btn-zero {
+            grid-column: span 2;
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333;
+        }
+
+        .btn-clear:hover {
+            background: linear-gradient(135deg, #fee140 0%, #fa709a 100%);
+        }
+
+        .history-panel {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .history-title {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-clear {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .history-clear:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .history-item {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: 'SF Mono', Monaco, monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover {
+            color: white;
+            padding-left: 5px;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-expression {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+        }
+
+        .history-result {
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Scrollbar */
+        .history-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .history-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .history-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 400px) {
+            .calculator-container {
+                padding: 20px;
+            }
+
+            .btn {
+                padding: 16px;
+                font-size: 18px;
+            }
+
+            .result {
+                font-size: 36px;
+                min-height: 45px;
+                line-height: 45px;
+            }
+        }
+
+        /* Animation */
+        @keyframes press {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+
+        .btn:active {
+            animation: press 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="calculator-title">🧮 HTML5 计算器</div>
+        
+        <div class="display">
+            <div class="expression" id="expression"></div>
+            <div class="result" id="result">0</div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-clear" onclick="clearAll()">AC</button>
+            <button class="btn btn-function" onclick="backspace()">⌫</button>
+            <button class="btn btn-function" onclick="toggleSign()">±</button>
+            <button class="btn btn-operator" onclick="inputOperator('/')">÷</button>
+            
+            <button class="btn btn-number" onclick="inputNumber('7')">7</button>
+            <button class="btn btn-number" onclick="inputNumber('8')">8</button>
+            <button class="btn btn-number" onclick="inputNumber('9')">9</button>
+            <button class="btn btn-operator" onclick="inputOperator('*')">×</button>
+            
+            <button class="btn btn-number" onclick="inputNumber('4')">4</button>
+            <button class="btn btn-number" onclick="inputNumber('5')">5</button>
+            <button class="btn btn-number" onclick="inputNumber('6')">6</button>
+            <button class="btn btn-operator" onclick="inputOperator('-')">−</button>
+            
+            <button class="btn btn-number" onclick="inputNumber('1')">1</button>
+            <button class="btn btn-number" onclick="inputNumber('2')">2</button>
+            <button class="btn btn-number" onclick="inputNumber('3')">3</button>
+            <button class="btn btn-operator" onclick="inputOperator('+')">+</button>
+            
+            <button class="btn btn-number btn-zero" onclick="inputNumber('0')">0</button>
+            <button class="btn btn-number" onclick="inputDecimal()">.</button>
+            <button class="btn btn-equals" onclick="calculate()">=</button>
+        </div>
+
+        <div class="history-panel">
+            <div class="history-title">
+                <span>📜 计算历史</span>
+                <button class="history-clear" onclick="clearHistory()">清空</button>
+            </div>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // 计算器状态
+        let currentInput = '0';
+        let previousInput = '';
+        let operator = '';
+        let shouldResetInput = false;
+        let history = [];
+
+        // DOM 元素
+        const resultDisplay = document.getElementById('result');
+        const expressionDisplay = document.getElementById('expression');
+        const historyList = document.getElementById('history-list');
+
+        // 更新显示
+        function updateDisplay() {
+            // 格式化数字显示
+            let displayValue = currentInput;
+            if (!isNaN(parseFloat(currentInput)) && isFinite(currentInput)) {
+                const num = parseFloat(currentInput);
+                if (Math.abs(num) >= 1e10) {
+                    displayValue = num.toExponential(6);
+                } else if (currentInput.length > 12) {
+                    displayValue = num.toPrecision(10);
+                }
+            }
+            resultDisplay.textContent = displayValue;
+            
+            // 更新表达式显示
+            if (previousInput && operator) {
+                const opSymbol = {'+': '+', '-': '−', '*': '×', '/': '÷'}[operator];
+                expressionDisplay.textContent = `${previousInput} ${opSymbol}`;
+            } else {
+                expressionDisplay.textContent = '';
+            }
+        }
+
+        // 输入数字
+        function inputNumber(num) {
+            if (shouldResetInput) {
+                currentInput = num;
+                shouldResetInput = false;
+            } else if (currentInput === '0' && num !== '0') {
+                currentInput = num;
+            } else if (currentInput !== '0' || num !== '0') {
+                if (currentInput.replace(/[^0-9]/g, '').length < 12) {
+                    currentInput += num;
+                }
+            }
+            updateDisplay();
+        }
+
+        // 输入小数点
+        function inputDecimal() {
+            if (shouldResetInput) {
+                currentInput = '0.';
+                shouldResetInput = false;
+            } else if (!currentInput.includes('.')) {
+                currentInput += '.';
+            }
+            updateDisplay();
+        }
+
+        // 输入运算符
+        function inputOperator(op) {
+            if (operator && !shouldResetInput) {
+                calculate(true);
+            }
+            previousInput = currentInput;
+            operator = op;
+            shouldResetInput = true;
+            updateDisplay();
+        }
+
+        // 计算
+        function calculate(continueCalc = false) {
+            if (!operator || !previousInput) return;
+
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+            let result;
+
+            switch (operator) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '*':
+                    result = prev * current;
+                    break;
+                case '/':
+                    if (current === 0) {
+                        currentInput = 'Error';
+                        updateDisplay();
+                        return;
+                    }
+                    result = prev / current;
+                    break;
+                default:
+                    return;
+            }
+
+            // 处理浮点数精度
+            result = Math.round(result * 1e10) / 1e10;
+
+            // 添加到历史记录
+            if (!continueCalc) {
+                const opSymbol = {'+': '+', '-': '−', '*': '×', '/': '÷'}[operator];
+                addToHistory(`${previousInput} ${opSymbol} ${currentInput}`, result.toString());
+            }
+
+            currentInput = result.toString();
+            operator = '';
+            previousInput = '';
+            shouldResetInput = !continueCalc;
+            updateDisplay();
+        }
+
+        // 清除所有
+        function clearAll() {
+            currentInput = '0';
+            previousInput = '';
+            operator = '';
+            shouldResetInput = false;
+            updateDisplay();
+        }
+
+        // 退格
+        function backspace() {
+            if (shouldResetInput) return;
+            
+            if (currentInput.length > 1) {
+                currentInput = currentInput.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        // 切换正负号
+        function toggleSign() {
+            if (currentInput !== '0') {
+                if (currentInput.startsWith('-')) {
+                    currentInput = currentInput.slice(1);
+                } else {
+                    currentInput = '-' + currentInput;
+                }
+                updateDisplay();
+            }
+        }
+
+        // 添加历史记录
+        function addToHistory(expression, result) {
+            history.unshift({ expression, result, time: new Date() });
+            if (history.length > 20) {
+                history.pop();
+            }
+            renderHistory();
+        }
+
+        // 渲染历史记录
+        function renderHistory() {
+            historyList.innerHTML = history.map((item, index) => `
+                <div class="history-item" onclick="useHistoryResult(${index})">
+                    <div class="history-expression">${item.expression} =</div>
+                    <div class="history-result">${item.result}</div>
+                </div>
+            `).join('');
+        }
+
+        // 使用历史记录结果
+        function useHistoryResult(index) {
+            currentInput = history[index].result;
+            shouldResetInput = true;
+            updateDisplay();
+        }
+
+        // 清除历史记录
+        function clearHistory() {
+            history = [];
+            renderHistory();
+        }
+
+        // 键盘支持
+        document.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            const key = e.key;
+            
+            if (key >= '0' && key <= '9') {
+                inputNumber(key);
+            } else if (key === '.') {
+                inputDecimal();
+            } else if (key === '+') {
+                inputOperator('+');
+            } else if (key === '-') {
+                inputOperator('-');
+            } else if (key === '*') {
+                inputOperator('*');
+            } else if (key === '/') {
+                inputOperator('/');
+            } else if (key === 'Enter' || key === '=') {
+                calculate();
+            } else if (key === 'Escape' || key === 'c' || key === 'C') {
+                clearAll();
+            } else if (key === 'Backspace') {
+                backspace();
+            }
+        });
+
+        // 初始化
+        updateDisplay();
+    </script>
+</body>
+</html>

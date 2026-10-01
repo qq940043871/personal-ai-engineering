@@ -1,0 +1,13 @@
+{
+  "id": "douyin_video",
+  "name": "抖音视频生成",
+  "description": "完整的抖音视频生成",
+  "content": "请生成一个高质量的抖音短视频，要求如下：\n\n主题：{topic}\n风格：{style}\n受众：{audience}\n\n详细要求：\n1. 视频时长：{duration}秒\n2. 画面比例：9:16（竖屏）\n3. 画面流畅，有吸引力\n4. 色彩鲜艳，视觉冲击力强\n5. 适合抖音平台播放\n\n请生成完整的视频内容。",
+  "variables": [
+    "topic",
+    "style",
+    "audience",
+    "duration"
+  ],
+  "category": "video"
+}

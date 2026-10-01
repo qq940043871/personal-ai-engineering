@@ -1,0 +1,66 @@
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# ========== 模型权重 / 大文件 ==========
+*.pth
+*.pt
+*.onnx
+*.ckpt
+*.safetensors
+*.gguf
+
+# 打包出的可执行文件
+*.exe
+*.pkg
+
+# ========== 运行数据与输出 ==========
+db/
+output/
+vector_db/
+temp_images/
+sessions/
+logs/
+*.log
+
+# 视频下载工具的产物（体积大，不入库）
+ai_study_py/50_tools/utils/01_dydown/
+video/
+
+# ========== 凭证 / 敏感信息 ==========
+.env
+.env.*
+cookies.txt
+config.yaml
+
+# ========== 工具状态 ==========
+.workbuddy/
+
+# ========== IDE / 编辑器 ==========
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ========== Node（备用） ==========
+node_modules/
+
+# ========== 操作系统杂物 ==========
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# 密钥本地备份（不入库）
+secrets_backup.txt

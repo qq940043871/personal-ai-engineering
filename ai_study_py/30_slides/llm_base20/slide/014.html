@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成式AI：AI界'创作者'</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0a192f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a192f 0%, #172a45 100%);
+        }
+        .tech-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(0, 149, 255, 0.3) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 60px 80px;
+        }
+        .title {
+            font-size: 50px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #ffffff;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 40px;
+        }
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .description {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+        .highlight {
+            color: #64ffda;
+            font-weight: 500;
+        }
+        .visual-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .genai-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+        .ai-creator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .ai-icon {
+            font-size: 60px;
+            color: white;
+        }
+        .creation {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .creation-icon {
+            font-size: 36px;
+            color: white;
+            margin-bottom: 5px;
+        }
+        .creation-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            text-align: center;
+        }
+        .text-creation {
+            top: 20%;
+            left: 20%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.5);
+            animation-delay: 0.5s;
+        }
+        .image-creation {
+            top: 20%;
+            right: 20%;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.5);
+            animation-delay: 1s;
+        }
+        .music-creation {
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            box-shadow: 0 10px 20px rgba(250, 112, 154, 0.5);
+            animation-delay: 1.5s;
+        }
+        .connection {
+            position: absolute;
+            background: rgba(100, 255, 218, 0.3);
+            opacity: 0;
+            animation: connect 1.5s ease-in-out forwards;
+        }
+        .connection-1 {
+            width: 4px;
+            height: 100px;
+            top: 30%;
+            left: 30%;
+            transform: rotate(45deg);
+            transform-origin: top left;
+            animation-delay: 1s;
+        }
+        .connection-2 {
+            width: 4px;
+            height: 100px;
+            top: 30%;
+            right: 30%;
+            transform: rotate(-45deg);
+            transform-origin: top right;
+            animation-delay: 1.5s;
+        }
+        .connection-3 {
+            width: 4px;
+            height: 80px;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: 2s;
+        }
+        .inspiration {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            font-weight: 500;
+            color: #64ffda;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+            animation-delay: 2.5s;
+        }
+        .creative-particles {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: rgba(100, 255, 218, 0.7);
+            opacity: 0;
+            animation: floatParticle 3s ease-in-out infinite;
+        }
+        .particle-1 {
+            top: 40%;
+            left: 30%;
+            animation-delay: 0.5s;
+        }
+        .particle-2 {
+            top: 40%;
+            right: 30%;
+            animation-delay: 1s;
+        }
+        .particle-3 {
+            bottom: 40%;
+            left: 40%;
+            animation-delay: 1.5s;
+        }
+        .particle-4 {
+            bottom: 40%;
+            right: 40%;
+            animation-delay: 2s;
+        }
+        .particle-5 {
+            top: 50%;
+            left: 20%;
+            animation-delay: 2.5s;
+        }
+        .particle-6 {
+            top: 50%;
+            right: 20%;
+            animation-delay: 3s;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05);
+                box-shadow: 0 15px 40px rgba(102, 126, 234, 0.7);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        @keyframes connect {
+            0% {
+                opacity: 0;
+                height: 0;
+            }
+            100% {
+                opacity: 1;
+                height: 100px;
+            }
+        }
+        @keyframes floatParticle {
+            0% {
+                opacity: 0;
+                transform: translate(0, 0) scale(0);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(10px, -10px) scale(1);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(20px, -20px) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(30px, -30px) scale(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="tech-dots"></div>
+        <div class="content">
+            <h1 class="title">生成式AI：AI界'创作者'</h1>
+            <div class="main-content">
+                <div class="text-content">
+                    <p class="description">能<span class="highlight">生成新内容</span>（文本、图像、音乐等）的AI系统</p>
+                    <p class="description">像<span class="highlight">AI画家</span>、<span class="highlight">AI作家</span>，给它灵感就能产出创意内容</p>
+                    <p class="description">基于<span class="highlight">大规模预训练</span>，学习<span class="highlight">创作规律</span></p>
+                    <p class="description">应用广泛：<span class="highlight">艺术创作</span>、<span class="highlight">内容生成</span>、<span class="highlight">辅助设计</span></p>
+                </div>
+                <div class="visual-content">
+                    <div class="genai-container">
+                        <div class="ai-creator">
+                            <i class="material-icons ai-icon">auto_awesome</i>
+                        </div>
+                        <div class="creation text-creation">
+                            <i class="material-icons creation-icon">text_fields</i>
+                            <span class="creation-label">文本</span>
+                        </div>
+                        <div class="creation image-creation">
+                            <i class="material-icons creation-icon">image</i>
+                            <span class="creation-label">图像</span>
+                        </div>
+                        <div class="creation music-creation">
+                            <i class="material-icons creation-icon">music_note</i>
+                            <span class="creation-label">音乐</span>
+                        </div>
+                        <div class="connection connection-1"></div>
+                        <div class="connection connection-2"></div>
+                        <div class="connection connection-3"></div>
+                        <div class="inspiration">灵感输入 → 创意输出</div>
+                        <div class="creative-particles particle-1"></div>
+                        <div class="creative-particles particle-2"></div>
+                        <div class="creative-particles particle-3"></div>
+                        <div class="creative-particles particle-4"></div>
+                        <div class="creative-particles particle-5"></div>
+                        <div class="creative-particles particle-6"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

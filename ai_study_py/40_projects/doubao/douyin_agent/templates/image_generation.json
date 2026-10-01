@@ -1,0 +1,13 @@
+{
+  "id": "image_generation",
+  "name": "图片生成",
+  "description": "生成高质量图片",
+  "content": "请生成一张高质量的图片，描述：{description}\n\n要求：\n- 风格：{style}\n- 尺寸：{width}x{height}\n- 高清，细节丰富\n- 色彩鲜艳，构图优美",
+  "variables": [
+    "description",
+    "style",
+    "width",
+    "height"
+  ],
+  "category": "image"
+}

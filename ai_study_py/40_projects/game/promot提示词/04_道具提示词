@@ -1,0 +1,90 @@
+好的！生成游戏道具（如子弹）的提示词（Prompt）需要清晰描述风格、细节和用途。以下是不同风格的子弹提示词模板和示例，你可以直接组合使用或调整参数：
+
+---
+
+**一、提示词核心要素**
+在编写提示词时，尽量涵盖以下内容：
+1. 风格：像素风/科幻/魔幻/卡通/写实等  
+2. 材质：金属/能量体/水晶/火焰/冰晶  
+3. 颜色：主色调 + 高光色（如“金色外壳+蓝色核心”）  
+4. 细节：发光/磨损/符文/科技纹路/粒子特效  
+5. 渲染格式：3D渲染/等距视图/像素艺术/白底  
+6. 分辨率：4k/8k/32x32像素（像素游戏专用）  
+
+---
+
+**二、不同风格的子弹提示词示例**
+**1. 科幻/赛博朋克子弹**
+• 提示词：  
+
+  `Cyberpunk energy bullet, glowing neon blue core, black hexagonal metallic casing, futuristic holographic details, sci-fi weapon ammo, unreal engine 5 render, isometric view, white background, 8k`  
+  （赛博朋克能量子弹，发光霓虹蓝核心，黑色六边形金属外壳，未来主义全息细节，科幻武器弹药，虚幻引擎5渲染，等距视图，白底，8K）
+
+**2. 魔幻/元素子弹**  
+• 火焰弹：  
+
+  `Magic flaming bullet, glowing red and orange fire core, medieval brass casing with ancient runes, smoke and sparks, fantasy RPG style, 3D render, dark background`  
+  （魔法火焰子弹，发光的红橙色火焰核心，中世纪黄铜外壳带符文，烟雾和火花，奇幻RPG风格，3D渲染，暗色背景）  
+• 冰冻弹：  
+
+  `Ice crystal bullet, translucent frozen core with cracks, silver metallic casing, frost particles swirling around, fantasy game item, white background, 4k`  
+  （冰晶子弹，半透明带裂痕的冰冻核心，银色金属外壳，环绕的冰霜粒子，奇幻游戏道具，白底，4K）
+
+**3. 卡通/低多边形（Low Poly）子弹**  
+• 提示词：  
+
+  `Cartoon-style bullet, low-poly design, bright red plastic casing with yellow stripes, cute and simple, 3D render on transparent background, game asset for mobile game`  
+  （卡通风格子弹，低多边形设计，亮红色塑料外壳带黄色条纹，可爱简约，透明背景3D渲染，手游素材）
+
+**4. 像素艺术子弹**  
+• 提示词：  
+
+  `Pixel art bullet, 16x16 resolution, metallic gray casing with orange tip, retro game style, side view, clean edges, no background`  
+  （像素艺术子弹，16x16分辨率，金属灰外壳配橙色弹头，复古游戏风格，侧视图，边缘清晰，无背景）
+
+**5. 写实/军事风子弹**  
+• 提示词：  
+
+  `Realistic military bullet, brass casing with bullet caliber markings, detailed gunpowder texture, high-resolution photography lighting, dark gritty background, 8k`  
+  （写实军事子弹，黄铜外壳带子弹口径标记，火药纹理细节，高分辨率摄影级光照，暗黑背景，8K）
+
+---
+
+**三、工具适配技巧**
+1. MidJourney：  
+   • 添加艺术风格关键词：`unreal engine 5 render`, `octane render`, `concept art`  
+
+   • 示例：`Cyberpunk bullet, glowing green energy core... trending on ArtStation`  
+
+2. DALL-E 3：  
+   • 用自然语言描述修改，例如：“让弹壳更生锈，弹头更尖锐”。  
+
+3. Stable Diffusion：  
+   • 使用特定模型（如 `Pixel Art Model` 或 `Cyberpunk Realistic`），在提示词末尾添加：`--v 5.2 --ar 1:1`（版本和比例参数）。
+
+
+---
+
+**四、实用提示词模板**
+直接复制并根据需求替换内容：  
+```
+[风格] [子弹类型], [材质]材质, [颜色]颜色, [核心特效], [附加细节], [背景/渲染格式], [分辨率]
+```
+• 示例组合：  
+
+  `Steampunk shotgun shell, copper and brass texture, glowing purple core with gears visible inside, smoke and steam effects, isometric view, 4k --v 5`  
+  （蒸汽朋克霰弹枪子弹，铜和黄铜材质，发紫光核心带内部齿轮可见，烟雾蒸汽特效，等距视图，4K）
+
+---
+
+**五、生成后优化建议**
+1. 如果生成结果不够理想，可以：  
+   • 调整材质关键词（如将`metallic`换成`matte plastic`）。  
+
+   • 添加负面提示词（如`--no blurry, --no messy details`）。  
+
+2. 批量生成：用同一组提示词生成多张图，挑选最符合预期的再精修。
+
+---
+
+通过以上模板和示例，你可以快速生成风格明确、细节丰富的子弹素材，大幅减少美术设计时间！

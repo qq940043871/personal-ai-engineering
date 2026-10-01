@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+
+# 构建产物
+dist/
+build/
+
+# 运行数据与输出（RAG 向量库、OCR 输出、下载视频等）
+output/
+db/
+vector_db/
+temp_images/
+logs/
+video/
+*.log
+
+# 工具状态
+.workbuddy/
+
+# 敏感/生成的 PDF（合同原件与标注结果不入库）
+40_projects/doubao/pdf_diff/*.pdf
+
+# 临时文件
+complex_data.json
+
+# 凭证文件
+.env
+cookies.txt

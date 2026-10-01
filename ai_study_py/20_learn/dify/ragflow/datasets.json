@@ -1,0 +1,24 @@
+{
+  "kb_id": "e0c29388607a11f094446b74bb068887",
+  "name": "ZF_测试分片",
+  "avatar": "",
+  "description": null,
+  "permission": "me",
+  "parser_config": {
+    "layout_recognize": "DeepDOC",
+    "chunk_token_num": 128,
+    "delimiter": "@!@",
+    "auto_keywords": 0,
+    "auto_questions": 0,
+    "html4excel": false,
+    "raptor": {
+      "use_raptor": false
+    },
+    "graphrag": {
+      "use_graphrag": false
+    }
+  },
+  "embd_id": "qwen3-embedding-8b-vllm@QianKunJian",
+  "parser_id": "naive",
+  "pagerank": 0
+}

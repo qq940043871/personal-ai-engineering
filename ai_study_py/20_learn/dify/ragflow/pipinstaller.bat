@@ -1,0 +1,1 @@
+pyinstaller --icon=logo.png --onefile --windowed --name "ragflow" ragflow_uploader.py

@@ -1,0 +1,1059 @@
+[
+    {
+        "currencyCode": "KMF",
+        "currencyDisplayName": "KMF - 科摩罗法郎",
+        "currencyName": "科摩罗法郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB10JGgdlUSMeJjy1zj7630dXXas.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "DOP",
+        "currencyDisplayName": "DOP - 多米尼加比索",
+        "currencyName": "多米尼加比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB12ei6c8xRMKJjy0Fd761ifFXa7.png",
+        "index": "D"
+    },
+    {
+        "currencyCode": "MAD",
+        "currencyDisplayName": "MAD - 摩洛哥迪拉姆",
+        "currencyName": "摩洛哥迪拉姆",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1wz1veYsTMeJjSszd763EupXaU.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "GEL",
+        "currencyDisplayName": "GEL - 格鲁吉亚拉里",
+        "currencyName": "格鲁吉亚拉里",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB18Qy6c9RRMKJjy0Fl760FepXax.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "GTQ",
+        "currencyDisplayName": "GTQ - 危地马拉格查尔",
+        "currencyName": "危地马拉格查尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1hJShdgoQMeJjy0Fo763ShVXa1.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "CLP",
+        "currencyDisplayName": "CLP - 智利披索",
+        "currencyName": "智利披索",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1IXBmaWagSKJjy0Fh763rbFXaQ.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "TND",
+        "currencyDisplayName": "TND - 突尼斯第纳尔",
+        "currencyName": "突尼斯第纳尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1v_ycdgMPMeJjy1Xb763wxVXal.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "NAD",
+        "currencyDisplayName": "NAD - 纳米比亚元",
+        "currencyName": "纳米比亚元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1keG6c8xRMKJjy0Fd761ifFXah.png",
+        "index": "N"
+    },
+    {
+        "currencyCode": "WST",
+        "currencyDisplayName": "WST - 萨摩亚塔拉",
+        "currencyName": "萨摩亚塔拉",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1OliXdogQMeJjy0Fi760hqXXaz.png",
+        "index": "W"
+    },
+    {
+        "currencyCode": "TMT",
+        "currencyDisplayName": "TMT - 土库曼斯坦新马纳特",
+        "currencyName": "土库曼斯坦新马纳特",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1ehF6dgMPMeJjy1Xd761srXXam.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "PEN",
+        "currencyDisplayName": "PEN - 秘鲁索尔",
+        "currencyName": "秘鲁索尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1JOOCafBNTKJjy1zd761ScpXaB.png",
+        "index": "P"
+    },
+    {
+        "currencyCode": "COP",
+        "currencyDisplayName": "COP - 哥伦比亚比索",
+        "currencyName": "哥伦比亚比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1CUlqaWigSKJjSspp761bnpXaX.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "JMD",
+        "currencyDisplayName": "JMD - 牙买加元",
+        "currencyName": "牙买加元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1aLKyeYsTMeJjSszg761cpFXaG.png",
+        "index": "J"
+    },
+    {
+        "currencyCode": "USD",
+        "currencyDisplayName": "USD - 美元",
+        "currencyName": "美元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB17nKzafBNTKJjSszc762O2VXaZ.png",
+        "index": "U"
+    },
+    {
+        "currencyCode": "PHP",
+        "currencyDisplayName": "PHP - 菲律宾比索",
+        "currencyName": "菲律宾比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1.Hmze3MPMeJjy1Xd761srXXa4.png",
+        "index": "P"
+    },
+    {
+        "currencyCode": "BMD",
+        "currencyDisplayName": "BMD - 百慕大元",
+        "currencyName": "百慕大元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1IEd5dlUSMeJjy1zk761WmpXaM.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "PYG",
+        "currencyDisplayName": "PYG - 巴拉圭瓜拉尼",
+        "currencyName": "巴拉圭瓜拉尼",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1ENXVbioaPuJjSsplq6zg7XXay.jpg",
+        "index": "P"
+    },
+    {
+        "currencyCode": "ERN",
+        "currencyDisplayName": "ERN - 厄立特里亚纳克法",
+        "currencyName": "厄立特里亚纳克法",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1aegYat9iQuJjSsph762MhpXar.png",
+        "index": "E"
+    },
+    {
+        "currencyCode": "CNY",
+        "currencyDisplayName": "CNY - 人民币",
+        "currencyName": "人民币",
+        "iconUrl": "https://u.alicdn.com/mobile/g/common/flags/1.0.0/assets/cn.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "PGK",
+        "currencyDisplayName": "PGK - 巴布亚新几内亚基那",
+        "currencyName": "巴布亚新几内亚基那",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1VFyidgoSMeJjSspaq6zMOFXav.jpg",
+        "index": "P"
+    },
+    {
+        "currencyCode": "AZN",
+        "currencyDisplayName": "AZN - 阿塞拜疆新马纳特",
+        "currencyName": "阿塞拜疆新马纳特",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1qsqcdnZRMeJjSspo763COFXaF.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "TOP",
+        "currencyDisplayName": "TOP - 汤加潘加",
+        "currencyName": "汤加潘加",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1oja0c9FRMKJjy0Fh760.xpXaP.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "UAH",
+        "currencyDisplayName": "UAH - 乌克兰格里夫纳",
+        "currencyName": "乌克兰格里夫纳",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1pARpa6uhSKJjSspj763i8VXaP.png",
+        "index": "U"
+    },
+    {
+        "currencyCode": "EUR",
+        "currencyDisplayName": "EUR - 欧元",
+        "currencyName": "欧元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1TvCyeYsTMeJjSszg761cpFXax.png",
+        "index": "E"
+    },
+    {
+        "currencyCode": "HKD",
+        "currencyDisplayName": "HKD - 港元",
+        "currencyName": "港元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1sVyEeYsTMeJjy1zb763hlVXaH.png",
+        "index": "H"
+    },
+    {
+        "currencyCode": "CAD",
+        "currencyDisplayName": "CAD - 加拿大元",
+        "currencyName": "加拿大元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1YcmQe3oQMeJjy0Fn7628gFXaX.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "LSL",
+        "currencyDisplayName": "LSL - 莱索托鲁梯",
+        "currencyName": "莱索托鲁梯",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB130KgdlUSMeJjy1zj7630dXXad.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "MUR",
+        "currencyDisplayName": "MUR - 毛里求斯卢比",
+        "currencyName": "毛里求斯卢比",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1AtGWe3MPMeJjy1Xc760pppXaf.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "GIP",
+        "currencyDisplayName": "GIP - 直布罗陀镑",
+        "currencyName": "直布罗陀镑",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1xcR8dbsTMeJjy1ze763OCVXa7.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "GHS",
+        "currencyDisplayName": "GHS - 加纳塞地",
+        "currencyName": "加纳塞地",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB14xXqaWagSKJjy0Fc763ZeVXa9.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "GYD",
+        "currencyDisplayName": "GYD - 圭亚那元",
+        "currencyName": "圭亚那元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1KKX4dgsSMeJjSspd760Z4pXa9.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "KPW",
+        "currencyDisplayName": "KPW - 朝鲜元",
+        "currencyName": "朝鲜元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB15Hu2c.tWMKJjy0Fa763CDpXa1.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "AMD",
+        "currencyDisplayName": "AMD - 亚美尼亚德拉姆",
+        "currencyName": "亚美尼亚德拉姆",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1YoRpaWmgSKJjSspi760yJFXaO.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "BOB",
+        "currencyDisplayName": "BOB - 玻利维亚诺",
+        "currencyName": "玻利维亚诺",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1CGWbdogQMeJjy0Fj761ExFXa0.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "MDL",
+        "currencyDisplayName": "MDL - 摩尔多瓦列伊",
+        "currencyName": "摩尔多瓦列伊",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1vM4VbioaPuJjSspl762g7XXao.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "TRY",
+        "currencyDisplayName": "TRY - 土耳其里拉",
+        "currencyName": "土耳其里拉",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1ZgtmaWagSKJjy0Fa7620dpXaN.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "LBP",
+        "currencyDisplayName": "LBP - 黎巴嫩镑",
+        "currencyName": "黎巴嫩镑",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1B7SXdogQMeJjy0Fi760hqXXaD.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "JOD",
+        "currencyDisplayName": "JOD - 约旦第纳尔",
+        "currencyName": "约旦第纳尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB113aIafBNTKJjy0Fd763PpVXaF.png",
+        "index": "J"
+    },
+    {
+        "currencyCode": "ZMW",
+        "currencyDisplayName": "ZMW - 赞比亚克瓦查",
+        "currencyName": "赞比亚克瓦查",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1yY92c.tWMKJjy0Fa763CDpXaJ.png",
+        "index": "Z"
+    },
+    {
+        "currencyCode": "ALL",
+        "currencyDisplayName": "ALL - 阿尔巴尼亚列克",
+        "currencyName": "阿尔巴尼亚列克",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1MZx8dbsTMeJjy1ze763OCVXap.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "ILS",
+        "currencyDisplayName": "ILS - 以色列谢克尔",
+        "currencyName": "以色列谢克尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1P5GCafBNTKJjy1zd761ScpXai.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "ETB",
+        "currencyDisplayName": "ETB - 埃塞俄比亚比尔",
+        "currencyName": "埃塞俄比亚比尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1OQy6c9RRMKJjy0Fl760FepXaY.png",
+        "index": "E"
+    },
+    {
+        "currencyCode": "BND",
+        "currencyDisplayName": "BND - 文莱元",
+        "currencyName": "文莱元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB16L8maWagSKJjy0Fa7620dpXa6.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "SOS",
+        "currencyDisplayName": "SOS - 索马里先令",
+        "currencyName": "索马里先令",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1GJ1ddbsTMeJjSsziq6AdwXXaV.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "VUV",
+        "currencyDisplayName": "VUV - 瓦努阿图瓦图",
+        "currencyName": "瓦努阿图瓦图",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1RtecdnZRMeJjSspo763COFXav.png",
+        "index": "V"
+    },
+    {
+        "currencyCode": "LAK",
+        "currencyDisplayName": "LAK - 老挝基普",
+        "currencyName": "老挝基普",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB11jh_dlUSMeJjy1zd761R3FXaO.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "LRD",
+        "currencyDisplayName": "LRD - 利比里亚元",
+        "currencyName": "利比里亚元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1XDecdgMPMeJjy1Xb763wxVXaF.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "MWK",
+        "currencyDisplayName": "MWK - 马拉维克瓦查",
+        "currencyName": "马拉维克瓦查",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Ujp_dlUSMeJjy1zd761R3FXar.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "BAM",
+        "currencyDisplayName": "BAM - 波斯尼亚马克",
+        "currencyName": "波斯尼亚马克",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1hIeedgoQMeJjy0Fn7628gFXa8.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "EGP",
+        "currencyDisplayName": "EGP - 埃及镑",
+        "currencyName": "埃及镑",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB13Exka6ihSKJjy0Ff762GzFXa9.png",
+        "index": "E"
+    },
+    {
+        "currencyCode": "AOA",
+        "currencyDisplayName": "AOA - 安哥拉宽扎",
+        "currencyName": "安哥拉宽扎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1TZ5adgoQMeJjy1Xa763SsFXaj.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "JPY",
+        "currencyDisplayName": "JPY - 日元",
+        "currencyName": "日元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1pSdqaV9gSKJjSspb762eNXXak.png",
+        "index": "J"
+    },
+    {
+        "currencyCode": "PLN",
+        "currencyDisplayName": "PLN - 波兰兹罗提",
+        "currencyName": "波兰兹罗提",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1MwiIafBNTKJjy0Fd763PpVXaN.png",
+        "index": "P"
+    },
+    {
+        "currencyCode": "SBD",
+        "currencyDisplayName": "SBD - 索罗门群岛元",
+        "currencyName": "索罗门群岛元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB17jd7dbsTMeJjy1zbq6AhlVXad.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "SAR",
+        "currencyDisplayName": "SAR - 沙特阿拉伯里亚尔",
+        "currencyName": "沙特阿拉伯里亚尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1himBafxNTKJjy0Fj7606yVXap.png",
+        "index": "S"
+    },
+    {
+        "currencyCode": "TTD",
+        "currencyDisplayName": "TTD - 特立尼达元",
+        "currencyName": "特立尼达元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1pkaveYsTMeJjSszd763EupXav.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "SRD",
+        "currencyDisplayName": "SRD - 苏里南元",
+        "currencyName": "苏里南元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1psWedgoQMeJjy0Fn7628gFXaQ.png",
+        "index": "S"
+    },
+    {
+        "currencyCode": "MVR",
+        "currencyDisplayName": "MVR - 马尔代夫拉菲亚",
+        "currencyName": "马尔代夫拉菲亚",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1ZlJ2dbsTMeJjSszg761cpFXaz.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "KRW",
+        "currencyDisplayName": "KRW - 韩元",
+        "currencyName": "韩元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB10QGYe3oQMeJjy0Fo763ShVXaY.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "INR",
+        "currencyDisplayName": "INR - 印度卢比",
+        "currencyName": "印度卢比",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1JuWGeYsTMeJjy1zc760AgXXa0.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "CRC",
+        "currencyDisplayName": "CRC - 哥斯达黎加科郎",
+        "currencyName": "哥斯达黎加科郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1J1tmaWmgSKJjSspl761ICpXa3.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "RON",
+        "currencyDisplayName": "RON - 罗马尼亚新列伊",
+        "currencyName": "罗马尼亚新列伊",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1GRmDafJNTKJjSspo7636mpXay.png",
+        "index": "R"
+    },
+    {
+        "currencyCode": "PKR",
+        "currencyDisplayName": "PKR - 巴基斯坦卢比",
+        "currencyName": "巴基斯坦卢比",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1l5hlaWagSKJjy0Fb761.mVXaL.png",
+        "index": "P"
+    },
+    {
+        "currencyCode": "NGN",
+        "currencyDisplayName": "NGN - 尼日利亚奈拉",
+        "currencyName": "尼日利亚奈拉",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1.ZyQe3oQMeJjy0Fn7628gFXa1.png",
+        "index": "N"
+    },
+    {
+        "currencyCode": "ANG",
+        "currencyDisplayName": "ANG - 荷属安的列斯盾",
+        "currencyName": "荷属安的列斯盾",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1BiB7dbsTMeJjy1zb763hlVXaN.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "RSD",
+        "currencyDisplayName": "RSD - 塞尔维亚第纳尔",
+        "currencyName": "塞尔维亚第纳尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1N6d7dbsTMeJjy1zbq6AhlVXa0.jpg",
+        "index": "R"
+    },
+    {
+        "currencyCode": "TWD",
+        "currencyDisplayName": "TWD - 台币",
+        "currencyName": "台币",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1CKF4dgsSMeJjSspd760Z4pXaR.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "MYR",
+        "currencyDisplayName": "MYR - 马来西亚林吉特",
+        "currencyName": "马来西亚林吉特",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB18e1GeYsTMeJjy1zc760AgXXaW.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "FKP",
+        "currencyDisplayName": "FKP - 福克兰群岛镑",
+        "currencyName": "福克兰群岛镑",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1R5R7dbsTMeJjy1zb763hlVXax.png",
+        "index": "F"
+    },
+    {
+        "currencyCode": "XOF",
+        "currencyDisplayName": "XOF - 多哥非洲共同体法郎",
+        "currencyName": "多哥非洲共同体法郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1aRi6c9RRMKJjy0Fl760FepXa1.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "BSD",
+        "currencyDisplayName": "BSD - 巴哈马元",
+        "currencyName": "巴哈马元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1zyV9dnZRMeJjSspp760rEpXay.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "SDG",
+        "currencyDisplayName": "SDG - 苏丹镑",
+        "currencyName": "苏丹镑",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB13BR2dbsTMeJjSszgq6ycpFXau.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "IQD",
+        "currencyDisplayName": "IQD - 伊拉克第纳尔",
+        "currencyName": "伊拉克第纳尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1tHabdogQMeJjy0Fj761ExFXaY.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "CUP",
+        "currencyDisplayName": "CUP - 古巴比索",
+        "currencyName": "古巴比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1F5N7dbsTMeJjy1zb763hlVXai.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "GMD",
+        "currencyDisplayName": "GMD - 冈比亚达拉西",
+        "currencyName": "冈比亚达拉西",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Wm89dbsTMeJjy1zc760AgXXal.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "BBD",
+        "currencyDisplayName": "BBD - 巴巴多斯元",
+        "currencyName": "巴巴多斯元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Bld2dbsTMeJjSszg761cpFXaX.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "MXN",
+        "currencyDisplayName": "MXN - 墨西哥比索",
+        "currencyName": "墨西哥比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1Vx1Pe8USMeJjy1zj7630dXXaw.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "SCR",
+        "currencyDisplayName": "SCR - 塞舌尔卢比",
+        "currencyName": "塞舌尔卢比",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1ll5fdogQMeJjy0Fgq6A5dXXaz.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "HNL",
+        "currencyDisplayName": "HNL - 洪都拉斯伦皮拉",
+        "currencyName": "洪都拉斯伦皮拉",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB10uX4dgsSMeJjSspd760Z4pXar.png",
+        "index": "H"
+    },
+    {
+        "currencyCode": "UGX",
+        "currencyDisplayName": "UGX - 乌干达先令",
+        "currencyName": "乌干达先令",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Q.05dlUSMeJjy1zk761WmpXaV.png",
+        "index": "U"
+    },
+    {
+        "currencyCode": "CDF",
+        "currencyDisplayName": "CDF - 刚果法郎",
+        "currencyName": "刚果法郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1dIKidgMPMeJjy1Xc760pppXai.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "ZAR",
+        "currencyDisplayName": "ZAR - 南非兰特",
+        "currencyName": "南非兰特",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1N7mye8USMeJjy1zk761WmpXa4.png",
+        "index": "Z"
+    },
+    {
+        "currencyCode": "NIO",
+        "currencyDisplayName": "NIO - 尼加拉瓜科多巴",
+        "currencyName": "尼加拉瓜科多巴",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1veG6c8xRMKJjy0Fd761ifFXa8.png",
+        "index": "N"
+    },
+    {
+        "currencyCode": "NZD",
+        "currencyDisplayName": "NZD - 新西兰元",
+        "currencyName": "新西兰元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1_wlmaWagSKJjy0Fa7620dpXaT.png",
+        "index": "N"
+    },
+    {
+        "currencyCode": "BRL",
+        "currencyDisplayName": "BRL - 巴西雷亚尔",
+        "currencyName": "巴西雷亚尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1hjFoa6ihSKJjy0Fl761dEXXaD.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "FJD",
+        "currencyDisplayName": "FJD - 斐济元",
+        "currencyName": "斐济元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1bh9BafxNTKJjy0Fj7606yVXas.png",
+        "index": "F"
+    },
+    {
+        "currencyCode": "ISK",
+        "currencyDisplayName": "ISK - 冰岛克朗",
+        "currencyName": "冰岛克朗",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1d4l2dbsTMeJjSszd763EupXan.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "MKD",
+        "currencyDisplayName": "MKD - 马其顿第纳尔",
+        "currencyName": "马其顿第纳尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1lyS0c9FRMKJjy0Fh760.xpXa2.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "SGD",
+        "currencyDisplayName": "SGD - 新加坡元",
+        "currencyName": "新加坡元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1czB_dlUSMeJjy1zdq6yR3FXax.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "DZD",
+        "currencyDisplayName": "DZD - 阿尔及利亚第纳尔",
+        "currencyName": "阿尔及利亚第纳尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1fsOidgMPMeJjy1Xc760pppXaS.png",
+        "index": "D"
+    },
+    {
+        "currencyCode": "BDT",
+        "currencyDisplayName": "BDT - 孟加拉塔卡",
+        "currencyName": "孟加拉塔卡",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1xICidgMPMeJjy1Xc760pppXaa.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "KWD",
+        "currencyDisplayName": "KWD - 科威特第纳尔",
+        "currencyName": "科威特第纳尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1SnyzafBNTKJjSszc762O2VXa4.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "LYD",
+        "currencyDisplayName": "LYD - 利比亚第纳尔",
+        "currencyName": "利比亚第纳尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1sTecdgMPMeJjy1Xb763wxVXa6.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "XPT",
+        "currencyDisplayName": "XPT - 白金（盎司）",
+        "currencyName": "白金（盎司）",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB15duidgMPMeJjy1Xc760pppXan.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "RUB",
+        "currencyDisplayName": "RUB - 俄罗斯卢布",
+        "currencyName": "俄罗斯卢布",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Q6Voa6ihSKJjy0Fl761dEXXaG.png",
+        "index": "R"
+    },
+    {
+        "currencyCode": "ARS",
+        "currencyDisplayName": "ARS - 阿根廷比索",
+        "currencyName": "阿根廷比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1uFxmaWagSKJjy0Fh763rbFXak.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "QAR",
+        "currencyDisplayName": "QAR - 卡塔尔里亚尔",
+        "currencyName": "卡塔尔里亚尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1wFpia6ihSKJjy0Fe762JtpXaQ.png",
+        "index": "Q"
+    },
+    {
+        "currencyCode": "MZN",
+        "currencyDisplayName": "MZN - 莫桑比克新美提卡",
+        "currencyName": "莫桑比克新美提卡",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1tQS6c9RRMKJjy0Fl760FepXa7.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "XPD",
+        "currencyDisplayName": "XPD - 钯（盎司）",
+        "currencyName": "钯（盎司）",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1UB48diIRMeJjy0Fb762nqXXaT.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "IRR",
+        "currencyDisplayName": "IRR - 伊朗里亚尔",
+        "currencyName": "伊朗里亚尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1AVSDafBNTKJjSszb761FrFXay.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "XPF",
+        "currencyDisplayName": "XPF - 太平洋法郎",
+        "currencyName": "太平洋法郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1LSX2dbsTMeJjSszg761cpFXaE.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "THB",
+        "currencyDisplayName": "THB - 泰铢",
+        "currencyName": "泰铢",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Eruze3MPMeJjy1Xd761srXXaj.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "UZS",
+        "currencyDisplayName": "UZS - 乌兹别克斯坦索姆",
+        "currencyName": "乌兹别克斯坦索姆",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1ouqhdgoQMeJjy0Fo763ShVXag.png",
+        "index": "U"
+    },
+    {
+        "currencyCode": "OMR",
+        "currencyDisplayName": "OMR - 阿曼里亚尔",
+        "currencyName": "阿曼里亚尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1Bdloa6qhSKJjSspn76379XXaa.png",
+        "index": "O"
+    },
+    {
+        "currencyCode": "CVE",
+        "currencyDisplayName": "CVE - 佛得角埃斯库多",
+        "currencyName": "佛得角埃斯库多",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1RJ44dgsSMeJjSspd760Z4pXa2.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "UYU",
+        "currencyDisplayName": "UYU - 乌拉圭比索",
+        "currencyName": "乌拉圭比索",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1F_F9dbsTMeJjy1zc760AgXXaD.png",
+        "index": "U"
+    },
+    {
+        "currencyCode": "BTN",
+        "currencyDisplayName": "BTN - 不丹卢比",
+        "currencyName": "不丹卢比",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1F24_dnZRMeJjSspn763JdFXaL.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "KES",
+        "currencyDisplayName": "KES - 肯尼亚先令",
+        "currencyName": "肯尼亚先令",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1vdGgdlUSMeJjy1zj7630dXXah.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "SEK",
+        "currencyDisplayName": "SEK - 瑞典克朗",
+        "currencyName": "瑞典克朗",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB14LSyeYsTMeJjSszg761cpFXaX.png",
+        "index": "S"
+    },
+    {
+        "currencyCode": "GNF",
+        "currencyDisplayName": "GNF - 几内亚法郎",
+        "currencyName": "几内亚法郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1KPX_dlUSMeJjy1zd761R3FXaB.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "DKK",
+        "currencyDisplayName": "DKK - 丹麦克郎",
+        "currencyName": "丹麦克郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB196Foa6ihSKJjy0Fl761dEXXay.png",
+        "index": "D"
+    },
+    {
+        "currencyCode": "RWF",
+        "currencyDisplayName": "RWF - 卢旺达法郎",
+        "currencyName": "卢旺达法郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1uhF.dbsTMeJjSszhq6AGCFXaM.jpg",
+        "index": "R"
+    },
+    {
+        "currencyCode": "MMK",
+        "currencyDisplayName": "MMK - 缅甸元",
+        "currencyName": "缅甸元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1djp_dlUSMeJjy1zd761R3FXa0.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "NOK",
+        "currencyDisplayName": "NOK - 挪威克郎",
+        "currencyName": "挪威克郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1X0KWe3MPMeJjy1Xc760pppXaz.png",
+        "index": "N"
+    },
+    {
+        "currencyCode": "SYP",
+        "currencyDisplayName": "SYP - 叙利亚磅",
+        "currencyName": "叙利亚磅",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1PR9fdogQMeJjy0Fg7635dXXaX.png",
+        "index": "S"
+    },
+    {
+        "currencyCode": "BGN",
+        "currencyDisplayName": "BGN - 保加利亚列弗",
+        "currencyName": "保加利亚列弗",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1bx4laWagSKJjy0Fb761.mVXaY.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "IDR",
+        "currencyDisplayName": "IDR - 印度尼西亚卢比",
+        "currencyName": "印度尼西亚卢比",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1gcBoaWmgSKJjSsph763y1VXan.png",
+        "index": "I"
+    },
+    {
+        "currencyCode": "KYD",
+        "currencyDisplayName": "KYD - 开曼群岛元",
+        "currencyName": "开曼群岛元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB16684diERMeJjSspj763pOXXaU.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "KHR",
+        "currencyDisplayName": "KHR - 柬埔寨瑞尔",
+        "currencyName": "柬埔寨瑞尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1Fpx_dbwTMeJjSszf760btFXaN.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "SHP",
+        "currencyDisplayName": "SHP - 圣赫勒拿群岛磅",
+        "currencyName": "圣赫勒拿群岛磅",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1xeehdgoQMeJjy0Foq6AShVXa3.jpg",
+        "index": "S"
+    },
+    {
+        "currencyCode": "BWP",
+        "currencyDisplayName": "BWP - 博茨瓦纳普拉",
+        "currencyName": "博茨瓦纳普拉",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1850_dlUSMeJjy1zd761R3FXaI.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "AED",
+        "currencyDisplayName": "AED - 阿联酋迪拉姆",
+        "currencyName": "阿联酋迪拉姆",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1Gw4qaWagSKJjy0Fc763ZeVXaE.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "TJS",
+        "currencyDisplayName": "TJS - 塔吉克斯坦索莫尼",
+        "currencyName": "塔吉克斯坦索莫尼",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1pJl8dbsTMeJjy1ze763OCVXaW.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "CHF",
+        "currencyDisplayName": "CHF - 瑞士法郎",
+        "currencyName": "瑞士法郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1vTuCeYsTMeJjy1ze763OCVXaf.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "VND",
+        "currencyDisplayName": "VND - 越南盾",
+        "currencyName": "越南盾",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1LdecdnZRMeJjSspo763COFXaD.png",
+        "index": "V"
+    },
+    {
+        "currencyCode": "XAU",
+        "currencyDisplayName": "XAU - 金（盎司）",
+        "currencyName": "金（盎司）",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1F6J9dnZRMeJjSspp760rEpXa8.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "AUD",
+        "currencyDisplayName": "AUD - 澳元",
+        "currencyName": "澳元",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1N75DafJNTKJjSspo7636mpXaH.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "TZS",
+        "currencyDisplayName": "TZS - 坦桑尼亚先令",
+        "currencyName": "坦桑尼亚先令",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1GU05dlUSMeJjy1zk761WmpXaf.png",
+        "index": "T"
+    },
+    {
+        "currencyCode": "PAB",
+        "currencyDisplayName": "PAB - 巴拿马巴波亚",
+        "currencyName": "巴拿马巴波亚",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1wBCedogQMeJjy0Ffq6zddXXa0.jpg",
+        "index": "P"
+    },
+    {
+        "currencyCode": "KGS",
+        "currencyDisplayName": "KGS - 吉尔吉斯斯坦索姆",
+        "currencyName": "吉尔吉斯斯坦索姆",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1yuoYat9iQuJjSsph762MhpXaa.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "DJF",
+        "currencyDisplayName": "DJF - 吉布提法郎",
+        "currencyName": "吉布提法郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Tei6c8xRMKJjy0Fd761ifFXa8.png",
+        "index": "D"
+    },
+    {
+        "currencyCode": "XAG",
+        "currencyDisplayName": "XAG - 银（盎司）",
+        "currencyName": "银（盎司）",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB19BiXdogQMeJjy0Fi760hqXXax.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "XAF",
+        "currencyDisplayName": "XAF - 刚果中非共同体法郎",
+        "currencyName": "刚果中非共同体法郎",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1YH12c.tWMKJjy0Fa763CDpXa8.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "BZD",
+        "currencyDisplayName": "BZD - 伯利兹元",
+        "currencyName": "伯利兹元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1hAu6c9RRMKJjy0Fl760FepXaO.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "MOP",
+        "currencyDisplayName": "MOP - 澳门元",
+        "currencyName": "澳门元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB18AO6c9RRMKJjy0Fl760FepXaX.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "MNT",
+        "currencyDisplayName": "MNT - 蒙古图格里克",
+        "currencyName": "蒙古图格里克",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1RAWXdogQMeJjy0Fi760hqXXan.png",
+        "index": "M"
+    },
+    {
+        "currencyCode": "AWG",
+        "currencyDisplayName": "AWG - 阿鲁巴弗罗林",
+        "currencyName": "阿鲁巴弗罗林",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1vPR_dgsSMeJjSspc760jFXXa2.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "BYN",
+        "currencyDisplayName": "BYN - 白俄罗斯卢布",
+        "currencyName": "白俄罗斯卢布",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1A.h5dlUSMeJjy1zk761WmpXad.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "GBP",
+        "currencyDisplayName": "GBP - 英镑",
+        "currencyName": "英镑",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1hU4paWmgSKJjSspi760yJFXaH.png",
+        "index": "G"
+    },
+    {
+        "currencyCode": "HUF",
+        "currencyDisplayName": "HUF - 匈牙利福林",
+        "currencyName": "匈牙利福林",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1a_J2dlUSMeJjSszc762nwVXan.png",
+        "index": "H"
+    },
+    {
+        "currencyCode": "BIF",
+        "currencyDisplayName": "BIF - 布隆迪法郎",
+        "currencyName": "布隆迪法郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1Zf0_dnZRMeJjSspn763JdFXaZ.png",
+        "index": "B"
+    },
+    {
+        "currencyCode": "YER",
+        "currencyDisplayName": "YER - 也门里亚尔",
+        "currencyName": "也门里亚尔",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1VhxVbioaPuJjSspl762g7XXap.png",
+        "index": "Y"
+    },
+    {
+        "currencyCode": "KZT",
+        "currencyDisplayName": "KZT - 哈萨克斯坦腾格",
+        "currencyName": "哈萨克斯坦腾格",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB12uODafBNTKJjSsze763u2VXaK.png",
+        "index": "K"
+    },
+    {
+        "currencyCode": "SZL",
+        "currencyDisplayName": "SZL - 斯威士兰里兰吉尼",
+        "currencyName": "斯威士兰里兰吉尼",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1Wl9fdogQMeJjy0Fg7635dXXa5.png",
+        "index": "S"
+    },
+    {
+        "currencyCode": "AFN",
+        "currencyDisplayName": "AFN - 阿富汗尼",
+        "currencyName": "阿富汗尼",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1GL9bdnZRMeJjSspk760GpXXaB.png",
+        "index": "A"
+    },
+    {
+        "currencyCode": "NPR",
+        "currencyDisplayName": "NPR - 尼泊尔卢比",
+        "currencyName": "尼泊尔卢比",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1WtSgdlUSMeJjy1zjq6A0dXXab.jpg",
+        "index": "N"
+    },
+    {
+        "currencyCode": "CZK",
+        "currencyDisplayName": "CZK - 捷克克郎",
+        "currencyName": "捷克克郎",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB12wmcdiERMeJjSspi762ZLFXa1.png",
+        "index": "C"
+    },
+    {
+        "currencyCode": "LKR",
+        "currencyDisplayName": "LKR - 斯里兰卡卢比",
+        "currencyName": "斯里兰卡卢比",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB1jglmaWagSKJjy0Fa7620dpXaO.png",
+        "index": "L"
+    },
+    {
+        "currencyCode": "HTG",
+        "currencyDisplayName": "HTG - 海地古德",
+        "currencyName": "海地古德",
+        "iconUrl": "https://sc01.alicdn.com/kf/HTB11kKXdogQMeJjy0Fi760hqXXaA.png",
+        "index": "H"
+    },
+    {
+        "currencyCode": "XCD",
+        "currencyDisplayName": "XCD - 东加勒比元",
+        "currencyName": "东加勒比元",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB18B82dbsTMeJjSszg761cpFXaS.png",
+        "index": "X"
+    },
+    {
+        "currencyCode": "BHD",
+        "currencyDisplayName": "BHD - 巴林第纳尔",
+        "currencyName": "巴林第纳尔",
+        "iconUrl": "https://sc02.alicdn.com/kf/HTB1nJmgdlUSMeJjy1zj7630dXXaH.png",
+        "index": "B"
+    }
+]

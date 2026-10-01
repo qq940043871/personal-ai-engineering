@@ -1,0 +1,12 @@
+{
+  "id": "custom_video",
+  "name": "自定义视频模板",
+  "description": "我的专属视频生成模板",
+  "content": "请生成一个独特风格的视频：\n主题：{topic}\n风格：{style}\n时长：{duration}秒\n务必精彩动人！",
+  "variables": [
+    "topic",
+    "style",
+    "duration"
+  ],
+  "category": "custom"
+}

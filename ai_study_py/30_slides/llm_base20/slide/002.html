@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据挖掘：挖掘数据'金矿'</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0a192f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a192f 0%, #172a45 100%);
+        }
+        .tech-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(0, 149, 255, 0.3) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 60px 80px;
+        }
+        .title {
+            font-size: 50px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #ffffff;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 40px;
+        }
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .description {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+        .highlight {
+            color: #64ffda;
+            font-weight: 500;
+        }
+        .visual-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .data-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #4facfe;
+            border-radius: 50%;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        .treasure-box {
+            width: 200px;
+            height: 150px;
+            background-color: #ffd700;
+            border-radius: 10px;
+            position: relative;
+            transform: scale(0);
+            animation: openBox 2s ease-in-out 1s forwards;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        .treasure-box::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #ffd700;
+            border-radius: 10px 10px 0 0;
+            transform-origin: bottom;
+            animation: openLid 2s ease-in-out 1s forwards;
+        }
+        .treasure-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            color: #0a192f;
+            opacity: 0;
+            animation: showTreasure 1s ease-in-out 2.5s forwards;
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        @keyframes openBox {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        @keyframes openLid {
+            0% {
+                transform: rotateX(0);
+            }
+            50% {
+                transform: rotateX(0);
+            }
+            100% {
+                transform: rotateX(-90deg);
+            }
+        }
+        @keyframes showTreasure {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="tech-dots"></div>
+        <div class="content">
+            <h1 class="title">数据挖掘：挖掘数据'金矿'</h1>
+            <div class="main-content">
+                <div class="text-content">
+                    <p class="description">是在<span class="highlight">大型数据集</span>中提取发现模式的过程，融合<span class="highlight">机器学习</span>、<span class="highlight">统计</span>等方法</p>
+                    <p class="description">像从<span class="highlight">数据海洋</span>里捞<span class="highlight">"宝藏规律"</span></p>
+                    <p class="description">比如从<span class="highlight">用户行为数据</span>找<span class="highlight">消费偏好</span></p>
+                </div>
+                <div class="visual-content">
+                    <div class="data-point" style="top: 20%; left: 30%; animation-delay: 0.2s;"></div>
+                    <div class="data-point" style="top: 40%; left: 70%; animation-delay: 0.4s;"></div>
+                    <div class="data-point" style="top: 60%; left: 20%; animation-delay: 0.6s;"></div>
+                    <div class="data-point" style="top: 30%; left: 80%; animation-delay: 0.8s;"></div>
+                    <div class="data-point" style="top: 70%; left: 60%; animation-delay: 1.0s;"></div>
+                    <div class="data-point" style="top: 50%; left: 40%; animation-delay: 1.2s;"></div>
+                    <div class="data-point" style="top: 25%; left: 50%; animation-delay: 1.4s;"></div>
+                    <div class="data-point" style="top: 75%; left: 35%; animation-delay: 1.6s;"></div>
+                    <div class="treasure-box">
+                        <i class="material-icons treasure-icon">diamond</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

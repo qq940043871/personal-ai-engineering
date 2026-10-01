@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扩散模型：让AI学会'渐进创作'</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0a192f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a192f 0%, #172a45 100%);
+        }
+        .tech-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(0, 149, 255, 0.3) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 60px 80px;
+        }
+        .title {
+            font-size: 50px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #ffffff;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 40px;
+        }
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .description {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+        .highlight {
+            color: #64ffda;
+            font-weight: 500;
+        }
+        .visual-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .diffusion-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+        .image-stages {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-stage {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23000"/><rect x="0" y="0" width="10" height="10" fill="%23fff" opacity="0.8"/><rect x="20" y="10" width="10" height="10" fill="%23fff" opacity="0.6"/><rect x="40" y="0" width="10" height="10" fill="%23fff" opacity="0.9"/><rect x="60" y="20" width="10" height="10" fill="%23fff" opacity="0.7"/><rect x="80" y="10" width="10" height="10" fill="%23fff" opacity="0.5"/><rect x="10" y="30" width="10" height="10" fill="%23fff" opacity="0.8"/><rect x="30" y="40" width="10" height="10" fill="%23fff" opacity="0.6"/><rect x="50" y="30" width="10" height="10" fill="%23fff" opacity="0.9"/><rect x="70" y="50" width="10" height="10" fill="%23fff" opacity="0.7"/><rect x="90" y="40" width="10" height="10" fill="%23fff" opacity="0.5"/><rect x="0" y="60" width="10" height="10" fill="%23fff" opacity="0.8"/><rect x="20" y="70" width="10" height="10" fill="%23fff" opacity="0.6"/><rect x="40" y="60" width="10" height="10" fill="%23fff" opacity="0.9"/><rect x="60" y="80" width="10" height="10" fill="%23fff" opacity="0.7"/><rect x="80" y="70" width="10" height="10" fill="%23fff" opacity="0.5"/><rect x="10" y="90" width="10" height="10" fill="%23fff" opacity="0.8"/><rect x="30" y="80" width="10" height="10" fill="%23fff" opacity="0.6"/><rect x="50" y="90" width="10" height="10" fill="%23fff" opacity="0.9"/><rect x="70" y="70" width="10" height="10" fill="%23fff" opacity="0.7"/><rect x="90" y="80" width="10" height="10" fill="%23fff" opacity="0.5"/></svg>');
+            background-size: 100px 100px;
+            opacity: 1;
+            animation: reduceNoise 4s ease-in-out forwards;
+        }
+        .final-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            animation: revealImage 4s ease-in-out forwards;
+        }
+        .final-icon {
+            font-size: 80px;
+            color: white;
+        }
+        .step-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .step-dot.active {
+            background-color: #64ffda;
+            box-shadow: 0 0 10px rgba(100, 255, 218, 0.7);
+        }
+        .process-label {
+            position: absolute;
+            font-size: 18px;
+            font-weight: 500;
+            color: #a8b2d1;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .label-noise {
+            top: 20px;
+            left: 20px;
+            animation-delay: 0.5s;
+        }
+        .label-process {
+            top: 20px;
+            right: 20px;
+            animation-delay: 2s;
+        }
+        .label-result {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: 3.5s;
+        }
+        .pixel {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(100, 255, 218, 0.7);
+            border-radius: 2px;
+            opacity: 0;
+            animation: pixelAppear 0.5s ease-out forwards;
+        }
+        @keyframes reduceNoise {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        @keyframes revealImage {
+            0% {
+                opacity: 0;
+            }
+            70% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes pixelAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="tech-dots"></div>
+        <div class="content">
+            <h1 class="title">扩散模型：让AI学会'渐进创作'</h1>
+            <div class="main-content">
+                <div class="text-content">
+                    <p class="description">通过<span class="highlight">一系列中间步骤</span>，引导模型生成更<span class="highlight">准确</span>、<span class="highlight">逻辑强</span>的内容</p>
+                    <p class="description">像<span class="highlight">"像素拼图"</span>，一步步拼出高质量生成结果</p>
+                    <p class="description">从<span class="highlight">噪声</span>开始，逐步<span class="highlight">去噪</span>，最终形成<span class="highlight">清晰图像</span></p>
+                    <p class="description">在<span class="highlight">图像生成</span>、<span class="highlight">音频合成</span>等领域表现优异</p>
+                </div>
+                <div class="visual-content">
+                    <div class="diffusion-container">
+                        <div class="image-stages">
+                            <div class="image-stage">
+                                <div class="noise-overlay"></div>
+                                <div class="final-image">
+                                    <i class="material-icons final-icon">image</i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="process-label label-noise">噪声</div>
+                        <div class="process-label label-process">逐步去噪</div>
+                        <div class="process-label label-result">清晰图像</div>
+                        <div class="step-indicator">
+                            <div class="step-dot active"></div>
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

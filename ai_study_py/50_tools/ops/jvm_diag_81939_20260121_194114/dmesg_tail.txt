@@ -1,0 +1,200 @@
+[六 2月 15 15:31:39 2025] ahci 0000:02:01.0: irq 62 for MSI/MSI-X
+[六 2月 15 15:31:39 2025] ahci 0000:02:01.0: AHCI 0001.0300 32 slots 30 ports 6 Gbps 0x3fffffff impl SATA mode
+[六 2月 15 15:31:39 2025] ahci 0000:02:01.0: flags: 64bit ncq clo only 
+[六 2月 15 15:31:39 2025] scsi host2: ahci
+[六 2月 15 15:31:39 2025] scsi host3: ahci
+[六 2月 15 15:31:39 2025] scsi host4: ahci
+[六 2月 15 15:31:39 2025] scsi host5: ahci
+[六 2月 15 15:31:39 2025] scsi host6: ahci
+[六 2月 15 15:31:39 2025] scsi host7: ahci
+[六 2月 15 15:31:39 2025] scsi host8: ahci
+[六 2月 15 15:31:39 2025] scsi host9: ahci
+[六 2月 15 15:31:39 2025] scsi host10: ahci
+[六 2月 15 15:31:39 2025] scsi host11: ahci
+[六 2月 15 15:31:39 2025] scsi host12: ahci
+[六 2月 15 15:31:39 2025] scsi host13: ahci
+[六 2月 15 15:31:39 2025] scsi host14: ahci
+[六 2月 15 15:31:39 2025] scsi host15: ahci
+[六 2月 15 15:31:39 2025] scsi host16: ahci
+[六 2月 15 15:31:39 2025] scsi host17: ahci
+[六 2月 15 15:31:39 2025] scsi host18: ahci
+[六 2月 15 15:31:39 2025] scsi host19: ahci
+[六 2月 15 15:31:39 2025] scsi host20: ahci
+[六 2月 15 15:31:39 2025] scsi host21: ahci
+[六 2月 15 15:31:39 2025] scsi host22: ahci
+[六 2月 15 15:31:39 2025] scsi host23: ahci
+[六 2月 15 15:31:39 2025] scsi host24: ahci
+[六 2月 15 15:31:39 2025] scsi host25: ahci
+[六 2月 15 15:31:39 2025] scsi host26: ahci
+[六 2月 15 15:31:39 2025] scsi host27: ahci
+[六 2月 15 15:31:39 2025] scsi host28: ahci
+[六 2月 15 15:31:39 2025] scsi host29: ahci
+[六 2月 15 15:31:39 2025] scsi host30: ahci
+[六 2月 15 15:31:39 2025] scsi host31: ahci
+[六 2月 15 15:31:39 2025] ata3: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff100 irq 62
+[六 2月 15 15:31:39 2025] ata4: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff180 irq 62
+[六 2月 15 15:31:39 2025] ata5: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff200 irq 62
+[六 2月 15 15:31:39 2025] ata6: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff280 irq 62
+[六 2月 15 15:31:39 2025] ata7: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff300 irq 62
+[六 2月 15 15:31:39 2025] ata8: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff380 irq 62
+[六 2月 15 15:31:39 2025] ata9: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff400 irq 62
+[六 2月 15 15:31:39 2025] ata10: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff480 irq 62
+[六 2月 15 15:31:39 2025] ata11: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff500 irq 62
+[六 2月 15 15:31:39 2025] ata12: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff580 irq 62
+[六 2月 15 15:31:39 2025] ata13: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff600 irq 62
+[六 2月 15 15:31:39 2025] ata14: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff680 irq 62
+[六 2月 15 15:31:39 2025] ata15: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff700 irq 62
+[六 2月 15 15:31:39 2025] ata16: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff780 irq 62
+[六 2月 15 15:31:39 2025] ata17: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff800 irq 62
+[六 2月 15 15:31:39 2025] ata18: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff880 irq 62
+[六 2月 15 15:31:39 2025] ata19: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff900 irq 62
+[六 2月 15 15:31:39 2025] ata20: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ff980 irq 62
+[六 2月 15 15:31:39 2025] ata21: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffa00 irq 62
+[六 2月 15 15:31:39 2025] ata22: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffa80 irq 62
+[六 2月 15 15:31:39 2025] ata23: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffb00 irq 62
+[六 2月 15 15:31:39 2025] ata24: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffb80 irq 62
+[六 2月 15 15:31:39 2025] ata25: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffc00 irq 62
+[六 2月 15 15:31:39 2025] ata26: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffc80 irq 62
+[六 2月 15 15:31:39 2025] ata27: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffd00 irq 62
+[六 2月 15 15:31:39 2025] ata28: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffd80 irq 62
+[六 2月 15 15:31:39 2025] ata29: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffe00 irq 62
+[六 2月 15 15:31:39 2025] ata30: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5ffe80 irq 62
+[六 2月 15 15:31:39 2025] ata31: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5fff00 irq 62
+[六 2月 15 15:31:39 2025] ata32: SATA max UDMA/133 abar m4096@0xfd5ff000 port 0xfd5fff80 irq 62
+[六 2月 15 15:31:39 2025] scsi host1: ata_piix
+[六 2月 15 15:31:39 2025] scsi host32: ata_piix
+[六 2月 15 15:31:39 2025] ata1: PATA max UDMA/33 cmd 0x1f0 ctl 0x3f6 bmdma 0x1060 irq 14
+[六 2月 15 15:31:39 2025] ata2: PATA max UDMA/33 cmd 0x170 ctl 0x376 bmdma 0x1068 irq 15
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] 167772160 512-byte logical blocks: (85.8 GB/80.0 GiB)
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] Write Protect is off
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] Mode Sense: 61 00 00 00
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] Cache data unavailable
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] Assuming drive cache: write through
+[六 2月 15 15:31:39 2025]  sda: sda1 sda2
+[六 2月 15 15:31:39 2025] sd 0:0:0:0: [sda] Attached SCSI disk
+[六 2月 15 15:31:39 2025] [drm] DMA map mode: Keeping DMA mappings.
+[六 2月 15 15:31:39 2025] [drm] Capabilities:
+[六 2月 15 15:31:39 2025] [drm]   Rect copy.
+[六 2月 15 15:31:39 2025] [drm]   Cursor.
+[六 2月 15 15:31:39 2025] [drm]   Cursor bypass.
+[六 2月 15 15:31:39 2025] [drm]   Cursor bypass 2.
+[六 2月 15 15:31:39 2025] [drm]   8bit emulation.
+[六 2月 15 15:31:39 2025] [drm]   Alpha cursor.
+[六 2月 15 15:31:39 2025] [drm]   Extended Fifo.
+[六 2月 15 15:31:39 2025] [drm]   Multimon.
+[六 2月 15 15:31:39 2025] [drm]   Pitchlock.
+[六 2月 15 15:31:39 2025] [drm]   Irq mask.
+[六 2月 15 15:31:39 2025] [drm]   Display Topology.
+[六 2月 15 15:31:39 2025] [drm]   GMR.
+[六 2月 15 15:31:39 2025] [drm]   Traces.
+[六 2月 15 15:31:39 2025] [drm]   GMR2.
+[六 2月 15 15:31:39 2025] [drm]   Screen Object 2.
+[六 2月 15 15:31:39 2025] [drm]   Command Buffers.
+[六 2月 15 15:31:39 2025] [drm]   Command Buffers 2.
+[六 2月 15 15:31:39 2025] [drm]   Guest Backed Resources.
+[六 2月 15 15:31:39 2025] [drm]   DX Features.
+[六 2月 15 15:31:39 2025] [drm]   HP Command Queue.
+[六 2月 15 15:31:39 2025] [drm] Capabilities2:
+[六 2月 15 15:31:39 2025] [drm]   Grow oTable.
+[六 2月 15 15:31:39 2025] [drm]   IntraSurface copy.
+[六 2月 15 15:31:39 2025] [drm] Max GMR ids is 64
+[六 2月 15 15:31:39 2025] [drm] Max number of GMR pages is 65536
+[六 2月 15 15:31:39 2025] [drm] Max dedicated hypervisor surface memory is 0 kiB
+[六 2月 15 15:31:39 2025] [drm] Maximum display memory size is 8192 kiB
+[六 2月 15 15:31:39 2025] [drm] VRAM at 0xe8000000 size is 4096 kiB
+[六 2月 15 15:31:39 2025] [drm] MMIO at 0xfe000000 size is 256 kiB
+[六 2月 15 15:31:39 2025] [TTM] Zone  kernel: Available graphics memory: 3995062 kiB
+[六 2月 15 15:31:39 2025] [TTM] Zone   dma32: Available graphics memory: 2097152 kiB
+[六 2月 15 15:31:39 2025] [TTM] Initializing pool allocator
+[六 2月 15 15:31:39 2025] [TTM] Initializing DMA pool allocator
+[六 2月 15 15:31:39 2025] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[六 2月 15 15:31:39 2025] [drm] No driver support for vblank timestamp query.
+[六 2月 15 15:31:39 2025] [drm] Screen Target Display device initialized
+[六 2月 15 15:31:39 2025] [drm] width 800
+[六 2月 15 15:31:39 2025] [drm] height 480
+[六 2月 15 15:31:39 2025] [drm] bpp 32
+[六 2月 15 15:31:39 2025] [drm] Fifo max 0x00040000 min 0x00001000 cap 0x0000077f
+[六 2月 15 15:31:39 2025] [drm] Using command buffers with DMA pool.
+[六 2月 15 15:31:39 2025] [drm] DX: no.
+[六 2月 15 15:31:39 2025] [drm] Atomic: yes.
+[六 2月 15 15:31:39 2025] [drm] SM4_1: no.
+[六 2月 15 15:31:39 2025] fbcon: svgadrmfb (fb0) is primary device
+[六 2月 15 15:31:39 2025] Console: switching to colour frame buffer device 100x37
+[六 2月 15 15:31:39 2025] [drm] Initialized vmwgfx 2.15.0 20180704 for 0000:00:0f.0 on minor 0
+[六 2月 15 15:31:39 2025] ata7: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata8: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata6: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata9: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata11: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata10: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata4: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata5: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata14: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata22: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata20: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata13: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata29: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata16: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata21: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata19: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata18: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata28: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata27: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata12: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata3: SATA link up 6.0 Gbps (SStatus 133 SControl 300)
+[六 2月 15 15:31:39 2025] ata25: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata3.00: ATAPI: VMware Virtual SATA CDRW Drive, 00000001, max UDMA/33
+[六 2月 15 15:31:39 2025] ata3.00: configured for UDMA/33
+[六 2月 15 15:31:39 2025] ata23: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata17: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata24: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata26: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata30: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata31: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] scsi 2:0:0:0: CD-ROM            NECVMWar VMware SATA CD00 1.00 PQ: 0 ANSI: 5
+[六 2月 15 15:31:39 2025] ata15: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] ata32: SATA link down (SStatus 0 SControl 300)
+[六 2月 15 15:31:39 2025] sr 2:0:0:0: [sr0] scsi3-mmc drive: 1x/1x writer dvd-ram cd/rw xa/form2 cdda tray
+[六 2月 15 15:31:39 2025] cdrom: Uniform CD-ROM driver Revision: 3.20
+[六 2月 15 15:31:39 2025] sr 2:0:0:0: Attached scsi CD-ROM sr0
+[六 2月 15 15:31:39 2025] random: fast init done
+[六 2月 15 15:31:40 2025] SGI XFS with ACLs, security attributes, no debug enabled
+[六 2月 15 15:31:40 2025] XFS (dm-0): Mounting V5 Filesystem
+[六 2月 15 15:31:40 2025] XFS (dm-0): Starting recovery (logdev: internal)
+[六 2月 15 15:31:41 2025] XFS (dm-0): Ending recovery (logdev: internal)
+[六 2月 15 15:31:41 2025] random: crng init done
+[六 2月 15 15:31:41 2025] systemd-journald[111]: Received SIGTERM from PID 1 (systemd).
+[六 2月 15 15:31:41 2025] SELinux:  Disabled at runtime.
+[六 2月 15 15:31:41 2025] SELinux:  Unregistering netfilter hooks
+[六 2月 15 15:31:41 2025] type=1404 audit(1739604701.242:2): selinux=0 auid=4294967295 ses=4294967295
+[六 2月 15 15:31:41 2025] ip_tables: (C) 2000-2006 Netfilter Core Team
+[六 2月 15 15:31:41 2025] systemd[1]: Inserted module 'ip_tables'
+[六 2月 15 15:31:42 2025] systemd-journald[580]: Received request to flush runtime journal from PID 1
+[六 2月 15 15:31:43 2025] vmw_vmci 0000:00:07.7: Found VMCI PCI device at 0x11080, irq 16
+[六 2月 15 15:31:43 2025] vmw_vmci 0000:00:07.7: Using capabilities 0xc
+[六 2月 15 15:31:43 2025] vmw_vmci 0000:00:07.7: irq 63 for MSI/MSI-X
+[六 2月 15 15:31:43 2025] vmw_vmci 0000:00:07.7: irq 64 for MSI/MSI-X
+[六 2月 15 15:31:43 2025] Guest personality initialized and is active
+[六 2月 15 15:31:43 2025] VMCI host device registered (name=vmci, major=10, minor=58)
+[六 2月 15 15:31:43 2025] Initialized host personality
+[六 2月 15 15:31:43 2025] piix4_smbus 0000:00:07.3: SMBus Host Controller not enabled!
+[六 2月 15 15:31:44 2025] sd 0:0:0:0: Attached scsi generic sg0 type 0
+[六 2月 15 15:31:44 2025] sr 2:0:0:0: Attached scsi generic sg1 type 5
+[六 2月 15 15:31:44 2025] input: PC Speaker as /devices/platform/pcspkr/input/input4
+[六 2月 15 15:31:44 2025] cryptd: max_cpu_qlen set to 1000
+[六 2月 15 15:31:44 2025] ppdev: user-space parallel port driver
+[六 2月 15 15:31:44 2025] AVX2 version of gcm_enc/dec engaged.
+[六 2月 15 15:31:44 2025] AES CTR mode by8 optimization enabled
+[六 2月 15 15:31:44 2025] alg: No test for __gcm-aes-aesni (__driver-gcm-aes-aesni)
+[六 2月 15 15:31:44 2025] alg: No test for __generic-gcm-aes-aesni (__driver-generic-gcm-aes-aesni)
+[六 2月 15 15:31:44 2025] EDAC sbridge: Seeking for: PCI ID 8086:6fa0
+[六 2月 15 15:31:44 2025] EDAC sbridge:  Ver: 1.1.2 
+[六 2月 15 15:31:44 2025] XFS (sda1): Mounting V5 Filesystem
+[六 2月 15 15:31:47 2025] floppy0: no floppy controllers found
+[六 2月 15 15:32:12 2025] XFS (sda1): Starting recovery (logdev: internal)
+[六 2月 15 15:32:12 2025] XFS (sda1): Ending recovery (logdev: internal)
+[六 2月 15 15:32:13 2025] type=1305 audit(1739604732.964:3): audit_pid=733 old=0 auid=4294967295 ses=4294967295 res=1
+[六 2月 15 15:32:14 2025] NET: Registered protocol family 40
+[六 2月 15 15:32:15 2025] vmxnet3 0000:0b:00.0 ens192: intr type 3, mode 0, 5 vectors allocated
+[六 2月 15 15:32:15 2025] vmxnet3 0000:0b:00.0 ens192: NIC Link is Up 10000 Mbps
+[三 9月  3 16:05:24 2025] hrtimer: interrupt took 3272528 ns

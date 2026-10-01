@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token（词元）</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+        }
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #0a2463, #1e3a8a, #3b82f6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.15;
+            background-image: url('https://picsum.photos/seed/neural-network-abstract/1280/720.jpg');
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: 2;
+        }
+        .content {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            padding: 60px 80px;
+            flex-grow: 1;
+        }
+        .title {
+            font-size: 56px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+            opacity: 0;
+            transform: translateX(-50px);
+            animation: slideInFromLeft 0.8s ease-out forwards;
+        }
+        .section {
+            margin-bottom: 30px;
+            opacity: 0;
+        }
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #a5f3fc;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .section-title .material-icons {
+            margin-right: 10px;
+            font-size: 28px;
+        }
+        .section-content {
+            font-size: 20px;
+            color: #ffffff;
+            line-height: 1.6;
+            padding-left: 38px;
+        }
+        .section-content li {
+            margin-bottom: 10px;
+            list-style-type: none;
+            position: relative;
+        }
+        .section-content li:before {
+            content: "•";
+            color: #38bdf8;
+            font-weight: bold;
+            position: absolute;
+            left: -20px;
+        }
+        .highlight {
+            color: #fbbf24;
+            font-weight: 700;
+        }
+        .importance {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 4px solid #fbbf24;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 20px;
+        }
+        .importance .section-content {
+            padding-left: 0;
+        }
+        .importance .section-content li:before {
+            display: none;
+        }
+        .token-visual {
+            position: absolute;
+            right: 80px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+        .token-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 18px;
+            color: #ffffff;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .token-item:nth-child(1) { animation-delay: 1.5s; }
+        .token-item:nth-child(2) { animation-delay: 1.7s; }
+        .token-item:nth-child(3) { animation-delay: 1.9s; }
+        .token-item:nth-child(4) { animation-delay: 2.1s; }
+        .token-item:nth-child(5) { animation-delay: 2.3s; }
+        
+        @keyframes slideInFromLeft {
+            0% {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="background"></div>
+        <div class="grid-overlay"></div>
+        <div class="content">
+            <h1 class="title">Token（词元）</h1>
+            
+            <div class="section" style="animation: fadeIn 0.8s ease-out 0.5s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">lightbulb</i>一句话解释
+                </div>
+                <div class="section-content">
+                    大模型"阅读"和"书写"的<span class="highlight">最小单位</span>。
+                </div>
+            </div>
+            
+            <div class="section" style="animation: fadeIn 0.8s ease-out 0.8s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">info</i>详细说明
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li style="animation: popIn 0.5s ease-out 1.1s forwards; opacity: 0;">模型将文本切分为Token，如"apple"或"中"。</li>
+                        <li style="animation: popIn 0.5s ease-out 1.3s forwards; opacity: 0;">Token不一定是完整单词，可以是词缀、标点等。</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section importance" style="animation: fadeIn 0.8s ease-out 1.5s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">star</i>为什么重要
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li>决定模型处理能力（如上下文窗口<span class="highlight">4K/32K</span>）。</li>
+                        <li>是语言与数字之间的<span class="highlight">桥梁</span>。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="token-visual">
+            <div class="token-item">I</div>
+            <div class="token-item">love</div>
+            <div class="token-item">AI</div>
+            <div class="token-item">模型</div>
+            <div class="token-item">!</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "id": "video_visual",
+  "name": "视频画面描述",
+  "description": "生成视频画面提示词",
+  "content": "请根据以下内容生成详细的视频画面描述：\n\n脚本内容：{script}\n\n要求：\n- 描述要生动具体\n- 适合视频生成模型理解\n- 包含人物、场景、动作等元素\n- 画面风格：{style}\n\n请直接生成画面描述。",
+  "variables": [
+    "script",
+    "style"
+  ],
+  "category": "video"
+}

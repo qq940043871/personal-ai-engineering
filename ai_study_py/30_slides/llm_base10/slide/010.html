@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Window（上下文窗口）</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+        }
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(135deg, #0a2463, #1e3a8a, #3b82f6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.15;
+            background-image: url('https://picsum.photos/seed/neural-network-abstract/1280/720.jpg');
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+        }
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: 2;
+        }
+        .content {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            padding: 60px 80px;
+            flex-grow: 1;
+        }
+        .title {
+            font-size: 56px;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+            opacity: 0;
+            transform: translateY(-50px);
+            animation: slideInFromTop 0.8s ease-out forwards;
+        }
+        .section {
+            margin-bottom: 30px;
+            opacity: 0;
+        }
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #a5f3fc;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .section-title .material-icons {
+            margin-right: 10px;
+            font-size: 28px;
+        }
+        .section-content {
+            font-size: 20px;
+            color: #ffffff;
+            line-height: 1.6;
+            padding-left: 38px;
+        }
+        .section-content li {
+            margin-bottom: 10px;
+            list-style-type: none;
+            position: relative;
+        }
+        .section-content li:before {
+            content: "•";
+            color: #38bdf8;
+            font-weight: bold;
+            position: absolute;
+            left: -20px;
+        }
+        .highlight {
+            color: #fbbf24;
+            font-weight: 700;
+        }
+        .importance {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 4px solid #fbbf24;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 20px;
+        }
+        .importance .section-content {
+            padding-left: 0;
+        }
+        .importance .section-content li:before {
+            display: none;
+        }
+        .context-visual {
+            position: absolute;
+            right: 80px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 450px;
+            height: 400px;
+            opacity: 0;
+            animation: fadeIn 1s ease-out 1s forwards;
+        }
+        .context-diagram {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+            overflow: hidden;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .window-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .context-window {
+            width: 90%;
+            height: 120px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid #38bdf8;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 1.5s forwards;
+        }
+        .window-label {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #a5f3fc;
+        }
+        .token-stream {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+        .token {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            font-size: 14px;
+            opacity: 0;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .model-box {
+            width: 120px;
+            height: 120px;
+            background: rgba(251, 191, 36, 0.3);
+            border: 2px solid #fbbf24;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fbbf24;
+            font-weight: 700;
+            font-size: 16px;
+            text-align: center;
+            margin-top: 40px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 2s forwards;
+        }
+        .window-sizes {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        .window-size {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 8px 15px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .size-4k {
+            animation-delay: 2.2s;
+        }
+        .size-32k {
+            animation-delay: 2.4s;
+        }
+        .size-128k {
+            animation-delay: 2.6s;
+        }
+        .flow-arrow {
+            position: absolute;
+            left: 50%;
+            bottom: 160px;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 2.8s forwards;
+        }
+        .flow-arrow::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -4px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 10px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        @keyframes slideInFromTop {
+            0% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes popIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide">
+        <div class="background"></div>
+        <div class="grid-overlay"></div>
+        <div class="content">
+            <h1 class="title">Context Window（上下文窗口）</h1>
+            
+            <div class="section" style="animation: fadeIn 0.8s ease-out 0.5s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">lightbulb</i>一句话解释
+                </div>
+                <div class="section-content">
+                    模型的"<span class="highlight">短期记忆</span>"。
+                </div>
+            </div>
+            
+            <div class="section" style="animation: fadeIn 0.8s ease-out 0.8s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">info</i>详细说明
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li style="animation: popIn 0.5s ease-out 1.1s forwards; opacity: 0;">一次能处理的<span class="highlight">最大Token数量</span>。</li>
+                        <li style="animation: popIn 0.5s ease-out 1.3s forwards; opacity: 0;">如<span class="highlight">4K</span>、<span class="highlight">32K</span>、<span class="highlight">128K</span>。</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section importance" style="animation: fadeIn 0.8s ease-out 1.5s forwards;">
+                <div class="section-title">
+                    <i class="material-icons">star</i>为什么重要
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li>决定模型处理<span class="highlight">长文本</span>和<span class="highlight">多轮对话</span>的能力。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="context-visual">
+            <div class="context-diagram">
+                <div class="window-container">
+                    <div class="context-window">
+                        <div class="window-label">上下文窗口</div>
+                        <div class="token-stream">
+                            <div class="token" style="animation-delay: 1.7s;">我</div>
+                            <div class="token" style="animation-delay: 1.75s;">喜</div>
+                            <div class="token" style="animation-delay: 1.8s;">欢</div>
+                            <div class="token" style="animation-delay: 1.85s;">大</div>
+                            <div class="token" style="animation-delay: 1.9s;">模</div>
+                            <div class="token" style="animation-delay: 1.95s;">型</div>
+                            <div class="token" style="animation-delay: 2s;">的</div>
+                            <div class="token" style="animation-delay: 2.05s;">能</div>
+                            <div class="token" style="animation-delay: 2.1s;">力</div>
+                            <div class="token" style="animation-delay: 2.15s;">和</div>
+                            <div class="token" style="animation-delay: 2.2s;">潜</div>
+                            <div class="token" style="animation-delay: 2.25s;">力</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow"></div>
+                    
+                    <div class="model-box">
+                        <i class="material-icons" style="font-size: 36px; margin-bottom: 5px;">psychology</i>
+                        <div>大模型</div>
+                    </div>
+                </div>
+                
+                <div class="window-sizes">
+                    <div class="window-size size-4k">4K</div>
+                    <div class="window-size size-32k">32K</div>
+                    <div class="window-size size-128k">128K</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

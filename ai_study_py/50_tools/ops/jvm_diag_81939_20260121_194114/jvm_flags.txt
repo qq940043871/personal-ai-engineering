@@ -1,0 +1,2 @@
+81939:
+-XX:InitialHeapSize=1048576000 -XX:MaxHeapSize=1048576000 -XX:MaxPermSize=134217728 -XX:PermSize=67108864 -XX:+UseCompressedOops -XX:+UseParallelGC 

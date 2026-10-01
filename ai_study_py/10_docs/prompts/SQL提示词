@@ -1,0 +1,46 @@
+# 数据库类型
+[X] Mysql
+
+# 核心需求描述
+▢ 数据分析：需生成2023年上半年各省份季度销售额趋势分析报表，要求：
+1. 按省、季度两级分组
+2. 计算同比（较2022同期）增长情况
+3. 标识销售额超1亿的爆款产品影响比例
+4. 排除测试用户数据
+
+# 数据源说明
+## 主表
+- 表名：orders  
+- 关键字段：  
+  (order_id, user_id, product_id, amount, province_code, order_time, is_test) 
+
+## 关联表
+1. 表名：products  
+   - 关联方式：LEFT JOIN  
+   - 关联条件：products.p_id = orders.product_id  
+2. 表名：users  
+   - 关联方式：INNER JOIN  
+   - 关联条件：users.id = orders.user_id  
+       AND users.account_status = 'active'
+
+# 查询条件
+## 必选条件
+- [X] 时间范围：  
+  order_time BETWEEN '2023-01-01' AND '2023-06-30'  
+  AND order_time >= '2022-01-01' -- 用于同比计算
+
+# 结果处理
+## 聚合计算
+- [X] 分组维度：  
+  province_code
+
+## 排序与限制
+- [X] 排序字段：total_sales DESC  
+
+## 输出格式
+- [X] 列别名：  
+  quarter AS "季度",  
+  yoy_rate AS "同比增幅"
+- [X] 数字格式：  
+  total_sales → 999,999,999.99  
+  yoy_rate → 99.99%

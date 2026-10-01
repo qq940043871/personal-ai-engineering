@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提示工程：和AI'精准对话'</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0a192f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a192f 0%, #172a45 100%);
+        }
+        .tech-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(0, 149, 255, 0.3) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 60px 80px;
+        }
+        .title {
+            font-size: 50px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #ffffff;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 40px;
+        }
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .description {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+        .highlight {
+            color: #64ffda;
+            font-weight: 500;
+        }
+        .visual-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .prompt-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+        .ai-model {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .ai-icon {
+            font-size: 60px;
+            color: white;
+        }
+        .prompt {
+            position: absolute;
+            width: 180px;
+            height: 80px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.5);
+            opacity: 0;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .prompt-icon {
+            font-size: 36px;
+            color: white;
+            margin-right: 10px;
+        }
+        .prompt-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+        }
+        .prompt-1 {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0.5s;
+        }
+        .output {
+            position: absolute;
+            width: 180px;
+            height: 80px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(250, 112, 154, 0.5);
+            opacity: 0;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .output-icon {
+            font-size: 36px;
+            color: white;
+            margin-right: 10px;
+        }
+        .output-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+        }
+        .output-1 {
+            bottom: 20%;
+            right: 10%;
+            animation-delay: 1.5s;
+        }
+        .connection {
+            position: absolute;
+            background: rgba(100, 255, 218, 0.3);
+            opacity: 0;
+            animation: connect 1.5s ease-in-out forwards;
+        }
+        .connection-1 {
+            width: 4px;
+            height: 100px;
+            top: 30%;
+            left: 25%;
+            transform: rotate(45deg);
+            transform-origin: top left;
+            animation-delay: 1s;
+        }
+        .connection-2 {
+            width: 4px;
+            height: 100px;
+            bottom: 30%;
+            right: 25%;
+            transform: rotate(-45deg);
+            transform-origin: bottom right;
+            animation-delay: 2s;
+        }
+        .data-flow {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: rgba(100, 255, 218, 0.7);
+            opacity: 0;
+            animation: flow 2s ease-in-out infinite;
+        }
+        .flow-1 {
+            top: 40%;
+            left: 30%;
+            animation-delay: 1.2s;
+        }
+        .flow-2 {
+            bottom: 40%;
+            right: 30%;
+            animation-delay: 2.2s;
+        }
+        .examples {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+            animation-delay: 2.5s;
+        }
+        .example {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .example-icon {
+            font-size: 20px;
+            color: #64ffda;
+        }
+        .example-text {
+            font-size: 14px;
+            color: #a8b2d1;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05);
+                box-shadow: 0 15px 40px rgba(102, 126, 234, 0.7);
+            }
+        }
+        @keyframes slideIn {
+            0% {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        @keyframes connect {
+            0% {
+                opacity: 0;
+                height: 0;
+            }
+            100% {
+                opacity: 1;
+                height: 100px;
+            }
+        }
+        @keyframes flow {
+            0% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            20% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            80% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="tech-dots"></div>
+        <div class="content">
+            <h1 class="title">提示工程：和AI'精准对话'</h1>
+            <div class="main-content">
+                <div class="text-content">
+                    <p class="description">生成式AI中，靠<span class="highlight">精心设计</span>的提示（prompts）引导模型出<span class="highlight">特定结果</span></p>
+                    <p class="description">像给AI发<span class="highlight">"指令暗号"</span></p>
+                    <p class="description">让它写故事就给<span class="highlight">"奇幻故事开头"</span>指令</p>
+                    <p class="description">通过<span class="highlight">精准提示</span>获得<span class="highlight">高质量输出</span></p>
+                </div>
+                <div class="visual-content">
+                    <div class="prompt-container">
+                        <div class="ai-model">
+                            <i class="material-icons ai-icon">smart_toy</i>
+                        </div>
+                        <div class="prompt prompt-1">
+                            <i class="material-icons prompt-icon">chat</i>
+                            <span class="prompt-text">提示词输入</span>
+                        </div>
+                        <div class="output output-1">
+                            <i class="material-icons output-icon">auto_awesome</i>
+                            <span class="output-text">精准输出</span>
+                        </div>
+                        <div class="connection connection-1"></div>
+                        <div class="connection connection-2"></div>
+                        <div class="data-flow flow-1"></div>
+                        <div class="data-flow flow-2"></div>
+                        <div class="examples">
+                            <div class="example">
+                                <i class="material-icons example-icon">edit</i>
+                                <span class="example-text">写作</span>
+                            </div>
+                            <div class="example">
+                                <i class="material-icons example-icon">code</i>
+                                <span class="example-text">编程</span>
+                            </div>
+                            <div class="example">
+                                <i class="material-icons example-icon">translate</i>
+                                <span class="example-text">翻译</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

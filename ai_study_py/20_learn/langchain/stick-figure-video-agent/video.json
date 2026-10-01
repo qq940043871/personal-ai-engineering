@@ -1,0 +1,155 @@
+[
+    {
+        "frame_number": 1,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 100,
+                    "y": 300
+                },
+                "pose": {
+                    "left_arm_angle": -30,
+                    "right_arm_angle": 30,
+                    "left_leg_angle": -10,
+                    "right_leg_angle": 10,
+                    "body_tilt": -5
+                }
+            }
+        ],
+        "text": "火柴人开始运球前进"
+    },
+    {
+        "frame_number": 2,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 107,
+                    "y": 299
+                },
+                "pose": {
+                    "left_arm_angle": 15,
+                    "right_arm_angle": -15,
+                    "left_leg_angle": 5,
+                    "right_leg_angle": -5,
+                    "body_tilt": 0
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 3,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 115,
+                    "y": 298
+                },
+                "pose": {
+                    "left_arm_angle": 30,
+                    "right_arm_angle": -30,
+                    "left_leg_angle": 10,
+                    "right_leg_angle": -10,
+                    "body_tilt": 5
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 4,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 122,
+                    "y": 297
+                },
+                "pose": {
+                    "left_arm_angle": 15,
+                    "right_arm_angle": -15,
+                    "left_leg_angle": 5,
+                    "right_leg_angle": -5,
+                    "body_tilt": 2
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 5,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 130,
+                    "y": 296
+                },
+                "pose": {
+                    "left_arm_angle": -30,
+                    "right_arm_angle": 30,
+                    "left_leg_angle": -10,
+                    "right_leg_angle": 10,
+                    "body_tilt": -5
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 6,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 137,
+                    "y": 295
+                },
+                "pose": {
+                    "left_arm_angle": -15,
+                    "right_arm_angle": 15,
+                    "left_leg_angle": -5,
+                    "right_leg_angle": 5,
+                    "body_tilt": -2
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 7,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 145,
+                    "y": 294
+                },
+                "pose": {
+                    "left_arm_angle": 30,
+                    "right_arm_angle": -30,
+                    "left_leg_angle": 10,
+                    "right_leg_angle": -10,
+                    "body_tilt": 5
+                }
+            }
+        ]
+    },
+    {
+        "frame_number": 8,
+        "background": "basketball court with hoop on the right",
+        "stick_figures": [
+            {
+                "position": {
+                    "x": 152,
+                    "y": 293
+                },
+                "pose": {
+                    "left_arm_angle": 15,
+                    "right_arm_angle": -15,
+                    "left_leg_angle": 5,
+                    "right_leg_angle": -5,
+                    "body_tilt": 2
+                }
+            }
+        ]
+    }
+]

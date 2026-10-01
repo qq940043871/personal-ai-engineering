@@ -1,0 +1,11 @@
+{
+  "id": "video_script",
+  "name": "视频脚本生成",
+  "description": "生成抖音视频脚本",
+  "content": "请生成一个精彩的抖音短视频脚本，主题：{topic}\n\n要求：\n- 视频时长：{duration}秒\n- 适合抖音平台\n- 有吸引力的开头\n- 清晰的剧情发展\n- 令人印象深刻的结尾\n- 适合口语化表达\n\n请直接生成脚本内容，不需要额外说明。",
+  "variables": [
+    "topic",
+    "duration"
+  ],
+  "category": "video"
+}

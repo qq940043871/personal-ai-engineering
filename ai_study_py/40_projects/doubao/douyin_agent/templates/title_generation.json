@@ -1,0 +1,11 @@
+{
+  "id": "title_generation",
+  "name": "标题生成",
+  "description": "生成吸引人的视频标题",
+  "content": "请为以下内容生成一个吸引人的抖音标题：\n\n视频主题：{topic}\n内容描述：{description}\n\n要求：\n- 吸引人眼球\n- 适合抖音平台\n- 不超过30字\n- 可以使用emoji增加吸引力",
+  "variables": [
+    "topic",
+    "description"
+  ],
+  "category": "text"
+}

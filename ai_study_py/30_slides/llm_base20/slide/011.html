@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拟合：模型的'过拟合陷阱'</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0a192f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a192f 0%, #172a45 100%);
+        }
+        .tech-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(0, 149, 255, 0.3) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 60px 80px;
+        }
+        .title {
+            font-size: 50px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #ffffff;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 40px;
+        }
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .description {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #a8b2d1;
+            margin-bottom: 30px;
+        }
+        .highlight {
+            color: #64ffda;
+            font-weight: 500;
+        }
+        .visual-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .fitting-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+        }
+        .chart {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            height: 250px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .axis {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        .x-axis {
+            bottom: 30px;
+            left: 30px;
+            width: 290px;
+            height: 2px;
+        }
+        .y-axis {
+            bottom: 30px;
+            left: 30px;
+            width: 2px;
+            height: 190px;
+        }
+        .data-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4facfe;
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+        }
+        .noise-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #f5576c;
+            box-shadow: 0 0 10px rgba(245, 87, 108, 0.5);
+        }
+        .curve {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .good-fit {
+            stroke: #64ffda;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawCurve 2s ease-in-out forwards;
+        }
+        .over-fit {
+            stroke: #f5576c;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawCurve 2s ease-in-out 1s forwards;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .good-color {
+            background-color: #64ffda;
+        }
+        .over-color {
+            background-color: #f5576c;
+        }
+        .legend-text {
+            font-size: 16px;
+            color: #a8b2d1;
+        }
+        .model-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .model-icon-inner {
+            font-size: 30px;
+            color: white;
+        }
+        .comparison {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .comparison-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .comparison-item-1 {
+            animation-delay: 0.5s;
+        }
+        .comparison-item-2 {
+            animation-delay: 1.5s;
+        }
+        .comparison-icon {
+            font-size: 24px;
+            color: #64ffda;
+        }
+        .comparison-text {
+            font-size: 16px;
+            color: #a8b2d1;
+        }
+        @keyframes drawCurve {
+            0% {
+                stroke-dashoffset: 1000;
+            }
+            100% {
+                stroke-dashoffset: 0;
+            }
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 10px 20px rgba(102, 126, 234, 0.5);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 15px 30px rgba(102, 126, 234, 0.7);
+            }
+        }
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="tech-dots"></div>
+        <div class="content">
+            <h1 class="title">拟合：模型的'过拟合陷阱'</h1>
+            <div class="main-content">
+                <div class="text-content">
+                    <p class="description">机器学习中，模型<span class="highlight">过度学</span>训练数据<span class="highlight">噪声</span>和<span class="highlight">细节</span></p>
+                    <p class="description">新数据<span class="highlight">泛化力下降</span></p>
+                    <p class="description">像<span class="highlight">"背答案"</span>背太死，遇到新题不会做</p>
+                    <p class="description">需要找到<span class="highlight">平衡点</span>，既不过拟合也不欠拟合</p>
+                </div>
+                <div class="visual-content">
+                    <div class="fitting-container">
+                        <div class="chart">
+                            <div class="axis x-axis"></div>
+                            <div class="axis y-axis"></div>
+                            
+                            <!-- Data points -->
+                            <div class="data-point" style="bottom: 80px; left: 60px;"></div>
+                            <div class="data-point" style="bottom: 120px; left: 100px;"></div>
+                            <div class="data-point" style="bottom: 150px; left: 140px;"></div>
+                            <div class="data-point" style="bottom: 100px; left: 180px;"></div>
+                            <div class="data-point" style="bottom: 130px; left: 220px;"></div>
+                            <div class="data-point" style="bottom: 90px; left: 260px;"></div>
+                            
+                            <!-- Noise points -->
+                            <div class="noise-point" style="bottom: 170px; left: 80px;"></div>
+                            <div class="noise-point" style="bottom: 60px; left: 120px;"></div>
+                            <div class="noise-point" style="bottom: 180px; left: 160px;"></div>
+                            <div class="noise-point" style="bottom: 70px; left: 200px;"></div>
+                            <div class="noise-point" style="bottom: 160px; left: 240px;"></div>
+                            
+                            <!-- Curves -->
+                            <svg class="curve">
+                                <path class="good-fit" d="M 60,80 Q 160,110 260,90" />
+                                <path class="over-fit" d="M 60,80 Q 80,170 100,120 T 140,150 Q 160,180 180,100 T 220,130 Q 240,160 260,90" />
+                            </svg>
+                        </div>
+                        
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div class="legend-color good-color"></div>
+                                <span class="legend-text">良好拟合</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color over-color"></div>
+                                <span class="legend-text">过拟合</span>
+                            </div>
+                        </div>
+                        
+                        <div class="model-icon">
+                            <i class="material-icons model-icon-inner">model_training</i>
+                        </div>
+                        
+                        <div class="comparison">
+                            <div class="comparison-item comparison-item-1">
+                                <i class="material-icons comparison-icon">check_circle</i>
+                                <span class="comparison-text">捕捉主要趋势</span>
+                            </div>
+                            <div class="comparison-item comparison-item-2">
+                                <i class="material-icons comparison-icon">error</i>
+                                <span class="comparison-text">过度关注噪声</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

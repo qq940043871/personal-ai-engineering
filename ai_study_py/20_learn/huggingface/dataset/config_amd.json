@@ -1,0 +1,36 @@
+{
+  "model": {
+    "model_name_or_path": "openai-community/gpt2",
+    "quantization_bit": 4,
+    "load_in_4bit": true,
+    "low_cpu_mem_usage": true
+  },
+  "data": {
+    "dataset": "wikitext/wikitext-2-raw-v1",
+    "max_length": 64,
+    "packing": false
+  },
+  "lora": {
+    "lora_r": 4,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "target_modules": ["q_proj", "v_proj"],
+    "bias": "none"
+  },
+  "train": {
+    "output_dir": "./finetuned_model_amd",
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 128,
+    "learning_rate": 1e-4,
+    "num_train_epochs": 2,
+    "weight_decay": 0.01,
+    "fp16": false,
+    "bf16": false,
+    "optim": "paged_adamw_32bit",
+    "max_grad_norm": 0.3,
+    "save_strategy": "epoch",
+    "save_total_limit": 1,
+    "logging_steps": 10,
+    "report_to": "none"
+  }
+}
