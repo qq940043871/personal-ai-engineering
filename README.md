@@ -1,14 +1,16 @@
 # personal-ai-engineering
 
-个人 AI 工程学习工作区，聚合三个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验。
+个人 AI 工程学习工作区，聚合四个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库。
 
 ## 目录结构
 
 ```
 personal-ai-engineering/
-├── agent-harness/   # 多智能体运行时框架（课程跟学实践）
-├── ai_study_py/     # AI 学习主工程（框架学习 / 项目 / 工具）
-├── ollama-lab/      # 本地 Ollama 对话与 RAG 实验
+├── agent-harness/    # 多智能体运行时框架（课程跟学实践）
+├── ai_study_py/      # AI 学习主工程（框架学习 / 项目 / 工具）
+├── ai-study-note/    # AI 课程站 + 大模型面试题库（静态站点）
+├── ollama-lab/       # 本地 Ollama 对话与 RAG 实验
+├── README.md
 └── .gitignore
 ```
 
@@ -40,6 +42,20 @@ python main.py
 | `30_slides/` | 大模型基础 HTML 课件 |
 | `40_projects/` | 成型项目：豆包/方舟图片视频生成、自媒体 Agent、PDF 合同比对、小游戏 |
 | `50_tools/` | 独立小工具与运维脚本 |
+
+### [ai-study-note](ai-study-note/README.md)
+
+从机器学习基础到大语言模型的课程站，并入大模型面试题库（纯静态站点，161 个文件）。
+
+- 课程页：ML / DL / LLM / 学习路线图（`courses/`）
+- 面试题库：专项、期数、综合测试与架构图（`exam/`）
+- 内置 Markdown 在线查看器（`md-viewer.html`）
+
+```bash
+cd ai-study-note
+start.bat                        # 或 python -m http.server 3001
+# 浏览器打开 http://localhost:3001
+```
 
 ### [ollama-lab](ollama-lab/README.md)
 
