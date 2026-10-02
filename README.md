@@ -1,6 +1,6 @@
 # personal-ai-engineering
 
-个人 AI 工程学习工作区，聚合四个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库。
+个人 AI 工程学习工作区，聚合五个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库、AI 工作台门户。
 
 ## 目录结构
 
@@ -10,6 +10,7 @@ personal-ai-engineering/
 ├── ai_study_py/      # AI 学习主工程（框架学习 / 项目 / 工具）
 ├── ai-study-note/    # AI 课程站 + 大模型面试题库（静态站点）
 ├── ollama-lab/       # 本地 Ollama 对话与 RAG 实验
+├── ai-workbench/     # AI 工作台首页（触屏门户，单文件 HTML）
 ├── README.md
 └── .gitignore
 ```
@@ -60,6 +61,16 @@ start.bat                        # 或 python -m http.server 3001
 ### [ollama-lab](ollama-lab/README.md)
 
 本地 Ollama 实验：Flask 对话演示、检索增强生成（RAG）、搜索引擎集成，含分步教程（`study/`）。运行前提是本机已安装 Ollama 并拉取对应模型。
+
+### [ai-workbench](ai-workbench/index.html)
+
+工作区门户首页：暗色炫酷风格的单文件 HTML 工作台，聚合四个子项目的导航、启动命令与常用链接收藏。
+
+- 首页：问候 Hero、子项目统计、项目导航卡片（点击直达）
+- 启动页：各子项目启动命令一键复制，入口链接可视化编辑
+- 链接页：常用网址收藏（localStorage 本地存储，支持增删）
+
+双击 `ai-workbench/index.html` 即可在浏览器打开，离线可用，无需任何依赖。
 
 ## 仓库约定
 

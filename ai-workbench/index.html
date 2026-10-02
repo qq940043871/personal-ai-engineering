@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- ===== iPad 全屏 APP meta 三件套（勿删勿改）===== -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#0B1220">
+<title>AI 工作台</title>
+<style>
+  /* ===== 主题变量：ocean-dark（暗色炫酷）；换主题整体替换 :root，其余样式不动 ===== */
+  :root {
+    --bg: #0B1220;
+    --bg-soft: #101A2C;
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-solid: #131C2E;
+    --border: rgba(255, 255, 255, 0.10);
+    --text: #E6EDF7;
+    --text-2: #94A3B8;
+    --text-3: #64748B;
+    --primary: #22D3EE;
+    --secondary: #818CF8;
+    --accent: linear-gradient(135deg, #22D3EE 0%, #818CF8 100%);
+    --success: #34D399;
+    --warning: #FBBF24;
+    --danger: #F87171;
+    --glow: 0 0 24px rgba(34, 211, 238, 0.35);
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --radius-s: 12px; --radius-m: 16px; --radius-l: 24px;
+    --blur: saturate(160%) blur(18px);
+    /* 语义色的柔光底（图标芯片用），同为 token，随主题整体替换 */
+    --primary-soft: rgba(34, 211, 238, 0.14);
+    --secondary-soft: rgba(129, 140, 248, 0.14);
+    --success-soft: rgba(52, 211, 153, 0.14);
+    --warning-soft: rgba(251, 191, 36, 0.14);
+    /* 背景霓虹光斑 */
+    --orb-1: rgba(34, 211, 238, 0.14);
+    --orb-2: rgba(129, 140, 248, 0.16);
+    --mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body {
+    position: fixed; inset: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 16px; touch-action: manipulation;
+    -webkit-user-select: none; -webkit-touch-callout: none; user-select: none;
+  }
+  input, textarea, select { -webkit-user-select: auto; user-select: auto; }
+
+  /* ===== 背景霓虹光斑（纯装饰，不可点）===== */
+  .orbs { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(70px); }
+  .orb-1 { width: 460px; height: 460px; background: var(--orb-1); top: -160px; right: -140px; animation: drift1 16s ease-in-out infinite alternate; }
+  .orb-2 { width: 520px; height: 520px; background: var(--orb-2); bottom: -220px; left: -180px; animation: drift2 20s ease-in-out infinite alternate; }
+  @keyframes drift1 { from { transform: translate(0, 0); } to { transform: translate(-40px, 50px); } }
+  @keyframes drift2 { from { transform: translate(0, 0); } to { transform: translate(60px, -40px); } }
+
+  /* ===== 布局骨架 ===== */
+  .app {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; height: 100dvh; width: 100%;
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .app-header {
+    flex: none; height: 56px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 20px;
+  }
+  .app-header-title { font-size: 22px; font-weight: 700; }
+  .app-main {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    width: 100%; max-width: 720px; margin: 0 auto; padding: 8px 20px;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 84px + 20px);
+    scrollbar-width: none;
+  }
+  .app-main::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .cmd-text { scrollbar-width: none; }
+  .cmd-text::-webkit-scrollbar { height: 0; display: none; }
+
+  /* ===== tabbar ===== */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; max-width: 720px; margin: 0 auto;
+    background: var(--surface-solid);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar-item {
+    flex: 1; min-height: 64px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-2); font-size: 11px;
+  }
+  .tabbar-item.active { color: var(--primary); }
+  .tabbar-item svg { width: 24px; height: 24px; }
+
+  /* ===== 触控反馈 ===== */
+  .tap { cursor: pointer; transition: transform .15s, opacity .15s; }
+  .tap:active { transform: scale(0.96); opacity: 0.85; }
+  @media (hover: hover) { .tap:hover { opacity: 0.92; } }
+
+  /* ===== 页面段切换 ===== */
+  .page { display: none; animation: fadein .15s ease; }
+  .page.active { display: block; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ===== 通用组件 ===== */
+  .icon-btn {
+    width: 50px; height: 50px; border: none; border-radius: 50%;
+    background: var(--surface); color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn svg { width: 22px; height: 22px; }
+  .hidden { display: none !important; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-m); padding: 16px; margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 4px; }
+  .stat-card { margin-bottom: 0; display: flex; flex-direction: column; gap: 10px; }
+  .stat-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+  .stat-icon svg { width: 22px; height: 22px; }
+  .stat-value { font-size: 34px; font-weight: 700; line-height: 1.1; }
+  .stat-label { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+
+  .section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; color: var(--text-2);
+    letter-spacing: 2px; margin: 20px 2px 12px;
+  }
+  .section-title::before { content: ''; width: 4px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  /* ===== Hero（首页头卡）===== */
+  .hero { position: relative; overflow: hidden; padding: 26px 22px 24px; margin-bottom: 16px; }
+  .hero::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); opacity: 0.85; }
+  .hero-kicker { font-size: 13px; color: var(--text-2); letter-spacing: 1px; }
+  .hero-title {
+    margin-top: 8px; font-size: 40px; font-weight: 800; line-height: 1.15; letter-spacing: 1px;
+    background: var(--accent); -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+  }
+  .hero-sub { font-size: 14px; color: var(--text-2); margin-top: 10px; line-height: 1.6; }
+  .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .pill {
+    font-size: 12px; color: var(--text-2); padding: 6px 14px;
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 999px;
+  }
+
+  /* ===== 子项目卡片 ===== */
+  .proj-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 560px) { .proj-grid { grid-template-columns: repeat(2, 1fr); } }
+  .proj-card {
+    width: 100%; text-align: left; font-family: inherit;
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-m); padding: 16px; margin-bottom: 0;
+    box-shadow: var(--shadow); color: var(--text);
+  }
+  @media (hover: hover) {
+    .proj-card:hover { transform: translateY(-2px); border-color: rgba(34, 211, 238, 0.35); }
+  }
+  .proj-head { display: flex; align-items: center; gap: 12px; }
+  .chip { width: 44px; height: 44px; flex: none; border-radius: 13px; display: flex; align-items: center; justify-content: center; }
+  .chip svg { width: 22px; height: 22px; }
+  .proj-name { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; }
+  .proj-open { color: var(--text-3); flex: none; }
+  .proj-open svg { width: 18px; height: 18px; }
+  .proj-desc {
+    font-size: 13px; color: var(--text-2); line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 11px; color: var(--text-2); padding: 3px 10px;
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 999px;
+  }
+  .foot-hint { font-size: 13px; color: var(--text-2); text-align: center; margin: 18px 0 4px; line-height: 1.6; }
+
+  /* ===== 启动指南卡 ===== */
+  .launch-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .launch-name { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; }
+  .launch-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  .cmd-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-radius: var(--radius-s); padding: 6px 6px 6px 14px; margin: 12px 0;
+  }
+  .cmd-text {
+    flex: 1; min-width: 0; font-family: var(--mono); font-size: 13px; color: var(--primary);
+    white-space: nowrap; overflow-x: auto; padding: 8px 0;
+  }
+  .copy-btn { width: 50px; height: 50px; flex: none; border: none; border-radius: var(--radius-s); background: transparent; color: var(--text-2); display: flex; align-items: center; justify-content: center; }
+  .copy-btn svg { width: 20px; height: 20px; }
+  .cmd-none { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); background: var(--bg-soft); border: 1px dashed var(--border); border-radius: var(--radius-s); padding: 14px; margin: 12px 0; }
+  .cmd-none svg { width: 16px; height: 16px; flex: none; }
+  .launch-btns { display: flex; gap: 8px; }
+  .launch-btns .btn { flex: 1; }
+
+  /* ===== 按钮 ===== */
+  .btn {
+    min-height: 52px; min-width: 52px; padding: 0 24px;
+    border: none; border-radius: var(--radius-m);
+    font-size: 17px; font-weight: 600; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary { background: var(--accent); color: var(--bg); box-shadow: var(--glow); }
+  .btn-secondary { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-ghost { background: transparent; color: var(--text-2); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-block { width: 100%; }
+  .btn svg { width: 20px; height: 20px; }
+
+  /* ===== 快捷链接列表 ===== */
+  .list-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-m); overflow: hidden; box-shadow: var(--shadow);
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font-family: inherit;
+    min-height: 64px; padding: 10px 8px 10px 14px;
+    background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text);
+  }
+  .list-card .row:last-child { border-bottom: none; }
+  .row-icon { width: 40px; height: 40px; flex: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+  .row-icon svg { width: 20px; height: 20px; }
+  .row-title { font-size: 16px; color: var(--text); }
+  .row-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .row-grow { flex: 1; min-width: 0; }
+  .row-del { width: 50px; height: 50px; flex: none; border: none; border-radius: 50%; background: transparent; color: var(--text-3); display: flex; align-items: center; justify-content: center; }
+  .row-del svg { width: 19px; height: 19px; }
+  .row-del:active { color: var(--danger); }
+  .links-add-wrap { margin-top: 16px; }
+
+  /* ===== 空状态 ===== */
+  .empty { display: none; flex-direction: column; align-items: center; gap: 14px; padding: 44px 20px; text-align: center; }
+  .empty.show { display: flex; }
+  .empty svg { width: 80px; height: 80px; color: var(--text-3); opacity: 0.7; }
+  .empty-text { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+
+  /* ===== 表单 ===== */
+  .field { margin-bottom: 16px; }
+  .field-label { display: block; font-size: 14px; color: var(--text-2); margin-bottom: 6px; }
+  .field-input {
+    width: 100%; min-height: 48px; padding: 10px 14px;
+    font-size: 16px; color: var(--text); font-family: inherit;
+    background: var(--bg-soft); border: 1.5px solid var(--border);
+    border-radius: var(--radius-s);
+  }
+  .field-input:focus { outline: none; border-color: var(--primary); }
+  .field-input.error { border-color: var(--danger); }
+  .field-err { display: none; font-size: 13px; color: var(--danger); margin-top: 6px; }
+  .field-err.show { display: block; }
+  .sheet-title { font-size: 18px; font-weight: 700; margin-bottom: 18px; }
+  .seg { display: flex; gap: 8px; }
+  .seg-item {
+    flex: 1; min-height: 48px; font-size: 13px; font-family: inherit;
+    border-radius: var(--radius-s); border: 1.5px solid var(--border);
+    background: var(--bg-soft); color: var(--text-2);
+  }
+  .seg-item.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+
+  /* ===== 弹层：sheet / 确认 modal / toast ===== */
+  .sheet-mask {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.45);
+    opacity: 0; pointer-events: none; transition: opacity 220ms;
+  }
+  .sheet-mask.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 51;
+    max-width: 720px; margin: 0 auto;
+    padding: 20px 20px calc(env(safe-area-inset-bottom) + 20px);
+    background: var(--surface-solid);
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    transform: translateY(100%); transition: transform 220ms ease;
+  }
+  .sheet.open { transform: translateY(0); }
+
+  .modal-wrap {
+    position: fixed; inset: 0; z-index: 55;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0; pointer-events: none; transition: opacity 200ms;
+  }
+  .modal-wrap.open { opacity: 1; pointer-events: auto; }
+  .modal-center {
+    width: min(340px, 86vw);
+    background: var(--surface-solid); border: 1px solid var(--border);
+    border-radius: var(--radius-l); padding: 24px;
+    transform: scale(0.95); transition: transform 200ms;
+  }
+  .modal-wrap.open .modal-center { transform: scale(1); }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .modal-body { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; word-break: break-all; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-btns .btn { flex: 1; }
+
+  .toast {
+    position: fixed; top: calc(env(safe-area-inset-top) + 16px); left: 50%;
+    transform: translateX(-50%); z-index: 60;
+    background: var(--surface-solid); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 10px 22px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity 200ms;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="orbs" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+</div>
+
+<div class="app">
+  <header class="app-header">
+    <div class="app-header-title" id="pageTitle">AI 工作台</div>
+    <button class="icon-btn tap hidden" id="btnAddLink" aria-label="添加快捷链接"></button>
+  </header>
+
+  <main class="app-main">
+
+    <!-- 页面段 1：首页门户 -->
+    <section class="page active" id="page-home">
+      <div class="card hero">
+        <div class="hero-kicker" id="heroKicker">你好</div>
+        <div class="hero-title">AI 工作台</div>
+        <div class="hero-sub">个人 AI 工程学习工作区 · 多智能体框架 / AI 技术栈学习 / 课程站 / 本地大模型实验</div>
+        <div class="hero-pills">
+          <span class="pill" id="pillDate"></span>
+          <span class="pill">4 个子项目 · 持续更新</span>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="statGrid"><!-- 统计卡由 JS 渲染 --></div>
+
+      <div class="section-title">子项目导航</div>
+      <div class="proj-grid" id="projGrid"><!-- 项目卡由 JS 渲染 --></div>
+
+      <div class="foot-hint">在「启动」页可修改每个子项目的入口链接与启动命令<br>常用网址可在「链接」页添加收藏</div>
+    </section>
+
+    <!-- 页面段 2：启动指南 -->
+    <section class="page" id="page-launch">
+      <div id="launchList"><!-- 启动卡由 JS 渲染 --></div>
+    </section>
+
+    <!-- 页面段 3：快捷链接 -->
+    <section class="page" id="page-links">
+      <div class="list-card" id="linkList"></div>
+      <div class="empty" id="linkEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <div class="empty-text">还没有快捷链接<br>把常用的课程、工具、本地服务地址收进来</div>
+        <button class="btn btn-primary tap" id="btnEmptyAdd">添加第一个链接</button>
+      </div>
+      <div class="links-add-wrap" id="linksAddWrap">
+        <button class="btn btn-primary btn-block tap" id="btnBottomAdd">添加快捷链接</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 底部 tabbar：图标全部内联 SVG -->
+<nav class="tabbar">
+  <button class="tabbar-item tap active" data-page="page-home" aria-label="首页">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg>
+    <span>首页</span>
+  </button>
+  <button class="tabbar-item tap" data-page="page-launch" aria-label="启动">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg>
+    <span>启动</span>
+  </button>
+  <button class="tabbar-item tap" data-page="page-links" aria-label="链接">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span>链接</span>
+  </button>
+</nav>
+
+<!-- 添加快捷链接 sheet -->
+<div class="sheet-mask" id="sheetMask"></div>
+<div class="sheet" id="addSheet">
+  <div class="sheet-title">添加快捷链接</div>
+  <div class="field">
+    <label class="field-label" for="inpLinkTitle">名称</label>
+    <input class="field-input" id="inpLinkTitle" type="text" maxlength="30" placeholder="如：Ollama 服务">
+    <div class="field-err" id="errLinkTitle"></div>
+  </div>
+  <div class="field">
+    <label class="field-label" for="inpLinkUrl">地址</label>
+    <input class="field-input" id="inpLinkUrl" type="text" maxlength="500" placeholder="http:// 或 https:// 或 file://">
+    <div class="field-err" id="errLinkUrl"></div>
+  </div>
+  <div class="field">
+    <label class="field-label">分类</label>
+    <div class="seg" id="segCategory">
+      <button class="seg-item tap active" data-cat="本地服务">本地服务</button>
+      <button class="seg-item tap" data-cat="课程">课程</button>
+      <button class="seg-item tap" data-cat="工具">工具</button>
+      <button class="seg-item tap" data-cat="其他">其他</button>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-block tap" id="btnSaveLink">保存</button>
+</div>
+
+<!-- 编辑子项目入口 sheet -->
+<div class="sheet" id="editSheet">
+  <div class="sheet-title">编辑子项目入口</div>
+  <div class="field">
+    <label class="field-label">子项目</label>
+    <input class="field-input" id="editProjName" type="text" readonly>
+  </div>
+  <div class="field">
+    <label class="field-label" for="editProjUrl">入口链接</label>
+    <input class="field-input" id="editProjUrl" type="text" maxlength="500" placeholder="http:// 或 https:// 或 file://">
+    <div class="field-err" id="errProjUrl"></div>
+  </div>
+  <div class="field">
+    <label class="field-label" for="editProjCmd">启动命令（留空则显示「无需启动」）</label>
+    <input class="field-input" id="editProjCmd" type="text" maxlength="200" placeholder="如：python main.py">
+  </div>
+  <button class="btn btn-primary btn-block tap" id="btnSaveProj">保存</button>
+</div>
+
+<!-- 删除确认 modal -->
+<div class="modal-wrap" id="delModal">
+  <div class="modal-center">
+    <div class="modal-title">删除快捷链接</div>
+    <div class="modal-body" id="delModalBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost tap" id="btnDelCancel">取消</button>
+      <button class="btn btn-danger tap" id="btnDelConfirm">删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 1. 数据层：WorkbenchDB（ES5 + localStorage）===== */
+var WorkbenchDB = (function () {
+  var PREFIX = 'workbench:';
+  var schemas = {}; // table -> schema
+
+  function nowIso() { return new Date().toISOString(); }
+  function genId() { return 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
+  function storeKey(table) { return PREFIX + table; }
+  function copy(v) { return JSON.parse(JSON.stringify(v)); }
+
+  function readAll(table) {
+    try {
+      var raw = window.localStorage.getItem(storeKey(table));
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function writeAll(table, rows) {
+    window.localStorage.setItem(storeKey(table), JSON.stringify(rows));
+  }
+
+  function coerce(field, value) {
+    if (value === undefined || value === null || value === '') {
+      return field.default !== undefined ? copy(field.default) : null;
+    }
+    if (field.type === 'number') { var n = Number(value); return isNaN(n) ? 0 : n; }
+    if (field.type === 'boolean') { return value === true || value === 'true' || value === 1; }
+    return String(value);
+  }
+
+  function autoValue(name) {
+    if (name === 'id') { return genId(); }
+    if (name === 'created_at') { return nowIso(); }
+    return undefined;
+  }
+
+  function normalize(schema, row, isInsert) {
+    var out = {}, i, f, v;
+    row = row || {};
+    for (i = 0; i < schema.fields.length; i++) {
+      f = schema.fields[i];
+      if (row[f.name] !== undefined && row[f.name] !== null) {
+        v = row[f.name];
+      } else if (isInsert && f.auto) {
+        v = autoValue(f.name);
+      } else {
+        v = undefined;
+      }
+      v = coerce(f, v);
+      if (v !== null && f.maxLength && typeof v === 'string' && v.length > f.maxLength) {
+        v = v.slice(0, f.maxLength);
+      }
+      out[f.name] = v;
+    }
+    return out;
+  }
+
+  function validate(schema, row) {
+    var errors = [], i, f;
+    for (i = 0; i < schema.fields.length; i++) {
+      f = schema.fields[i];
+      if (f.auto) { continue; }
+      if (f.required && (row[f.name] === null || row[f.name] === undefined || row[f.name] === '')) {
+        errors.push((f.label || f.name) + ' 不能为空');
+      }
+      if (row[f.name] !== null && f.type === 'enum' && f.options && f.options.indexOf(row[f.name]) === -1) {
+        errors.push((f.label || f.name) + ' 取值无效');
+      }
+    }
+    return errors;
+  }
+
+  function init(schema) {
+    schemas[schema.table] = schema;
+    if (schema.seed && schema.seed.length && readAll(schema.table).length === 0) {
+      var rows = [], i;
+      for (i = 0; i < schema.seed.length; i++) { rows.push(normalize(schema, schema.seed[i], true)); }
+      writeAll(schema.table, rows);
+    }
+    return schema;
+  }
+
+  function list(table, filterFn) {
+    var rows = readAll(table);
+    rows.sort(function (a, b) {
+      var ca = a.created_at || '', cb = b.created_at || '';
+      return ca < cb ? 1 : (ca > cb ? -1 : 0);
+    });
+    if (typeof filterFn === 'function') {
+      return rows.filter(function (r) { return filterFn(r); });
+    }
+    return rows;
+  }
+
+  function insert(table, row) {
+    var schema = schemas[table];
+    if (!schema) { return { ok: false, errors: ['表未 init: ' + table], row: null }; }
+    var rec = normalize(schema, row, true);
+    var errs = validate(schema, rec);
+    if (errs.length) { return { ok: false, errors: errs, row: null }; }
+    var rows = readAll(table);
+    rows.push(rec);
+    writeAll(table, rows);
+    return { ok: true, errors: [], row: rec };
+  }
+
+  function mixin(base, patch) {
+    var out = copy(base), k;
+    for (k in patch) {
+      if (Object.prototype.hasOwnProperty.call(patch, k)) { out[k] = patch[k]; }
+    }
+    return out;
+  }
+
+  function update(table, id, patch) {
+    var schema = schemas[table];
+    if (!schema) { return { ok: false, errors: ['表未 init: ' + table], row: null }; }
+    var rows = readAll(table), i, found = -1;
+    for (i = 0; i < rows.length; i++) { if (rows[i].id === id) { found = i; break; } }
+    if (found === -1) { return { ok: false, errors: ['记录不存在'], row: null }; }
+    var merged = normalize(schema, mixin(rows[found], patch || {}), false);
+    var errs = validate(schema, merged);
+    if (errs.length) { return { ok: false, errors: errs, row: null }; }
+    rows[found] = merged;
+    writeAll(table, rows);
+    return { ok: true, errors: [], row: merged };
+  }
+
+  function remove(table, id) {
+    var rows = readAll(table);
+    var next = rows.filter(function (r) { return r.id !== id; });
+    writeAll(table, next);
+    return rows.length - next.length;
+  }
+
+  function clear(table) { writeAll(table, []); }
+
+  return {
+    init: init, list: list, insert: insert,
+    update: update, remove: remove, clear: clear
+  };
+})();
+
+/* ===== 2. 业务逻辑（ES5）===== */
+
+/* 图标库：24×24 内联 SVG，stroke 继承 currentColor */
+var ICONS = {
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
+  flask: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2h5"/><path d="M10 2v6.5L4.7 17.9A2 2 0 0 0 6.4 21h11.2a2 2 0 0 0 1.7-3.1L14 8.5V2"/><path d="M7.4 14h9.2"/></svg>',
+  bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="3.5" r="1.5"/><path d="M9 13v2M15 13v2"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  cap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 9 10-5 10 5-10 5L2 9z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5"/></svg>',
+  wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  server: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>'
+};
+
+/* 语义色 → [主色, 柔光底]（全部走 token） */
+var COLOR_MAP = {
+  primary:   ['var(--primary)', 'var(--primary-soft)'],
+  secondary: ['var(--secondary)', 'var(--secondary-soft)'],
+  success:   ['var(--success)', 'var(--success-soft)'],
+  warning:   ['var(--warning)', 'var(--warning-soft)']
+};
+
+/* 快捷链接分类 → [图标, 主色, 柔光底] */
+var CAT_MAP = {
+  '本地服务': ['server', 'primary'],
+  '课程':    ['cap', 'secondary'],
+  '工具':    ['wrench', 'success'],
+  '其他':    ['link', 'warning']
+};
+
+/* 项目图标：key → svg 名 */
+var PROJECT_ICON = { harness: 'bot', study: 'book', note: 'cap', ollama: 'flask' };
+
+/* 统计卡：子项目数从数据层取，其余为静态数字（数据截至 2026-10-02，可在此更新） */
+var STAT_STATIC = [
+  { icon: 'layers', label: '框架学习专题', value: '11' },
+  { icon: 'file', label: '课程与文档', value: '114' },
+  { icon: 'flask', label: '本地实验脚本', value: '3' }
+];
+
+/* ===== 表结构定义（同时驱动表单、校验与存储）===== */
+var PROJECT_SCHEMA = {
+  table: 'projects',
+  display: '子项目',
+  fields: [
+    { name: 'id', type: 'string', auto: 'id', required: true },
+    { name: 'key', type: 'string', required: false, default: '', maxLength: 20, label: '标识' },
+    { name: 'name', type: 'string', required: true, maxLength: 40, label: '名称' },
+    { name: 'desc', type: 'text', required: false, default: '', maxLength: 200, label: '简介' },
+    { name: 'tags', type: 'string', required: false, default: '', maxLength: 100, label: '标签' },
+    { name: 'color', type: 'enum', required: false, default: 'primary', options: ['primary', 'secondary', 'success', 'warning'], label: '主题色' },
+    { name: 'url', type: 'string', required: false, default: '', maxLength: 500, label: '入口链接' },
+    { name: 'cmd', type: 'text', required: false, default: '', maxLength: 200, label: '启动命令' },
+    { name: 'order', type: 'number', required: false, default: 0, label: '排序' },
+    { name: 'created_at', type: 'datetime', auto: 'now', required: true }
+  ],
+  seed: [
+    { key: 'harness', name: 'agent-harness', order: 1, color: 'primary',
+      desc: '基于《从 0 开始构建 Agent Harness》的多智能体运行时：多 Provider 接入、工具系统、会话管理与上下文压缩。',
+      tags: 'Agent,多Provider,CLI/Web/GUI',
+      url: 'file:///D:/ai_person/personal-ai-engineering/agent-harness',
+      cmd: 'python main.py' },
+    { key: 'study', name: 'ai_study_py', order: 2, color: 'secondary',
+      desc: 'AI 学习主工程：PyTorch / Paddle / HuggingFace / LangChain / Dify 等框架学习与成型项目。',
+      tags: '框架学习,项目,工具',
+      url: 'file:///D:/ai_person/personal-ai-engineering/ai_study_py',
+      cmd: '' },
+    { key: 'note', name: 'ai-study-note', order: 3, color: 'success',
+      desc: '从机器学习基础到大语言模型的课程站，并入大模型面试题库与在线 Markdown 查看器。',
+      tags: '课程站,面试题库,静态站点',
+      url: 'http://localhost:3001',
+      cmd: 'python -m http.server 3001' },
+    { key: 'ollama', name: 'ollama-lab', order: 4, color: 'warning',
+      desc: '本地 Ollama 实验：多轮对话、搜索引擎集成与 RAG 检索增强生成，含分步教程。',
+      tags: 'Ollama,RAG,本地实验',
+      url: 'file:///D:/ai_person/personal-ai-engineering/ollama-lab',
+      cmd: 'python 01_ollama对话.py' }
+  ]
+};
+
+var LINK_SCHEMA = {
+  table: 'links',
+  display: '快捷链接',
+  fields: [
+    { name: 'id', type: 'string', auto: 'id', required: true },
+    { name: 'title', type: 'string', required: true, maxLength: 30, label: '名称', placeholder: '如：Ollama 服务' },
+    { name: 'url', type: 'string', required: true, maxLength: 500, label: '地址' },
+    { name: 'category', type: 'enum', required: true, default: '本地服务', options: ['本地服务', '课程', '工具', '其他'], label: '分类' },
+    { name: 'created_at', type: 'datetime', auto: 'now', required: true }
+  ],
+  seed: [
+    { title: 'Ollama 服务', url: 'http://localhost:11434', category: '本地服务' },
+    { title: 'Hugging Face', url: 'https://huggingface.co', category: '工具' },
+    { title: 'GitHub', url: 'https://github.com', category: '工具' }
+  ]
+};
+
+var PAGE_TITLES = { 'page-home': 'AI 工作台', 'page-launch': '启动指南', 'page-links': '快捷链接' };
+
+var PROJECTS = [];
+var LINKS = [];
+var editingProjectId = null;
+var deletingLinkId = null;
+var selectedCategory = '本地服务';
+var toastTimer = null;
+
+function $(id) { return document.getElementById(id); }
+
+function escapeHtml(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function chipStyle(colorName) {
+  var c = COLOR_MAP[colorName] || COLOR_MAP.primary;
+  return 'color:' + c[0] + ';background:' + c[1] + ';';
+}
+
+function showToast(msg) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) { clearTimeout(toastTimer); }
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2000);
+}
+
+function openUrl(url) {
+  if (!url) { showToast('该子项目还没有入口链接'); return; }
+  var a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function validUrl(u) {
+  return /^(https?:\/\/|file:\/\/)/i.test(u);
+}
+
+function copyText(text) {
+  if (!text) { return; }
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  showToast(ok ? '已复制到剪贴板' : '复制失败，请长按命令手动复制');
+}
+
+/* ===== 渲染 ===== */
+
+function renderHero() {
+  var d = new Date();
+  var weeks = ['日', '一', '二', '三', '四', '五', '六'];
+  var h = d.getHours(), greet;
+  if (h < 6) { greet = '夜深了'; }
+  else if (h < 12) { greet = '早上好'; }
+  else if (h < 14) { greet = '中午好'; }
+  else if (h < 18) { greet = '下午好'; }
+  else { greet = '晚上好'; }
+  $('heroKicker').textContent = greet + '，继续充电';
+  $('pillDate').textContent = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · 星期' + weeks[d.getDay()];
+}
+
+function renderStats() {
+  var cards = [{ icon: 'grid', label: '子项目', value: String(PROJECTS.length) }].concat(STAT_STATIC);
+  var html = '', i, c;
+  for (i = 0; i < cards.length; i++) {
+    c = cards[i];
+    var colorName = ['primary', 'secondary', 'success', 'warning'][i % 4];
+    html += '<div class="card stat-card">'
+      + '<div class="stat-icon" style="' + chipStyle(colorName) + '">' + ICONS[c.icon] + '</div>'
+      + '<div><div class="stat-value">' + c.value + '</div>'
+      + '<div class="stat-label">' + escapeHtml(c.label) + '</div></div>'
+      + '</div>';
+  }
+  $('statGrid').innerHTML = html;
+}
+
+function renderProjGrid() {
+  var html = '', i, p;
+  for (i = 0; i < PROJECTS.length; i++) {
+    p = PROJECTS[i];
+    var tags = p.tags ? p.tags.split(',') : [];
+    var tagHtml = '', t;
+    for (t = 0; t < tags.length; t++) {
+      if (!tags[t]) { continue; }
+      tagHtml += '<span class="tag">' + escapeHtml(tags[t]) + '</span>';
+    }
+    html += '<button class="proj-card tap" data-id="' + p.id + '" aria-label="打开 ' + escapeHtml(p.name) + '">'
+      + '<div class="proj-head">'
+      + '<div class="chip" style="' + chipStyle(p.color) + '">' + ICONS[PROJECT_ICON[p.key] || 'grid'] + '</div>'
+      + '<div class="proj-name">' + escapeHtml(p.name) + '</div>'
+      + '<div class="proj-open">' + ICONS.open + '</div>'
+      + '</div>'
+      + '<div class="proj-desc">' + escapeHtml(p.desc) + '</div>'
+      + '<div class="tags">' + tagHtml + '</div>'
+      + '</button>';
+  }
+  $('projGrid').innerHTML = html;
+}
+
+function renderLaunch() {
+  var html = '', i, p;
+  for (i = 0; i < PROJECTS.length; i++) {
+    p = PROJECTS[i];
+    var tags = p.tags ? p.tags.split(',') : [];
+    var tagHtml = '', t;
+    for (t = 0; t < tags.length; t++) {
+      if (!tags[t]) { continue; }
+      tagHtml += '<span class="tag">' + escapeHtml(tags[t]) + '</span>';
+    }
+    var cmdHtml;
+    if (p.cmd) {
+      cmdHtml = '<div class="cmd-box">'
+        + '<div class="cmd-text">' + escapeHtml(p.cmd) + '</div>'
+        + '<button class="copy-btn tap" data-act="copy" data-id="' + p.id + '" aria-label="复制命令">' + ICONS.copy + '</button>'
+        + '</div>';
+    } else {
+      cmdHtml = '<div class="cmd-none">' + ICONS.folder + '本地目录，直接浏览即可，无需启动命令</div>';
+    }
+    html += '<div class="card">'
+      + '<div class="launch-head">'
+      + '<div class="chip" style="' + chipStyle(p.color) + '">' + ICONS[PROJECT_ICON[p.key] || 'grid'] + '</div>'
+      + '<div class="launch-name">' + escapeHtml(p.name) + '</div>'
+      + '<div class="tags">' + tagHtml + '</div>'
+      + '</div>'
+      + '<div class="launch-desc">' + escapeHtml(p.desc) + '</div>'
+      + cmdHtml
+      + '<div class="launch-btns">'
+      + '<button class="btn btn-secondary tap" data-act="open" data-id="' + p.id + '">' + ICONS.open + '打开</button>'
+      + '<button class="btn btn-ghost tap" data-act="edit" data-id="' + p.id + '">' + ICONS.edit + '编辑入口</button>'
+      + '</div>'
+      + '</div>';
+  }
+  $('launchList').innerHTML = html;
+}
+
+function renderLinks() {
+  var html = '', i, r;
+  for (i = 0; i < LINKS.length; i++) {
+    r = LINKS[i];
+    var cat = CAT_MAP[r.category] || CAT_MAP['其他'];
+    var color = COLOR_MAP[cat[1]];
+    html += '<button class="row tap" data-id="' + r.id + '">'
+      + '<div class="row-icon" style="color:' + color[0] + ';background:' + color[1] + ';">' + ICONS[cat[0]] + '</div>'
+      + '<div class="row-grow">'
+      + '<div class="row-title">' + escapeHtml(r.title) + '</div>'
+      + '<div class="row-sub">' + escapeHtml(r.url) + '</div>'
+      + '</div>'
+      + '<span class="row-del tap" data-act="del" data-id="' + r.id + '" role="button" aria-label="删除 ' + escapeHtml(r.title) + '">' + ICONS.trash + '</span>'
+      + '</button>';
+  }
+  $('linkList').innerHTML = html;
+  var empty = LINKS.length === 0;
+  $('linkEmpty').className = empty ? 'empty show' : 'empty';
+  $('linkList').style.display = empty ? 'none' : 'block';
+  $('linksAddWrap').style.display = empty ? 'none' : 'block';
+}
+
+function renderAll() {
+  PROJECTS = WorkbenchDB.list('projects');
+  PROJECTS.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+  LINKS = WorkbenchDB.list('links');
+  renderHero();
+  renderStats();
+  renderProjGrid();
+  renderLaunch();
+  renderLinks();
+}
+
+/* ===== 页面切换 ===== */
+
+function openTab(pageId) {
+  var pages = document.querySelectorAll('.page'), i;
+  for (i = 0; i < pages.length; i++) {
+    pages[i].className = (pages[i].id === pageId) ? 'page active' : 'page';
+  }
+  var tabs = document.querySelectorAll('.tabbar-item');
+  for (i = 0; i < tabs.length; i++) {
+    tabs[i].className = (tabs[i].getAttribute('data-page') === pageId)
+      ? 'tabbar-item tap active' : 'tabbar-item tap';
+  }
+  $('pageTitle').textContent = PAGE_TITLES[pageId] || 'AI 工作台';
+  if (pageId === 'page-links') { $('btnAddLink').classList.remove('hidden'); }
+  else { $('btnAddLink').classList.add('hidden'); }
+}
+
+/* ===== sheet / modal 控制 ===== */
+
+function openSheet(id) {
+  $('sheetMask').classList.add('open');
+  $(id).classList.add('open');
+}
+function closeSheets() {
+  $('sheetMask').classList.remove('open');
+  $('addSheet').classList.remove('open');
+  $('editSheet').classList.remove('open');
+}
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+
+function setFieldError(inputId, errId, msg) {
+  var input = $(inputId), err = $(errId);
+  if (msg) {
+    input.classList.add('error');
+    err.textContent = msg;
+    err.classList.add('show');
+  } else {
+    input.classList.remove('error');
+    err.textContent = '';
+    err.classList.remove('show');
+  }
+}
+
+/* ===== 快捷链接：增删 ===== */
+
+function saveLink() {
+  var title = $('inpLinkTitle').value.replace(/^\s+|\s+$/g, '');
+  var url = $('inpLinkUrl').value.replace(/^\s+|\s+$/g, '');
+  var ok = true;
+  if (!title) { setFieldError('inpLinkTitle', 'errLinkTitle', '名称不能为空'); ok = false; }
+  else { setFieldError('inpLinkTitle', 'errLinkTitle', ''); }
+  if (!url) { setFieldError('inpLinkUrl', 'errLinkUrl', '地址不能为空'); ok = false; }
+  else if (!validUrl(url)) { setFieldError('inpLinkUrl', 'errLinkUrl', '地址需以 http://、https:// 或 file:// 开头'); ok = false; }
+  else { setFieldError('inpLinkUrl', 'errLinkUrl', ''); }
+  if (!ok) { return; }
+
+  var res = WorkbenchDB.insert('links', { title: title, url: url, category: selectedCategory });
+  if (!res.ok) { showToast(res.errors.join('，')); return; }
+  $('inpLinkTitle').value = '';
+  $('inpLinkUrl').value = '';
+  closeSheets();
+  renderAll();
+  showToast('已保存');
+}
+
+/* ===== 子项目入口编辑 ===== */
+
+function fillEditSheet(p) {
+  editingProjectId = p.id;
+  $('editProjName').value = p.name;
+  $('editProjUrl').value = p.url || '';
+  $('editProjCmd').value = p.cmd || '';
+  setFieldError('editProjUrl', 'errProjUrl', '');
+}
+
+function saveProject() {
+  var url = $('editProjUrl').value.replace(/^\s+|\s+$/g, '');
+  var cmd = $('editProjCmd').value.replace(/^\s+|\s+$/g, '');
+  if (url && !validUrl(url)) {
+    setFieldError('editProjUrl', 'errProjUrl', '地址需以 http://、https:// 或 file:// 开头');
+    return;
+  }
+  setFieldError('editProjUrl', 'errProjUrl', '');
+  var res = WorkbenchDB.update('projects', editingProjectId, { url: url, cmd: cmd });
+  if (!res.ok) { showToast(res.errors.join('，')); return; }
+  closeSheets();
+  renderAll();
+  showToast('已保存');
+}
+
+/* ===== 事件绑定 ===== */
+
+(function bindTabs() {
+  var tabs = document.querySelectorAll('.tabbar-item');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function (e) {
+      openTab(e.currentTarget.getAttribute('data-page'));
+    });
+  }
+})();
+
+$('projGrid').addEventListener('click', function (e) {
+  var card = e.target.closest ? e.target.closest('.proj-card') : null;
+  if (!card) { return; }
+  var i, p;
+  for (i = 0; i < PROJECTS.length; i++) {
+    if (PROJECTS[i].id === card.getAttribute('data-id')) { p = PROJECTS[i]; break; }
+  }
+  if (p) { openUrl(p.url); }
+});
+
+$('launchList').addEventListener('click', function (e) {
+  var btn = e.target.closest ? e.target.closest('[data-act]') : null;
+  if (!btn) { return; }
+  var act = btn.getAttribute('data-act');
+  var id = btn.getAttribute('data-id');
+  var i, p;
+  for (i = 0; i < PROJECTS.length; i++) { if (PROJECTS[i].id === id) { p = PROJECTS[i]; break; } }
+  if (!p) { return; }
+  if (act === 'copy') { copyText(p.cmd); }
+  else if (act === 'open') { openUrl(p.url); }
+  else if (act === 'edit') { fillEditSheet(p); openSheet('editSheet'); }
+});
+
+$('linkList').addEventListener('click', function (e) {
+  if (!e.target.closest) { return; }
+  var del = e.target.closest('[data-act="del"]');
+  if (del) {
+    deletingLinkId = del.getAttribute('data-id');
+    var i, r;
+    for (i = 0; i < LINKS.length; i++) { if (LINKS[i].id === deletingLinkId) { r = LINKS[i]; break; } }
+    if (r) {
+      $('delModalBody').textContent = '将删除「' + r.title + '」，删除后不可恢复。';
+      openModal('delModal');
+    }
+    return;
+  }
+  var row = e.target.closest('.row');
+  if (row) {
+    var j, l;
+    for (j = 0; j < LINKS.length; j++) { if (LINKS[j].id === row.getAttribute('data-id')) { l = LINKS[j]; break; } }
+    if (l) { openUrl(l.url); }
+  }
+});
+
+$('segCategory').addEventListener('click', function (e) {
+  var item = e.target.closest ? e.target.closest('.seg-item') : null;
+  if (!item) { return; }
+  selectedCategory = item.getAttribute('data-cat');
+  var items = document.querySelectorAll('#segCategory .seg-item');
+  for (var i = 0; i < items.length; i++) {
+    items[i].className = (items[i] === item) ? 'seg-item tap active' : 'seg-item tap';
+  }
+});
+
+function openAddSheet() {
+  setFieldError('inpLinkTitle', 'errLinkTitle', '');
+  setFieldError('inpLinkUrl', 'errLinkUrl', '');
+  openSheet('addSheet');
+}
+$('btnAddLink').addEventListener('click', openAddSheet);
+$('btnBottomAdd').addEventListener('click', openAddSheet);
+$('btnEmptyAdd').addEventListener('click', openAddSheet);
+$('btnSaveLink').addEventListener('click', saveLink);
+$('btnSaveProj').addEventListener('click', saveProject);
+$('sheetMask').addEventListener('click', closeSheets);
+$('sheetMask').addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+$('delModal').addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+
+$('btnDelCancel').addEventListener('click', function () {
+  deletingLinkId = null;
+  closeModal('delModal');
+});
+$('btnDelConfirm').addEventListener('click', function () {
+  if (deletingLinkId) {
+    WorkbenchDB.remove('links', deletingLinkId);
+    renderAll();
+    showToast('已删除');
+  }
+  deletingLinkId = null;
+  closeModal('delModal');
+});
+
+/* 输入框回车直接保存 */
+$('inpLinkUrl').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { saveLink(); }
+});
+$('editProjCmd').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { saveProject(); }
+});
+
+/* ===== 启动 ===== */
+WorkbenchDB.init(PROJECT_SCHEMA);
+WorkbenchDB.init(LINK_SCHEMA);
+$('btnAddLink').innerHTML = ICONS.plus;
+renderAll();
+openTab('page-home');
+</script>
+</body>
+</html>
