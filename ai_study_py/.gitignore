@@ -21,6 +21,11 @@ video/
 # 敏感/生成的 PDF（合同原件与标注结果不入库）
 40_projects/doubao/pdf_diff/*.pdf
 
+# PyTorch 训练数据与权重（模型权重不入库约定，含 *.npz）
+20_learn/pytorch/data/
+20_learn/pytorch/models/
+20_learn/pytorch/**/*.npz
+
 # 临时文件
 complex_data.json
 

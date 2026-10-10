@@ -397,7 +397,7 @@
   </div>
   <div class="field">
     <label class="field-label" for="inpLinkUrl">地址</label>
-    <input class="field-input" id="inpLinkUrl" type="text" maxlength="500" placeholder="http:// 或 https:// 或 file://">
+    <input class="field-input" id="inpLinkUrl" type="text" maxlength="500" placeholder="http(s)://、file:// 或 ../ 相对路径">
     <div class="field-err" id="errLinkUrl"></div>
   </div>
   <div class="field">
@@ -421,7 +421,7 @@
   </div>
   <div class="field">
     <label class="field-label" for="editProjUrl">入口链接</label>
-    <input class="field-input" id="editProjUrl" type="text" maxlength="500" placeholder="http:// 或 https:// 或 file://">
+    <input class="field-input" id="editProjUrl" type="text" maxlength="500" placeholder="http(s)://、file:// 或 ../ 相对路径">
     <div class="field-err" id="errProjUrl"></div>
   </div>
   <div class="field">
@@ -517,11 +517,29 @@ var WorkbenchDB = (function () {
     return errors;
   }
 
+  /* 旧版种子数据把项目入口存成了 file:/// 绝对路径，工作区挪动后即失效；改存 ../ 相对路径 */
+  function migrateLegacyFileUrls(rows) {
+    var m, changed = false, i;
+    for (i = 0; i < rows.length; i++) {
+      var u = rows[i] && rows[i].url;
+      if (u && (m = u.match(/^file:\/\/\/.*\/personal-ai-engineering\/([^\/]+)\/?$/i))) {
+        rows[i].url = '../' + m[1] + '/';
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   function init(schema) {
     schemas[schema.table] = schema;
-    if (schema.seed && schema.seed.length && readAll(schema.table).length === 0) {
-      var rows = [], i;
-      for (i = 0; i < schema.seed.length; i++) { rows.push(normalize(schema, schema.seed[i], true)); }
+    var rows = readAll(schema.table);
+    if (!rows.length) {
+      if (schema.seed && schema.seed.length) {
+        var seeded = [], i;
+        for (i = 0; i < schema.seed.length; i++) { seeded.push(normalize(schema, schema.seed[i], true)); }
+        writeAll(schema.table, seeded);
+      }
+    } else if (migrateLegacyFileUrls(rows)) {
       writeAll(schema.table, rows);
     }
     return schema;
@@ -656,12 +674,12 @@ var PROJECT_SCHEMA = {
     { key: 'harness', name: 'agent-harness', order: 1, color: 'primary',
       desc: '基于《从 0 开始构建 Agent Harness》的多智能体运行时：多 Provider 接入、工具系统、会话管理与上下文压缩。',
       tags: 'Agent,多Provider,CLI/Web/GUI',
-      url: 'file:///D:/ai_person/personal-ai-engineering/agent-harness',
+      url: '../agent-harness/',
       cmd: 'python main.py' },
     { key: 'study', name: 'ai_study_py', order: 2, color: 'secondary',
       desc: 'AI 学习主工程：PyTorch / Paddle / HuggingFace / LangChain / Dify 等框架学习与成型项目。',
       tags: '框架学习,项目,工具',
-      url: 'file:///D:/ai_person/personal-ai-engineering/ai_study_py',
+      url: '../ai_study_py/',
       cmd: '' },
     { key: 'note', name: 'ai-study-note', order: 3, color: 'success',
       desc: '从机器学习基础到大语言模型的课程站，并入大模型面试题库与在线 Markdown 查看器。',
@@ -671,7 +689,7 @@ var PROJECT_SCHEMA = {
     { key: 'ollama', name: 'ollama-lab', order: 4, color: 'warning',
       desc: '本地 Ollama 实验：多轮对话、搜索引擎集成与 RAG 检索增强生成，含分步教程。',
       tags: 'Ollama,RAG,本地实验',
-      url: 'file:///D:/ai_person/personal-ai-engineering/ollama-lab',
+      url: '../ollama-lab/',
       cmd: 'python 01_ollama对话.py' }
   ]
 };
@@ -733,7 +751,7 @@ function openUrl(url) {
 }
 
 function validUrl(u) {
-  return /^(https?:\/\/|file:\/\/)/i.test(u);
+  return /^(https?:\/\/|file:\/\/|\.\/|\.\.\/)/i.test(u);
 }
 
 function copyText(text) {
@@ -924,7 +942,7 @@ function saveLink() {
   if (!title) { setFieldError('inpLinkTitle', 'errLinkTitle', '名称不能为空'); ok = false; }
   else { setFieldError('inpLinkTitle', 'errLinkTitle', ''); }
   if (!url) { setFieldError('inpLinkUrl', 'errLinkUrl', '地址不能为空'); ok = false; }
-  else if (!validUrl(url)) { setFieldError('inpLinkUrl', 'errLinkUrl', '地址需以 http://、https:// 或 file:// 开头'); ok = false; }
+  else if (!validUrl(url)) { setFieldError('inpLinkUrl', 'errLinkUrl', '地址需以 http(s)://、file:// 或 ../ 相对路径开头'); ok = false; }
   else { setFieldError('inpLinkUrl', 'errLinkUrl', ''); }
   if (!ok) { return; }
 

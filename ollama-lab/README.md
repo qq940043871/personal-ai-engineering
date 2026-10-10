@@ -4,7 +4,7 @@
 
 - 演示对话：`01_ollama对话.py` / `01_ollama多轮对话.py`（Flask + `templates/`）
 - 检索：`02_search_engine.py`
-- RAG：`03_ollama_rag.py`
+- RAG：`03_ollama_rag.py`（配套 Notebook：`03_ollama_rag.ipynb`）
 - 分步教程：`study/`
 - 数据：`dataset/`
 
