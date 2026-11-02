@@ -34,8 +34,7 @@ sessions/
 logs/
 *.log
 
-# 视频下载工具的产物（体积大，不入库）
-ai_study_py/50_tools/utils/01_dydown/
+# 视频下载工具的产物（体积大，不入库；ai-study-labs 内另有其自带 .gitignore 的细则）
 video/
 
 # ========== 凭证 / 敏感信息 ==========

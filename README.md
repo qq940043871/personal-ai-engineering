@@ -1,16 +1,17 @@
 # personal-ai-engineering
 
-个人 AI 工程学习工作区，聚合多个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库、自研 RAG 工程、AI 工作台门户。
+个人 AI 工程学习工作区，聚合多个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、Dify/RAGFlow 知识库工具、自研 RAG 工程、AI 课程站与面试题库、AI 工作台门户。
 
 ## 目录结构
 
 ```
 personal-ai-engineering/
-├── agent-harness/    # 多智能体运行时框架（课程跟学实践）
-├── ai_study_py/      # AI 学习主工程（框架学习 / 项目 / 工具）
+├── ai-agent-harness/ # 多智能体运行时框架（课程跟学实践）
+├── ai-study-labs/    # AI 学习主工程（框架学习 / 项目 / 工具）
 ├── ai-study-note/    # AI 课程站 + 大模型面试题库（静态站点）
-├── ollama-lab/       # 本地 Ollama 对话与 RAG 实验
-├── self-rag-engineering/  # 自研 RAG 工程（ownrag：不依赖 Dify 的完整链路，设计文档 + 代码骨架）
+├── ai-rag-ollama/    # 本地 Ollama 对话与 RAG 实验
+├── ai-rag-dify/      # Dify / RAGFlow 知识库上传工具与笔记
+├── ai-rag-self-engineering/  # 自研 RAG 工程（ownrag：不依赖 Dify 的完整链路，设计文档 + 代码骨架）
 ├── ai-workbench/     # AI 工作台首页（触屏门户，单文件 HTML）
 ├── README.md
 └── .gitignore
@@ -18,7 +19,7 @@ personal-ai-engineering/
 
 ## 子项目简介
 
-### [agent-harness](agent-harness/README.md)
+### [ai-agent-harness](ai-agent-harness/README.md)
 
 基于《从 0 开始构建 Agent Harness》课程的个人学习实践，目标是亲手实现一个完整可用的 Agent 运行时。
 
@@ -27,13 +28,13 @@ personal-ai-engineering/
 - 工具系统、Session 管理、上下文压缩、Token 成本统计、中间件审批机制
 
 ```bash
-cd agent-harness
+cd ai-agent-harness
 pip install -r requirements.txt
-cp config.yaml.example config.yaml   # 填入 API Key（config.yaml 不入库）
+cp config/config.yaml.example config/config.yaml   # 填入 API Key（config/config.yaml 不入库）
 python main.py
 ```
 
-### [ai_study_py](ai_study_py/README.md)
+### [ai-study-labs](ai-study-labs/README.md)
 
 个人 AI 学习与实践主工程，顶层目录按用途编号分类：
 
@@ -47,7 +48,7 @@ python main.py
 
 ### [ai-study-note](ai-study-note/README.md)
 
-从机器学习基础到大语言模型的课程站，并入大模型面试题库（纯静态站点，161 个文件）。
+从机器学习基础到大语言模型的课程站，并入大模型面试题库（纯静态站点，160 个文件）。
 
 - 课程页：ML / DL / LLM / 学习路线图（`courses/`）
 - 面试题库：专项、期数、综合测试与架构图（`exam/`）
@@ -59,20 +60,30 @@ start.bat                        # 或 python -m http.server 3001
 # 浏览器打开 http://localhost:3001
 ```
 
-### [ollama-lab](ollama-lab/README.md)
+### [ai-rag-ollama](ai-rag-ollama/README.md)
 
 本地 Ollama 实验：Flask 对话演示、检索增强生成（RAG）、搜索引擎集成，含分步教程（`study/`）。运行前提是本机已安装 Ollama 并拉取对应模型。
 
-### self-rag-engineering
+### [ai-rag-dify](ai-rag-dify/README.md)
+
+Dify / RAGFlow 知识库操作工具与学习笔记（2026-10 自 `ai-study-labs/20_learn/dify/` 迁出独立）。
+
+- `python/`：中文长文层级分段灌库脚本（`@!@`/`@@` 预埋切分标记 → 父/子分段），详见 [python/README.md](ai-rag-dify/python/README.md)
+- `dify/`、`ragflow/`：Tkinter 上传器、PyInstaller 打包配置与 HTTP API 笔记
+- `notes/`：Dify 工作流与知识库 API 学习笔记
+
+> 上传工具内为硬编码 API 地址与 Key（已脱敏为占位符），运行前需自行填入。
+
+### ai-rag-self-engineering
 
 自研 RAG 工程（ownrag）：回答「**不用 Dify，智能层 + 业务层完全自研长什么样**」。2026-11-02 从 `personal-investment-notes/02-AI智能体/04-自研RAG工程/` 迁入并重命名。
 
 - 设计文档 6 篇：总览口径 / 总体架构（Dify 能力对照）/ 低代码编排与中台机制 / 三条解析管道（MinerU · ffmpeg+ASR · Excel）/ 索引检索生成与两道闸门 / 评测运维与路线图
-- 代码骨架 `ownrag/`：Python 3.10+ / FastAPI，14 步骤类型 · 3 管道 DSL · 混合检索 RRF · SSE 问答 · 评测脚本 · 契约测试 9 例
+- 代码骨架 `ownrag/`：Python 3.10+ / FastAPI，14 步骤类型 · 3 管道 DSL · 混合检索 RRF · SSE 问答 · 评测脚本 · pytest 测试 33 例
 - **口径**：个人实战工程，与 Agent Harness 同一条个人线，**不是公司平台技术栈**；全部指标 `【设计】`/`【待实测】`
 
 ```bash
-cd self-rag-engineering/ownrag
+cd ai-rag-self-engineering/ownrag
 pip install -e .            # 最小化安装；全组件加 [pdf,excel,vector,asr]
 python -m pytest            # 契约测试（执行器/闸门/切分），不依赖外部服务
 ```
@@ -81,7 +92,7 @@ python -m pytest            # 契约测试（执行器/闸门/切分），不依
 
 ### [ai-workbench](ai-workbench/index.html)
 
-工作区门户首页：暗色炫酷风格的单文件 HTML 工作台，聚合四个子项目的导航、启动命令与常用链接收藏。
+工作区门户首页：暗色炫酷风格的单文件 HTML 工作台，聚合六个子项目的导航、启动命令与常用链接收藏。
 
 - 首页：问候 Hero、子项目统计、项目导航卡片（点击直达）
 - 启动页：各子项目启动命令一键复制，入口链接可视化编辑
