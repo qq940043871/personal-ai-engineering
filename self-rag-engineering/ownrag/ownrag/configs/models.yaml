@@ -1,0 +1,24 @@
+# 模型端点注册表（01 文档 §六 技术栈清单）——模型中立：换模型/换远程 = 改这里
+endpoints:
+  ollama:
+    base_url: http://127.0.0.1:11434
+  rerank:
+    base_url: ""            # 可选：bge-reranker-v2-m3 独立服务；留空 = RRF 名次兜底
+
+defaults:
+  chat: qwen2.5:7b-instruct-q4_K_M    # 8GB 显存基准档【设计口径，须实测校正】
+  embed: bge-m3
+  embed_version: bge-m3@ollama        # 与向量兼容性绑定：换值 = 全量重建索引
+  num_ctx: 6144                # 输入+输出的总窗口（Ollama num_ctx）
+  max_new_tokens: 512          # 生成侧上限：上下文预算要给输出留位，否则问题会被截断
+  max_upload_mb: 200           # 上传体积上限（0 = 不限制，仅测试用）
+  rerank_base_url: ""
+
+mineru:
+  mode: cli                 # cli = 子进程（省显存）| http = 常驻服务（长批推荐）
+  base_url: ""              # http 模式：POST /file_parse，返回 {"markdown","pages","assets"}
+  cmd: mineru               # cli 模式可执行名（旧版可改 magic-pdf）
+
+asr:
+  engine: faster-whisper    # faster-whisper | funasr（中文标点/热词更强）
+  model: medium             # CPU 档：small/medium int8；GPU 档可上 large-v3

@@ -1,0 +1,24 @@
+# 应用模板（02 文档 §三）：一个问答应用 = 一份配置；换模型/换Prompt/开关闸门都不动代码
+apps:
+  policy_qa:
+    knowledge_bases: [policy_v1]        # 多库检索与跨库过滤属 M2（权限过滤在中台执行）
+    retrieval:
+      vector_topk: 20
+      bm25_topk: 20
+      top_n: 12                         # RRF 融合后候选池——宁窄勿宽
+      # metadata_filter: {}            # M2：密级/时间过滤（先过滤后召回，不交给 Prompt）
+      rerank:
+        enabled: false                  # 无 rerank 服务时 RRF 顺序兜底（OWNRAG_RERANK_URL）
+    direct_hit:
+      enabled: true
+      levels: [L0, L1, L2]
+    generation:
+      model: qwen2.5:7b-instruct-q4_K_M
+      prompt: policy_strict_v1          # configs/prompts/policy_strict_v1.yaml
+      stream: true
+      max_ctx_tokens: 6144              # 总窗口：上下文预算 = 该值 - prompt 开销 - max_new_tokens
+      max_new_tokens: 512               # 输出预留：给生成留位，否则超窗时先被截的是问题
+      # 环境变量 OWNRAG_NUM_CTX / OWNRAG_MAX_NEW_TOKENS 优先级高于本段（运维 kill-switch）
+    gates:                              # M1 固定顺序=pre(sufficiency)+post(citation/schema)
+      pre: [sufficiency_check]          # 配置化编排属 M2；此处声明意图，代码见 generate/gates.py
+      post: [citation_check, schema_check]

@@ -1,0 +1,56 @@
+# 管道 DSL（02 文档 §一）：新数据源 = 加一段配置；type 必须在 core/registry.py 注册表内
+pipelines:
+  pdf_v1:
+    source: { type: upload, accept: [.pdf] }
+    steps:
+      - type: detect_pages            # 页级路由探测：电子版→pipeline，扫描/复杂→vlm
+        params: { sample_pages: 3 }
+      - type: parse_mineru            # 主解析（backend=auto 沿用路由结论）
+        params: { backend: auto, lang: ch }
+        fallback:                     # 失败降级链：前败后继，穷尽入待办
+          - { type: parse_mineru, params: { backend: pipeline } }
+          - { type: parse_pymupdf }   # 纯文本兜底：结构丢了内容也要在
+      - type: validate_parsed         # 独立校验闸：空/过短/页缺失 = 与解析失败同待遇
+        params: { min_chars_per_page: 20 }
+      - type: chunk_markdown          # 结构感知切分：表格永不跨块
+        params: { max_tokens: 512, overlap: 64 }
+      - type: embed                   # Ollama bge-m3 批量；allow_skip=显式降级关键词单路
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert            # 双通道写入，按 doc_id 先删后插（幂等）
+        params: { replace_by_doc: true }
+
+  av_v1:
+    source: { type: upload, accept: [.mp4, .mkv, .mov, .mp3, .wav, .m4a, .flac] }
+    steps:
+      - type: ff_extract_audio        # -vn -ac 1 -ar 16000 + 关键帧
+        params: { ac: 1, ar: 16000, keyframe_fps: 1/60 }
+      - type: asr_transcribe          # 本地转写（带时间戳）
+        params: { engine: faster-whisper, model: medium, vad: true }
+        fallback:
+          - { type: asr_transcribe, params: { engine: funasr, model: paraformer-zh } }
+      - type: segment_by_time         # 按时长聚段；块带 [mm:ss] 锚点可回跳源视频
+        params: { max_sec: 60 }
+      - type: chunk_markdown          # 三链路同一收敛点：parse → chunk → embed → index
+        params: { max_tokens: 512, overlap: 64 }
+      - type: embed                   # allow_skip=Ollama 不可用时显式降级 BM25 单路（metric 可见）
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }
+
+  excel_v1:
+    source: { type: upload, accept: [.xlsx, .xlsm, .csv] }
+    steps:
+      - type: excel_stage             # 全 TEXT 保真落 SQLite staging 临时表
+        params: {}
+      - type: schema_infer            # 列名/非空率/样本/类型推断
+        params: { sample_n: 5 }
+      - type: column_mapping          # 恒等映射起步；LLM 建议需人工确认（HITL）
+        params: { suggest_by_llm: false }
+      - type: textualize              # row_card 行级卡片；aggregate 属 M2（SQL 路径）
+        params: { strategy: row_card, max_rows: 5000 }
+      - type: chunk_markdown
+        params: { max_tokens: 512, overlap: 0 }
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }

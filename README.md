@@ -1,6 +1,6 @@
 # personal-ai-engineering
 
-个人 AI 工程学习工作区，聚合五个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库、AI 工作台门户。
+个人 AI 工程学习工作区，聚合多个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、AI 课程站与面试题库、自研 RAG 工程、AI 工作台门户。
 
 ## 目录结构
 
@@ -10,6 +10,7 @@ personal-ai-engineering/
 ├── ai_study_py/      # AI 学习主工程（框架学习 / 项目 / 工具）
 ├── ai-study-note/    # AI 课程站 + 大模型面试题库（静态站点）
 ├── ollama-lab/       # 本地 Ollama 对话与 RAG 实验
+├── self-rag-engineering/  # 自研 RAG 工程（ownrag：不依赖 Dify 的完整链路，设计文档 + 代码骨架）
 ├── ai-workbench/     # AI 工作台首页（触屏门户，单文件 HTML）
 ├── README.md
 └── .gitignore
@@ -61,6 +62,22 @@ start.bat                        # 或 python -m http.server 3001
 ### [ollama-lab](ollama-lab/README.md)
 
 本地 Ollama 实验：Flask 对话演示、检索增强生成（RAG）、搜索引擎集成，含分步教程（`study/`）。运行前提是本机已安装 Ollama 并拉取对应模型。
+
+### self-rag-engineering
+
+自研 RAG 工程（ownrag）：回答「**不用 Dify，智能层 + 业务层完全自研长什么样**」。2026-11-02 从 `personal-investment-notes/02-AI智能体/04-自研RAG工程/` 迁入并重命名。
+
+- 设计文档 6 篇：总览口径 / 总体架构（Dify 能力对照）/ 低代码编排与中台机制 / 三条解析管道（MinerU · ffmpeg+ASR · Excel）/ 索引检索生成与两道闸门 / 评测运维与路线图
+- 代码骨架 `ownrag/`：Python 3.10+ / FastAPI，14 步骤类型 · 3 管道 DSL · 混合检索 RRF · SSE 问答 · 评测脚本 · 契约测试 9 例
+- **口径**：个人实战工程，与 Agent Harness 同一条个人线，**不是公司平台技术栈**；全部指标 `【设计】`/`【待实测】`
+
+```bash
+cd self-rag-engineering/ownrag
+pip install -e .            # 最小化安装；全组件加 [pdf,excel,vector,asr]
+python -m pytest            # 契约测试（执行器/闸门/切分），不依赖外部服务
+```
+
+> 跨库引用（Harness 六机制、MinerU 选型、直击库三层等）写 `../personal-investment-notes/...`。
 
 ### [ai-workbench](ai-workbench/index.html)
 

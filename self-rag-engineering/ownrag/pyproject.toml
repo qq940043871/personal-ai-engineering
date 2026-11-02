@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ownrag"
+version = "0.1.0"
+description = "自研 RAG 工程（个人实战骨架）：Ollama 本地模型 + 配置驱动管道 + MinerU/ffmpeg+ASR/Excel 三链路"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pyyaml>=6.0",
+    "pydantic>=2.6",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+    "python-dotenv>=1.0",             # .env 加载：复制 .env.example 为 .env 即生效
+]
+
+[project.optional-dependencies]
+# 每个重依赖都是可选组件：缺省时对应步骤按接口契约失败并进待办表，绝不静默
+pdf = ["pymupdf>=1.24"]            # PDF 文本降级链 + 页级路由探测
+excel = ["pandas>=2.0", "openpyxl>=3.1"]
+vector = ["chromadb>=0.5"]         # 向量通道；未安装时混合检索自动退 BM25 单路（metric 可见）
+asr = ["faster-whisper>=1.0"]      # 本地语音识别主引擎
+funasr = ["funasr>=1.1"]           # 中文备选引擎
+all = ["ownrag[pdf,excel,vector,asr]"]
+
+dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+
+[tool.setuptools]
+# 显式包清单：configs/ 已移入包内，flat-layout 自动发现会把 data/ 等目录误判成 namespace 包
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["ownrag*"]
+
+[tool.setuptools.package-data]
+ownrag = ["configs/*.yaml", "configs/prompts/*.yaml", "web/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

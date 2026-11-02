@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ownrag · 控制台</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#101720; --panel2:#0d141c; --line:#1d2836; --line2:#26364a;
+    --txt:#dbe6f2; --dim:#8b9cb0; --dim2:#61728a;
+    --accent:#38bdf8; --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#12202e 0%,var(--bg) 55%);
+       color:var(--txt);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  code,pre,.mono{font-family:var(--mono)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#22303f;border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .app{display:grid;grid-template-columns:238px 1fr;min-height:100vh}
+  /* ---------- sidebar ---------- */
+  aside{border-right:1px solid var(--line);background:linear-gradient(180deg,#0c1219,#0a0e14);
+        padding:18px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:14px}
+  .brand{display:flex;align-items:center;gap:9px;padding:2px 6px 6px}
+  .logo{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--violet));
+        display:grid;place-items:center;font-weight:800;font-size:13px;color:#06121b}
+  .brand b{font-size:15px;letter-spacing:.3px}
+  .brand span{display:block;font-size:11px;color:var(--dim2);font-weight:400}
+  nav{display:flex;flex-direction:column;gap:3px}
+  nav button{all:unset;cursor:pointer;padding:9px 11px;border-radius:9px;color:var(--dim);
+             display:flex;align-items:center;gap:9px;font-size:13.5px;transition:.15s}
+  nav button:hover{background:#131c27;color:var(--txt)}
+  nav button.on{background:linear-gradient(90deg,#12293a,#101a24);color:#eaf6ff;box-shadow:inset 0 0 0 1px #1e3d52}
+  nav button i{width:16px;text-align:center;font-style:normal;opacity:.9}
+  .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:11.5px;color:var(--dim2)}
+  .progress{height:5px;border-radius:99px;background:#16202c;overflow:hidden}
+  .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--ok));transition:.3s}
+
+  /* ---------- main ---------- */
+  main{padding:22px 26px 60px;min-width:0}
+  .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .top h1{font-size:18px;margin:0 8px 0 0;font-weight:650;letter-spacing:.2px}
+  .pills{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+  .pill{font-size:11.5px;color:var(--dim);border:1px solid var(--line);background:#0e151d;
+        border-radius:99px;padding:4px 10px;display:flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim2)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 8px #34d39966}
+  .dot.bad{background:var(--bad);box-shadow:0 0 8px #f8717166}
+  .dot.warn{background:var(--warn)}
+
+  .view{display:none}
+  .view.on{display:block;animation:fade .18s ease-in}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g32{grid-template-columns:1.25fr 1fr}
+  @media(max-width:1080px){.g2,.g3,.g32{grid-template-columns:1fr}}
+  @media(max-width:900px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}nav{flex-direction:row;flex-wrap:wrap}.side-foot{margin:0;width:100%}}
+
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+        border-radius:13px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:13px;font-weight:600;color:#cfe2f5;letter-spacing:.2px;
+           display:flex;align-items:center;gap:8px}
+  .card h3 .tag{margin-left:auto}
+  .muted{color:var(--dim);font-size:12.5px}
+  .tiny{font-size:11.5px;color:var(--dim2)}
+  .kpi{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1.15}
+  .kpi small{font-size:12px;color:var(--dim);font-weight:400;margin-left:4px}
+
+  button.btn{all:unset;cursor:pointer;background:#17222f;border:1px solid var(--line2);color:#d9e8f7;
+             padding:8px 14px;border-radius:9px;font-size:13px;text-align:center;transition:.15s}
+  button.btn:hover{background:#1d2b3b;border-color:#31506b}
+  button.btn.primary{background:linear-gradient(135deg,#0e7490,#0b5f78);border-color:#1b8aa8;color:#eafcff}
+  button.btn.primary:hover{filter:brightness(1.12)}
+  button.btn.ghost{background:transparent}
+  button.btn.sm{padding:4px 9px;font-size:11.5px;border-radius:7px}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  input,select,textarea{background:#0b1118;border:1px solid var(--line2);color:var(--txt);
+        border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;outline:none;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:#2b6f8f;box-shadow:0 0 0 3px #0e749022}
+  textarea{resize:vertical;min-height:76px;font-family:var(--mono);font-size:12.5px}
+  label.f{display:block;font-size:11.5px;color:var(--dim);margin:0 0 5px 2px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>*{flex:1;min-width:140px}
+  .row .fix{flex:0 0 auto;min-width:0}
+
+  .drop{border:1.5px dashed #24405a;border-radius:13px;padding:26px;text-align:center;color:var(--dim);
+        background:#0b1219;transition:.15s;cursor:pointer}
+  .drop:hover,.drop.hot{border-color:var(--accent);background:#0d1a24;color:#cfe9fb}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--dim2);font-weight:500;font-size:11px;letter-spacing:.4px;
+     text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:7px 8px;border-bottom:1px solid #16202b;vertical-align:top}
+  tr:hover td{background:#0e1620}
+  .chip{display:inline-block;font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid var(--line2);
+        color:var(--dim);background:#0d151d;white-space:nowrap}
+  .chip.ok{color:#8af0c8;border-color:#1c6b52;background:#0c211a}
+  .chip.bad{color:#ffb0b0;border-color:#7a2f2f;background:#20100f}
+  .chip.warn{color:#ffe0a3;border-color:#6b5220;background:#1d1809}
+  .chip.info{color:#a9dcff;border-color:#24536e;background:#0b1a24}
+  .chip.v{color:#d5c6ff;border-color:#4b3b78;background:#160f24}
+
+  .log{background:#080d13;border:1px solid var(--line);border-radius:11px;padding:12px;
+       font-family:var(--mono);font-size:12px;line-height:1.7;max-height:420px;overflow:auto;white-space:pre-wrap}
+  .log .t{color:var(--dim2)}
+  .log .ok{color:var(--ok)} .log .bad{color:var(--bad)} .log .warn{color:var(--warn)}
+  .log .acc{color:var(--accent)} .log .vio{color:#ffb0b0}
+
+  .answer{white-space:pre-wrap;font-size:14px;line-height:1.85;min-height:120px}
+  .ctx{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#0c141c;margin-bottom:9px}
+  .ctx .h{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+  .ctx .b{font-size:12.3px;color:#b9cbdd;white-space:pre-wrap;max-height:150px;overflow:auto}
+  .bar{height:6px;border-radius:99px;background:#16202c;overflow:hidden;margin-top:7px}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),var(--warn))}
+
+  .steps{display:flex;flex-direction:column;gap:2px}
+  .step{display:grid;grid-template-columns:20px 1fr;gap:9px;align-items:start;padding:8px 4px;
+        border-bottom:1px solid #131c26;font-size:12.5px}
+  .step .n{color:var(--dim2);text-align:right;font-family:var(--mono);font-size:11px;padding-top:3px}
+  .step .ms{color:var(--dim2);font-family:var(--mono);font-size:11px;margin-left:8px}
+  .step .ctr{color:var(--dim2);font-family:var(--mono);font-size:11px;margin-top:3px;word-break:break-all}
+  .step .err{color:#ffb0b0;font-size:11.5px;margin-top:3px}
+
+  .empty{color:var(--dim2);font-size:12.5px;text-align:center;padding:22px 0}
+  .hint{border-left:2px solid #24536e;background:#0b1620;padding:9px 12px;border-radius:0 8px 8px 0;
+        font-size:12.5px;color:#a8c3d8;margin:10px 0}
+  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sp{flex:1}
+  .sep{height:1px;background:var(--line);margin:12px 0}
+  .toast{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
+  .toast div{background:#12202b;border:1px solid #2b4a5f;border-left:3px solid var(--accent);
+             border-radius:9px;padding:9px 13px;font-size:12.5px;box-shadow:0 8px 30px #0008;
+             animation:slide .2s ease-out}
+  .toast div.bad{border-left-color:var(--bad)} .toast div.ok{border-left-color:var(--ok)}
+  @keyframes slide{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+
+  /* roadmap */
+  .day{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#0d1520;margin-bottom:10px}
+  .day.done{border-color:#1c6b52;background:linear-gradient(90deg,#0b1d18,#0d1520)}
+  .day .hd{display:flex;gap:10px;align-items:center;cursor:pointer}
+  .day .dno{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid #24536e;
+            border-radius:6px;padding:2px 7px;background:#0b1a24}
+  .day .ttl{font-weight:600;font-size:13.5px}
+  .day .body{margin-top:9px;padding-left:2px;display:none}
+  .day.open .body{display:block}
+  .day .goal{color:#c3d6e8;font-size:12.8px;margin-bottom:8px}
+  .day ul{margin:6px 0 0;padding-left:18px;color:var(--dim);font-size:12.5px}
+  .day li{margin:3px 0}
+  .day .check{margin-left:auto;font-size:11.5px;color:var(--dim2)}
+  .day.done .check{color:var(--ok)}
+  .mini{font-size:11.5px;color:var(--dim2)}
+  .json{font-family:var(--mono);font-size:11px;color:#8fa9c2;white-space:pre-wrap;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="logo">R</div>
+      <div><b>ownrag</b><span>自研 RAG 控制台 · 14 天</span></div>
+    </div>
+    <nav id="nav">
+      <button data-v="overview" class="on"><i>◈</i>概览</button>
+      <button data-v="ingest"><i>↥</i>入库</button>
+      <button data-v="chat"><i>✦</i>问答</button>
+      <button data-v="retrieve"><i>⌕</i>检索调试</button>
+      <button data-v="kb"><i>▤</i>知识库</button>
+      <button data-v="observe"><i>◎</i>观测</button>
+      <button data-v="plan"><i>☰</i>14 天路线</button>
+    </nav>
+    <div class="side-foot">
+      <div class="flex"><span>学习进度</span><span class="sp"></span><span id="planN">0/14</span></div>
+      <div class="progress"><i id="planBar"></i></div>
+      <div id="sideEnv" class="tiny mono">…</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <h1 id="vtitle">概览</h1>
+      <div class="pills" id="pills"></div>
+    </div>
+
+    <!-- ============ 概览 ============ -->
+    <section class="view on" id="v-overview">
+      <div class="grid g3">
+        <div class="card"><h3>组件就绪</h3><div id="ovHealth" class="muted">加载中…</div></div>
+        <div class="card"><h3>知识库规模</h3><div id="ovChunks" class="kpi">–</div><div class="tiny" id="ovChunksSub"></div></div>
+        <div class="card"><h3>待办队列</h3><div id="ovTodos" class="kpi">–</div><div class="tiny">失败不会消失，全部进人工队列</div></div>
+      </div>
+      <div class="grid g32" style="margin-top:14px">
+        <div class="card">
+          <h3>三步验证（每次改动后跑一遍）</h3>
+          <div class="hint">这套顺序是刻意的：先证明“文档进得来”，再证明“检索找得到”，最后才看“模型答得对”。
+            跳过前两步直接看答案，等于没有验证。</div>
+          <div id="ovSteps" class="muted"></div>
+          <div class="sep"></div>
+          <div class="flex">
+            <button class="btn primary" id="ovGoIngest">① 去入库</button>
+            <button class="btn" id="ovGoRetrieve">② 去检索调试</button>
+            <button class="btn" id="ovGoChat">③ 去问答</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>部署自检</h3>
+          <div id="ovDeploy" class="tiny mono" style="line-height:1.9"></div>
+          <div class="sep"></div>
+          <h3>接下来该做什么</h3>
+          <div id="ovNext" class="muted"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 入库 ============ -->
+    <section class="view" id="v-ingest">
+      <div class="grid g32">
+        <div>
+          <div class="card">
+            <h3>上传文档 <span class="tag chip" id="upRoute">自动路由</span></h3>
+            <div class="row" style="margin-bottom:10px">
+              <div class="fix" style="width:180px;flex:0 0 180px">
+                <label class="f">知识库（kb）</label>
+                <select id="upKb"></select>
+              </div>
+              <div class="fix" style="flex:1">
+                <label class="f">支持：pdf / xlsx / csv / mp4 / mp3 / wav …（按扩展名路由管道）</label>
+                <div class="tiny mono" id="upPipeHint">—</div>
+              </div>
+            </div>
+            <div class="drop" id="drop">
+              <div style="font-size:15px;margin-bottom:4px">拖文件到这里，或点击选择</div>
+              <div class="tiny">上传即入任务表 → 后台跑管道 → 每步落 trace；失败进待办，不静默丢</div>
+              <input type="file" id="file" hidden>
+            </div>
+            <div id="upResult" style="margin-top:12px"></div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <h3>任务详情 <span class="tag tiny" id="taskIdLabel"></span></h3>
+            <div id="taskDetail"><div class="empty">上传后自动展示；也可从右侧“最近任务”点选</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>最近任务 <button class="btn sm ghost" id="reloadTasks" style="margin-left:auto">刷新</button></h3>
+            <div id="taskList"><div class="empty">暂无任务</div></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h3>待办（人工队列）<span class="tag chip" id="todoN">0</span></h3>
+            <div id="todoList"><div class="empty">没有待办</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 问答 ============ -->
+    <section class="view" id="v-chat">
+      <div class="card">
+        <div class="row">
+          <div class="fix" style="width:150px;flex:0 0 150px">
+            <label class="f">应用</label><select id="chatApp"></select>
+          </div>
+          <div>
+            <label class="f">问题</label>
+            <input id="chatQ" placeholder="例：报销口径是什么？" value="报销口径是什么">
+          </div>
+          <div class="fix"><button class="btn primary" id="chatGo">提问（SSE）</button></div>
+        </div>
+        <div class="tiny" style="margin-top:8px">
+          事件顺序：hit（直击库）→ ctx（候选）→ token（流式）→ gate（闸门）→ done。任何降级都会以 gate 事件出现。
+        </div>
+      </div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card">
+          <h3>回答 <span class="tag" id="chatState"></span></h3>
+          <div class="answer" id="chatAnswer"><span class="muted">还没有提问</span></div>
+          <div class="sep"></div>
+          <h3>事件流</h3>
+          <div class="log" id="chatLog"><span class="t">等待请求…</span></div>
+        </div>
+        <div class="card">
+          <h3>模型看到的上下文 <span class="tag tiny" id="chatCtxN"></span></h3>
+          <div id="chatCtx"><div class="empty">提问后展示（只显示真正进 prompt 的块）</div></div>
+          <div class="sep"></div>
+          <h3>引用与校验</h3>
+          <div id="chatGate" class="muted">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 检索调试 ============ -->
+    <section class="view" id="v-retrieve">
+      <div class="card">
+        <div class="row">
+          <div class="fix" style="width:150px;flex:0 0 150px">
+            <label class="f">应用</label><select id="retApp"></select>
+          </div>
+          <div class="fix" style="width:150px;flex:0 0 150px">
+            <label class="f">知识库</label><select id="retKb"></select>
+          </div>
+          <div>
+            <label class="f">问题（不调生成模型，只看检索侧）</label>
+            <input id="retQ" value="报销口径是什么">
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">vector_topk</label><input id="retV" type="number" value="20"></div>
+          <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">bm25_topk</label><input id="retB" type="number" value="20"></div>
+          <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">top_n</label><input id="retN" type="number" value="12"></div>
+          <div class="fix" style="width:130px;flex:0 0 130px"><label class="f">rerank_top_n</label><input id="retR" type="number" value="6"></div>
+          <div class="fix"><button class="btn primary" id="retGo">跑检索</button></div>
+        </div>
+      </div>
+      <div id="retSummary" style="margin-top:14px"></div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>关键词通道（FTS5 / BM25）<span class="tag chip" id="retBm25N">–</span></h3><div id="retBm25"><div class="empty">未运行</div></div></div>
+        <div class="card"><h3>向量通道（Chroma）<span class="tag chip" id="retVecN">–</span></h3><div id="retVec"><div class="empty">未运行</div></div></div>
+      </div>
+      <div class="grid g32" style="margin-top:14px">
+        <div class="card"><h3>融合结果（RRF）与预算</h3><div id="retFused"><div class="empty">未运行</div></div></div>
+        <div class="card"><h3>闸门一 / 重排 / 诊断</h3><div id="retDiag"><div class="empty">未运行</div></div></div>
+      </div>
+    </section>
+
+    <!-- ============ 知识库 ============ -->
+    <section class="view" id="v-kb">
+      <div class="card">
+        <h3>分块浏览</h3>
+        <div class="row">
+          <div class="fix" style="width:160px;flex:0 0 160px"><label class="f">知识库</label><select id="kbSel"></select></div>
+          <div class="fix" style="width:220px"><label class="f">doc_id（可选）</label><input id="kbDoc" placeholder="全部"></div>
+          <div><label class="f">关键词（走 FTS5，与线上同一函数；中文按字切分）</label><input id="kbQ" placeholder="如：报销 或 金额"></div>
+          <div class="fix" style="width:90px;flex:0 0 90px"><label class="f">条数</label><input id="kbN" type="number" value="20"></div>
+          <div class="fix"><button class="btn primary" id="kbGo">查询</button></div>
+        </div>
+      </div>
+      <div class="grid g32" style="margin-top:14px">
+        <div class="card"><h3>结果 <span class="tag chip" id="kbTotal">–</span></h3><div id="kbList"><div class="empty">未查询</div></div></div>
+        <div class="card">
+          <h3>直击库（L0 精确 / L1 语义 / L2 沉淀）</h3>
+          <div class="tiny" style="margin-bottom:8px">直击命中零检索零生成——答错比 RAG 更伤信任，所以先在这张表里把口径写死。</div>
+          <div id="dhList"><div class="empty">加载中…</div></div>
+          <div class="sep"></div>
+          <div class="row">
+            <div class="fix" style="width:80px;flex:0 0 80px"><label class="f">level</label><select id="dhLevel"><option>L0</option><option>L1</option><option>L2</option></select></div>
+            <div class="fix" style="width:150px;flex:0 0 150px"><label class="f">kb</label><select id="dhKb"></select></div>
+            <div><label class="f">标准问</label><input id="dhQ" placeholder="报销上限是多少"></div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div><label class="f">答案（口径写死）</label><input id="dhA" placeholder="1234 元"></div>
+            <div class="fix"><button class="btn" id="dhAdd">加入直击库</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 观测 ============ -->
+    <section class="view" id="v-observe">
+      <div class="grid g3" id="obKpis"></div>
+      <div class="grid g32" style="margin-top:14px">
+        <div class="card">
+          <h3>按 trace_id 复盘 <span class="tag tiny">任何一次“答案不对”先查这里</span></h3>
+          <div class="row">
+            <div><label class="f">trace_id</label><input id="trId" placeholder="从问答页复制"></div>
+            <div class="fix"><button class="btn primary" id="trGo">查 trace</button></div>
+          </div>
+          <div id="trOut" style="margin-top:12px"><div class="empty">输入 trace_id 查看每一步的耗时/计数/错误</div></div>
+        </div>
+        <div class="card">
+          <h3>运行计数</h3>
+          <div id="obMetrics" class="tiny mono" style="line-height:2">加载中…</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>问答日志 <span class="tag tiny">评测集与直击库 L2 的原料</span></h3>
+        <div id="obQa"><div class="empty">加载中…</div></div>
+      </div>
+    </section>
+
+    <!-- ============ 14 天 ============ -->
+    <section class="view" id="v-plan">
+      <div class="card">
+        <h3>14 天：从“能跑”到“讲得清”</h3>
+        <div class="hint">每天只做一件事，但必须留下证据：页面上能看到的现象 + 一句能讲给别人的结论。
+          打勾会存在本机 localStorage，刷新不丢。</div>
+        <div class="flex" style="margin:10px 0 14px">
+          <button class="btn sm ghost" id="planReset">重置进度</button>
+          <span class="sp"></span>
+          <span class="tiny" id="planTip">0/14</span>
+        </div>
+        <div id="planList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 基础工具 ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('zh-CN') : n);
+const shortId = (s) => (s ? String(s).slice(0, 10) : '');
+function toast(msg, kind = '') {
+  const d = document.createElement('div');
+  d.className = kind; d.textContent = msg;
+  $('#toast').appendChild(d);
+  setTimeout(() => d.remove(), 4200);
+}
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const text = await res.text();
+  let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error((data && (data.detail || data.raw)) || (res.status + ' ' + res.statusText));
+  return data;
+}
+const postJSON = (path, body) => api(path, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+});
+
+/* SSE：POST + ReadableStream 手写解析（EventSource 只支持 GET） */
+async function sse(path, body, onEvent, signal) {
+  const res = await fetch(path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal
+  });
+  if (!res.ok) throw new Error(res.status + ' ' + (await res.text()).slice(0, 300));
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const raw = buf.slice(0, i); buf = buf.slice(i + 2);
+      let ev = 'message', data = '';
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event:')) ev = line.slice(6).trim();
+        else if (line.startsWith('data:')) data += line.slice(5).trim();
+      }
+      if (!data) continue;
+      let obj; try { obj = JSON.parse(data); } catch { obj = { raw: data }; }
+      onEvent(ev, obj);
+    }
+  }
+}
+
+/* ================= 全局状态 ================= */
+const S = { config: null, health: null, kbs: [], apps: [], poll: null };
+
+/* ================= 导航 ================= */
+const TITLES = { overview: '概览', ingest: '入库', chat: '问答', retrieve: '检索调试',
+                 kb: '知识库', observe: '观测', plan: '14 天路线' };
+function go(v) {
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $('#vtitle').textContent = TITLES[v] || v;
+  location.hash = v;
+  if (v === 'observe') loadObserve();
+  if (v === 'kb') { loadChunks(); loadDirectHits(); }
+  if (v === 'ingest') { loadTasks(); loadTodos(); }
+  if (v === 'overview') loadOverview();
+}
+$('#nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (b) go(b.dataset.v);
+});
+$('#ovGoIngest').onclick = () => go('ingest');
+$('#ovGoRetrieve').onclick = () => go('retrieve');
+$('#ovGoChat').onclick = () => go('chat');
+
+/* ================= 启动：拉配置与健康 ================= */
+async function boot() {
+  try {
+    S.health = await api('/admin/health');
+  } catch (e) { toast('健康检查失败：' + e.message, 'bad'); }
+  try {
+    S.config = await api('/admin/config');
+  } catch (e) { toast('读取配置失败：' + e.message, 'bad'); }
+
+  const kbs = (S.health && S.health.known_kbs) || [];
+  S.kbs = kbs;
+  S.apps = Object.keys((S.config && S.config.apps) || {});
+  fillSelect('#upKb', kbs, kbs[0]);
+  fillSelect('#kbSel', [''].concat(kbs), kbs[0] || '');
+  fillSelect('#dhKb', kbs, kbs[0]);
+  fillSelect('#retKb', kbs, kbs[0]);
+  fillSelect('#chatApp', S.apps, S.apps[0]);
+  fillSelect('#retApp', S.apps, S.apps[0]);
+
+  renderPills();
+  renderPlan();
+  const hash = (location.hash || '#overview').slice(1);
+  go(TITLES[hash] ? hash : 'overview');
+}
+function fillSelect(sel, items, value) {
+  const el = $(sel); if (!el) return;
+  el.innerHTML = items.map(v => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(v || '（全部）')}</option>`).join('');
+}
+function renderPills() {
+  const h = S.health || {};
+  const ollama = h.ollama || {};
+  const eb = h.embed_backend || {};
+  const pills = [
+    { t: 'Ollama', ok: !!ollama.ok, d: ollama.ok ? '就绪' : (ollama.detail || '不可达') },
+    { t: 'embed', ok: !eb.breaker_open, d: eb.breaker_open ? `熔断 ${eb.retry_in}s` : '可用' },
+    { t: '步骤注册', ok: !(h.pipeline_missing_steps || []).length, d: (h.steps_registered || []).length + ' 个' },
+    { t: 'rerank', ok: !!h.rerank_enabled, d: h.rerank_enabled ? '已配置' : 'RRF 兜底' },
+    { t: 'kb', ok: (h.known_kbs || []).length > 0, d: (h.known_kbs || []).join(',') || '未声明' }
+  ];
+  $('#pills').innerHTML = pills.map(p =>
+    `<span class="pill" title="${esc(p.d)}"><i class="dot ${p.ok ? 'ok' : 'bad'}"></i>${esc(p.t)}<span class="tiny">${esc(p.d)}</span></span>`
+  ).join('');
+  $('#sideEnv').innerHTML = `data: ${esc(shortPath((h.data_dir || '') + ''))}<br>cfg: ${esc(shortPath((h.config_dir || '') + ''))}`;
+}
+const shortPath = (p) => p ? p.replace(/^.*[\\/](?=[^\\/]+[\\/][^\\/]+$)/, '…/') : '—';
+
+/* ================= 概览 ================= */
+async function loadOverview() {
+  const h = S.health || {};
+  const ollama = h.ollama || {};
+  $('#ovHealth').innerHTML = `
+    <div class="flex" style="margin-bottom:6px"><i class="dot ${ollama.ok ? 'ok' : 'bad'}"></i>
+      <b>Ollama</b><span class="tiny">${esc(ollama.ok ? '可达' : (ollama.detail || '不可达'))}</span></div>
+    <div class="flex" style="margin-bottom:6px"><i class="dot ${(h.pipeline_missing_steps || []).length ? 'bad' : 'ok'}"></i>
+      <b>管道 DSL</b><span class="tiny">${(h.steps_registered || []).length} 个步骤类型 · 缺失 ${(h.pipeline_missing_steps || []).length}</span></div>
+    <div class="flex"><i class="dot ${h.rerank_enabled ? 'ok' : 'warn'}"></i>
+      <b>rerank / 解析</b><span class="tiny">${h.rerank_enabled ? '已配置' : 'RRF 兜底'} · ${esc(h.mineru_mode || '')} · ${esc(h.asr_engine || '')}</span></div>`;
+
+  try {
+    const m = await api('/admin/metrics');
+    const chunks = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
+    $('#ovChunks').innerHTML = fmt(chunks) + '<small>块</small>';
+    $('#ovChunksSub').textContent = Object.entries(m.chunks_by_kb || {}).map(([k, v]) => k + ': ' + v).join(' · ') || '还没有文档';
+    $('#ovTodos').innerHTML = fmt(m.todos_open || 0) + '<small>待处理</small>';
+    const by = m.tasks_by_status || {};
+    $('#ovSteps').innerHTML = `
+      <div class="step"><span class="n">1</span><span>上传一份文档，看到管道每一步 ok</span><span class="chip ${by.done ? 'ok' : ''}">${by.done || 0} done</span></div>
+      <div class="step"><span class="n">2</span><span>在「检索调试」看到两路命中与 RRF</span><span class="chip ${chunks ? 'ok' : ''}">${chunks} 块可检索</span></div>
+      <div class="step"><span class="n">3</span><span>在「问答」看到 ctx → token → gate 全流程</span><span class="chip ${by.failed ? 'warn' : ''}">${by.failed || 0} failed</span></div>`;
+    $('#ovDeploy').innerHTML =
+      [['config_dir', h.config_dir], ['data_dir', h.data_dir], ['known_kbs', (h.known_kbs || []).join(', ')],
+       ['limits', JSON.stringify(h.limits || {})], ['tasks', JSON.stringify(by)]]
+      .map(([k, v]) => `<div><span class="tiny">${esc(k)}</span> ${esc(v || '—')}</div>`).join('');
+    const open = m.todos_open || 0;
+    $('#ovNext').innerHTML = open
+      ? `有 <b>${open}</b> 条待办在等你：去「入库」右侧处理，处理完点重试即可续跑。`
+      : (chunks ? '当前没有待办。建议去「检索调试」故意问一个坏问题，观察候选池为空时闸门如何拒答。'
+                : '还没有任何文档：先去「入库」上传一份 PDF 或 CSV。');
+  } catch (e) { toast('指标加载失败：' + e.message, 'bad'); }
+}
+
+/* ================= 入库 ================= */
+const PIPE_BY_EXT = { '.pdf': 'pdf_v1', '.mp4': 'av_v1', '.mkv': 'av_v1', '.mov': 'av_v1',
+  '.mp3': 'av_v1', '.wav': 'av_v1', '.m4a': 'av_v1', '.flac': 'av_v1',
+  '.xlsx': 'excel_v1', '.xlsm': 'excel_v1', '.csv': 'excel_v1' };
+const drop = $('#drop'), fileInput = $('#file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hot'); };
+drop.ondragleave = () => drop.classList.remove('hot');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hot'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+fileInput.onchange = () => { if (fileInput.files[0]) upload(fileInput.files[0]); };
+
+async function upload(file) {
+  const kb = $('#upKb').value;
+  const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+  const pipe = PIPE_BY_EXT[ext];
+  $('#upRoute').textContent = pipe ? ('→ ' + pipe) : '不支持的扩展名';
+  $('#upResult').innerHTML = `<div class="muted">上传中：${esc(file.name)}（${fmt(file.size)} 字节）…</div>`;
+  const fd = new FormData(); fd.append('file', file); fd.append('kb', kb);
+  try {
+    const r = await api('/docs/upload', { method: 'POST', body: fd });
+    $('#upResult').innerHTML = `<div class="flex"><span class="chip ok">已入队</span>
+      <span class="tiny mono">doc ${esc(r.doc_id)} · task ${esc(r.task_id)} · ${fmt(r.size_bytes || 0)}B</span></div>`;
+    toast('已入队，正在跑管道', 'ok');
+    watchTask(r.task_id, r.doc_id);
+    loadTasks(); loadTodos();
+  } catch (e) {
+    $('#upResult').innerHTML = `<div class="chip bad">上传失败</div> <span class="tiny">${esc(e.message)}</span>`;
+    toast('上传失败：' + e.message, 'bad');
+  }
+}
+
+function watchTask(taskId, docId) {
+  clearInterval(S.poll);
+  const tick = async () => {
+    try {
+      const d = await api(`/admin/tasks/${taskId}`);
+      renderTask(d, docId);
+      if (d.task.status === 'done' || d.task.status === 'failed') {
+        clearInterval(S.poll);
+        loadTasks(); loadTodos();
+        if (d.task.status === 'failed') toast('管道失败，已入待办', 'bad');
+      }
+    } catch (e) { clearInterval(S.poll); }
+  };
+  tick(); S.poll = setInterval(tick, 1200);
+}
+
+function renderTask(d, docId) {
+  const t = d.task || {}, steps = d.steps || [];
+  $('#taskIdLabel').textContent = shortId(t.id) + ' · ' + (t.pipeline || '');
+  const cls = t.status === 'done' ? 'ok' : t.status === 'failed' ? 'bad' : 'warn';
+  const rows = steps.map((s, i) => `
+    <div class="step">
+      <span class="n">${i + 1}</span>
+      <span><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${s.status}</span>
+        <span class="mono" style="font-size:12px"> ${esc(s.step)}</span>
+        <span class="ms">${s.ms != null ? s.ms + 'ms' : ''}</span>
+        <div class="ctr">${esc(s.counters && Object.keys(s.counters).length ? JSON.stringify(s.counters) : '')}</div>
+        ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}</span>
+    </div>`).join('');
+  $('#taskDetail').innerHTML = `
+    <div class="flex" style="margin-bottom:10px">
+      <span class="chip ${cls}" id="taskState">${esc(t.status)}</span>
+      <span class="tiny mono">doc ${esc(t.doc_id)} · kb ${esc(t.kb)} · ${esc(t.created_at || '')}</span>
+      <span class="sp"></span>
+      ${t.status === 'failed' ? `<button class="btn sm" onclick="retryTask('${esc(t.id)}')">重试（resume）</button>` : ''}
+      <button class="btn sm ghost" onclick="openTrace('${esc(t.trace_id || '')}')">查 trace</button>
+    </div>
+    ${t.error ? `<div class="hint" style="border-left-color:#7a2f2f;color:#ffb0b0">${esc(t.error)}</div>` : ''}
+    <div class="steps">${rows || '<div class="empty">还没有步骤记录</div>'}</div>`;
+}
+async function retryTask(taskId) {
+  try {
+    const r = await api(`/docs/tasks/${taskId}/retry`, { method: 'POST' });
+    toast('重跑结果：' + r.status, r.status === 'done' ? 'ok' : 'bad');
+    watchTask(r.task_id);
+  } catch (e) { toast('重试失败：' + e.message, 'bad'); }
+}
+async function loadTasks() {
+  try {
+    const d = await api('/admin/tasks?limit=12');
+    const rows = (d.tasks || []).map(t => `
+      <div class="step" style="cursor:pointer" onclick="watchTask('${esc(t.id)}','${esc(t.doc_id)}')">
+        <span class="n">${esc((t.created_at || '').slice(11, 19))}</span>
+        <span><span class="chip ${t.status === 'done' ? 'ok' : t.status === 'failed' ? 'bad' : 'warn'}">${esc(t.status)}</span>
+          <span class="tiny mono"> ${esc(t.pipeline)} · ${esc(shortId(t.doc_id))}</span>
+          ${t.error ? `<div class="err">${esc(String(t.error).slice(0, 90))}</div>` : ''}
+          <div class="ctr">${esc(t.current_step || '')}</div></span>
+      </div>`).join('');
+    $('#taskList').innerHTML = rows || '<div class="empty">暂无任务</div>';
+  } catch (e) { $('#taskList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function loadTodos() {
+  try {
+    const d = await api('/admin/todos?only_open=true');
+    const items = d.todos || [];
+    $('#todoN').textContent = items.length;
+    $('#todoList').innerHTML = items.length ? items.map(t => `
+      <div class="ctx">
+        <div class="h"><span class="chip warn">open</span><span class="tiny mono">doc ${esc(shortId(t.doc_id))}</span>
+          <span class="sp"></span><button class="btn sm ghost" onclick="resolveTodo(${t.id})">标记已处理</button></div>
+        <div class="b">${esc(t.reason)}</div>
+      </div>`).join('') : '<div class="empty">没有待办</div>';
+  } catch (e) { $('#todoList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function resolveTodo(id) {
+  try { await api(`/admin/todos/${id}/resolve`, { method: 'POST' }); toast('已关闭', 'ok'); loadTodos(); loadOverview(); }
+  catch (e) { toast(e.message, 'bad'); }
+}
+
+/* ================= 问答 ================= */
+let chatAbort = null;
+$('#chatGo').onclick = () => runChat();
+$('#chatQ').addEventListener('keydown', e => { if (e.key === 'Enter') runChat(); });
+
+async function runChat() {
+  const question = $('#chatQ').value.trim();
+  if (!question) return toast('先写一个问题');
+  if (chatAbort) chatAbort.abort();
+  chatAbort = new AbortController();
+  $('#chatAnswer').innerHTML = '<span class="muted">生成中…</span>';
+  $('#chatCtx').innerHTML = '<div class="empty">等待 ctx 事件</div>';
+  $('#chatGate').innerHTML = '—';
+  $('#chatCtxN').textContent = '';
+  $('#chatState').innerHTML = '<span class="chip warn">running</span>';
+  const log = $('#chatLog'); log.innerHTML = '';
+  const t0 = performance.now();
+  const add = (html) => { log.innerHTML += html + '\n'; log.scrollTop = log.scrollHeight; };
+  let answer = '', citations = [], traceId = '', firstToken = 0;
+
+  try {
+    await sse('/chat', { app: $('#chatApp').value, question }, (ev, d) => {
+      if (ev === 'hit') {
+        add(`<span class="acc">[hit]</span> 直击库 ${d.level} · ${esc(d.question)} → ${esc(d.answer)}`);
+        answer = d.answer; traceId = d.trace_id || '';
+        $('#chatAnswer').textContent = answer;
+        $('#chatState').innerHTML = '<span class="chip v">direct_hit</span>';
+      } else if (ev === 'ctx') {
+        const cs = d.candidates || [];
+        $('#chatCtxN').textContent = cs.length + ' 块';
+        $('#chatCtx').innerHTML = cs.map(c => `
+          <div class="ctx">
+            <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
+              <span class="tiny mono">${esc(shortId(c.chunk_id))}</span>
+              ${c.score ? `<span class="chip">rrf ${Number(c.score).toFixed(4)}</span>` : ''}
+              ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)}</span>`).join('')}
+              <span class="sp"></span><span class="tiny">${esc(JSON.stringify(c.anchors || {}))}</span></div>
+            <div class="b">${esc(c.preview || '')}</div>
+          </div>`).join('');
+        add(`<span class="acc">[ctx]</span> ${cs.length} 块进入上下文：${cs.map(c => '块' + c.ordinal).join(' ')}`);
+      } else if (ev === 'token') {
+        if (!firstToken) { firstToken = performance.now() - t0; }
+        answer += d.t || '';
+        $('#chatAnswer').textContent = answer;
+        if (d.repaired) add(`<span class="warn">[token]</span> 闸门重答版本开始`);
+      } else if (ev === 'gate') {
+        const bad = d.passed === false;
+        const bits = [];
+        if (d.stage) bits.push('stage=' + d.stage);
+        if (d.reason) bits.push(d.reason);
+        if (d.note) bits.push(d.note);
+        if (d.passed != null) bits.push('passed=' + d.passed);
+        if (d.stage === 'context_budget') bits.push(`kept ${d.kept}/dropped ${d.dropped} · ctx ${d.ctx_tokens}tok / 可用 ${d.available} · 输出预留 ${d.reserved_output}`);
+        if ((d.violations || []).length) bits.push('violations: ' + d.violations.join(' / '));
+        add(`<span class="${bad ? 'bad' : 'warn'}">[gate:${esc(d.stage || '')}]</span> ${esc(bits.join(' · '))}`);
+        if (d.stage === 'context_budget') {
+          $('#chatGate').innerHTML += `<div class="hint">预算：kept ${d.kept} / dropped ${d.dropped} / ctx ${d.ctx_tokens} tok，窗口 ${d.num_ctx}，输出预留 ${d.reserved_output}${d.truncated ? '（首块被截断）' : ''}</div>`;
+        }
+      } else if (ev === 'no_evidence') {
+        $('#chatState').innerHTML = '<span class="chip warn">no_evidence</span>';
+        $('#chatAnswer').innerHTML = `<span class="muted">没有依据，按规则拒答（这是正确行为）</span>`;
+        add(`<span class="warn">[no_evidence]</span> ${esc(d.reason)}`);
+        traceId = d.trace_id || traceId;
+      } else if (ev === 'error') {
+        $('#chatState').innerHTML = '<span class="chip bad">error</span>';
+        add(`<span class="bad">[error]</span> ${esc(d.message)}`);
+        // 生成阶段失败 ≠ 检索失败：上下文已经拿到了，这本身就是一条可读的诊断信息
+        $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#7a2f2f">
+          <b>生成阶段不可达</b>（检索与闸门已跑完，见右侧上下文）。<br>
+          <span class="mono tiny">${esc(d.message)}</span><br>
+          <span class="tiny">起 Ollama 后重试：<code>ollama serve</code> + <code>ollama pull qwen2.5:7b-instruct-q4_K_M</code></span></div>`;
+        traceId = d.trace_id || traceId;
+      } else if (ev === 'done') {
+        citations = d.citations || [];
+        traceId = d.trace_id || traceId;
+        const dt = Math.round(performance.now() - t0);
+        $('#chatState').innerHTML = `<span class="chip ok">done · ${dt}ms</span>`;
+        if (d.source) add(`<span class="ok">[done]</span> source=${esc(d.source)}`);
+      }
+    }, chatAbort.signal);
+  } catch (e) {
+    if (e.name !== 'AbortError') { add(`<span class="bad">[fatal]</span> ${esc(e.message)}`); toast(e.message, 'bad'); }
+    $('#chatState').innerHTML = '<span class="chip bad">中断</span>';
+  }
+  if (citations.length) {
+    $('#chatGate').innerHTML = citations.map(c =>
+      `<div class="tiny mono">块${esc(c.ordinal)} · doc ${esc(shortId(c.doc_id))} · ${esc(JSON.stringify(c.anchors || {}))}</div>`).join('');
+  }
+  if (traceId) {
+    $('#chatGate').innerHTML += `<div style="margin-top:8px"><button class="btn sm ghost" onclick="openTrace('${esc(traceId)}')">用 trace ${esc(shortId(traceId))} 复盘</button></div>`;
+  }
+}
+function openTrace(id) {
+  if (!id) return toast('没有 trace_id');
+  location.hash = 'observe'; go('observe');
+  $('#trId').value = id; lookupTrace();
+}
+
+/* ================= 检索调试 ================= */
+$('#retGo').onclick = runRetrieve;
+async function runRetrieve() {
+  const q = $('#retQ').value.trim();
+  if (!q) return toast('先写问题');
+  $('#retSummary').innerHTML = '<div class="card"><div class="muted">检索中…</div></div>';
+  try {
+    const d = await postJSON('/admin/retrieve', {
+      question: q, app: $('#retApp').value, kb: $('#retKb').value,
+      vector_topk: +$('#retV').value || 20, bm25_topk: +$('#retB').value || 20,
+      top_n: +$('#retN').value || 12, rerank_top_n: +$('#retR').value || 6
+    });
+    renderRetrieve(d);
+  } catch (e) {
+    $('#retSummary').innerHTML = `<div class="card"><span class="chip bad">失败</span> ${esc(e.message)}</div>`;
+    toast(e.message, 'bad');
+  }
+}
+function renderRetrieve(d) {
+  const bm = d.channels.bm25 || [], vc = d.channels.vector || [];
+  $('#retBm25N').textContent = bm.length;
+  $('#retVecN').textContent = vc.length;
+  $('#retBm25').innerHTML = bm.length ? bm.map(h => `<div class="ctx">
+      <div class="h"><span class="chip info">#${h.chunk_id.split('#')[1] || ''}</span>
+        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
+        <span class="chip">-bm25 ${Number(h.score).toFixed(4)}</span></div></div>`).join('')
+    : '<div class="empty">无命中（中文按字切分，换短词试试）</div>';
+  $('#retVec').innerHTML = vc.length ? vc.map(h => `<div class="ctx">
+      <div class="h"><span class="chip v">#${h.chunk_id.split('#')[1] || ''}</span>
+        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
+        <span class="chip">cos ${Number(h.score).toFixed(3)}</span></div></div>`).join('')
+    : `<div class="empty">${esc(d.vector_skipped_reason || '向量通道无命中')}</div>`;
+
+  const b = d.budget || {};
+  const used = b.available ? Math.min(100, Math.round(b.ctx_tokens / b.available * 100)) : 0;
+  $('#retSummary').innerHTML = `
+    <div class="card">
+      <div class="flex">
+        <span class="chip info">${esc(d.kb)}</span>
+        <span class="chip">${d.ms} ms</span>
+        <span class="chip ${d.gate_pre.passed ? 'ok' : 'warn'}">闸门一 ${d.gate_pre.passed ? '通过' : '拦截'}：${esc(d.gate_pre.reason)}</span>
+        <span class="chip ${d.direct_hit.hit ? 'v' : ''}">直击库 ${d.direct_hit.hit ? ('命中 ' + esc(d.direct_hit.level)) : '未命中'}</span>
+        <span class="sp"></span>
+        <span class="tiny">${esc(d.rerank.note)}</span>
+      </div>
+      <div class="sep"></div>
+      <div class="flex" style="justify-content:space-between">
+        <span class="tiny">上下文预算：${fmt(b.ctx_tokens)} / ${fmt(b.available)} tok（窗口 ${fmt(b.num_ctx)}，prompt 开销 ${fmt(b.prompt_overhead)}，输出预留 ${fmt(b.reserved_output)}）</span>
+        <span class="tiny">kept ${b.kept} · dropped ${b.dropped}${b.truncated ? ' · 首块截断' : ''}</span>
+      </div>
+      <div class="bar"><i style="width:${used}%"></i></div>
+      ${d.vector_skipped_reason ? `<div class="hint">${esc(d.vector_skipped_reason)}</div>` : ''}
+    </div>`;
+
+  $('#retFused').innerHTML = (d.budget.blocks || []).length ? d.budget.blocks.map((c, i) => `
+    <div class="ctx">
+      <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
+        <span class="tiny mono">${esc(c.chunk_id)}</span>
+        <span class="chip">rrf ${Number(c.rrf).toFixed(4)}</span>
+        ${c.rerank_score != null ? `<span class="chip warn">rerank ${Number(c.rerank_score).toFixed(3)}</span>` : ''}
+        ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)} ${Number(ch.score).toFixed(3)}</span>`).join('')}
+        <span class="sp"></span><span class="tiny">${c.chars} 字</span></div>
+      <div class="b">${esc(c.preview)}</div>
+    </div>`).join('') : '<div class="empty">没有候选能进入上下文</div>';
+
+  $('#retDiag').innerHTML = `
+    <div class="tiny mono" style="line-height:1.9">
+      <div>retrieval_path: ${esc(JSON.stringify(d.retrieval_path))}</div>
+      <div>dropped: ${esc((b.dropped_ids || []).join(', ') || '—')}</div>
+      <div>rerank: ${esc(d.rerank.note)}</div>
+      <div>direct_hit: ${esc(JSON.stringify(d.direct_hit))}</div>
+    </div>
+    <div class="hint">看这三件事：① 关键词与向量是否各捞到不同块（互补性）② 融合后名次是否符合直觉
+      ③ 预算是否悄悄砍掉了你要的那块——砍了就说明切分太粗或 top_n 太大。</div>`;
+}
+
+/* ================= 知识库 ================= */
+$('#kbGo').onclick = loadChunks;
+async function loadChunks() {
+  const q = $('#kbQ').value.trim(), kb = $('#kbSel').value, doc = $('#kbDoc').value.trim();
+  const n = +$('#kbN').value || 20;
+  const qs = new URLSearchParams({ kb, limit: n });
+  if (q) qs.set('q', q);
+  if (doc) qs.set('doc_id', doc);
+  $('#kbList').innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    const d = await api('/admin/chunks?' + qs.toString());
+    $('#kbTotal').textContent = (d.mode === 'fts' ? 'FTS · ' : '') + d.total + ' 块';
+    $('#kbList').innerHTML = (d.chunks || []).length ? d.chunks.map(c => `
+      <div class="ctx">
+        <div class="h"><span class="chip info">#${esc(c.ordinal)}</span>
+          <span class="tiny mono">${esc(c.chunk_id)}</span>
+          <span class="chip">${esc(c.kb)}</span>
+          ${c.bm25_score != null ? `<span class="chip">-bm25 ${Number(c.bm25_score).toFixed(3)}</span>` : ''}
+          ${c.embed_version ? `<span class="chip v">${esc(c.embed_version)}</span>` : ''}
+          <span class="sp"></span><span class="tiny">${c.chars} 字 ${c.truncated_view ? '（显示截断）' : ''}</span></div>
+        <div class="b">${esc(c.text)}</div>
+        <div class="tiny mono" style="margin-top:6px">${esc(JSON.stringify(c.anchors || {}))} · ${esc(JSON.stringify(c.meta || {}))}</div>
+      </div>`).join('') : '<div class="empty">没有匹配分块</div>';
+  } catch (e) { $('#kbList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$('#dhAdd').onclick = async () => {
+  try {
+    await postJSON('/admin/direct_hits', {
+      kb: $('#dhKb').value, level: $('#dhLevel').value,
+      question: $('#dhQ').value, answer: $('#dhA').value, aliases: []
+    });
+    toast('已加入直击库', 'ok'); $('#dhQ').value = ''; $('#dhA').value = ''; loadDirectHits();
+  } catch (e) { toast(e.message, 'bad'); }
+};
+async function loadDirectHits() {
+  try {
+    const d = await api('/admin/direct_hits');
+    const hits = d.hits || [];
+    $('#dhList').innerHTML = hits.length ? `<table><thead><tr><th>level</th><th>问题</th><th>答案</th><th></th></tr></thead><tbody>
+      ${hits.map(h => `<tr><td><span class="chip v">${esc(h.level)}</span></td>
+        <td>${esc(h.question)}</td><td class="mono" style="font-size:11.5px">${esc(h.answer)}</td>
+        <td><button class="btn sm ghost" onclick="delHit('${esc(h.id)}')">删</button></td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty">直击库为空：加一条，然后在问答页问同一句话，看是否零检索命中</div>';
+  } catch (e) { $('#dhList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function delHit(id) {
+  try { await api('/admin/direct_hits/' + id, { method: 'DELETE' }); toast('已删除', 'ok'); loadDirectHits(); }
+  catch (e) { toast(e.message, 'bad'); }
+}
+
+/* ================= 观测 ================= */
+$('#trGo').onclick = lookupTrace;
+$('#trId').addEventListener('keydown', e => { if (e.key === 'Enter') lookupTrace(); });
+async function lookupTrace() {
+  const id = $('#trId').value.trim();
+  if (!id) return;
+  $('#trOut').innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    const d = await api('/admin/trace/' + encodeURIComponent(id));
+    $('#trOut').innerHTML = `<div class="tiny mono">trace ${esc(d.trace_id)} · ${d.steps.length} 步</div>
+      <div class="steps" style="margin-top:8px">${d.steps.map((s, i) => `
+        <div class="step"><span class="n">${i + 1}</span>
+          <span><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${s.status}</span>
+            <span class="mono" style="font-size:12px"> ${esc(s.step)}</span>
+            ${s.error ? `<div class="tiny" style="color:#ffb0b0">${esc(s.error)}</div>` : ''}</span>
+          <span class="c">${s.ms}ms<br>${esc(JSON.stringify(s.counters || {}))}</span></div>`).join('')}</div>`;
+  } catch (e) { $('#trOut').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function loadObserve() {
+  try {
+    const m = await api('/admin/metrics');
+    const by = m.tasks_by_status || {};
+    const total = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
+    $('#obKpis').innerHTML = [
+      ['任务', Object.entries(by).map(([k, v]) => k + ' ' + v).join(' · ') || '0', 'done / failed / running'],
+      ['分块', fmt(total), JSON.stringify(m.chunks_by_kb || {})],
+      ['待办', fmt(m.todos_open || 0), 'open 队列']
+    ].map(([t, v, s]) => `<div class="card"><h3>${esc(t)}</h3><div class="kpi">${esc(v)}</div><div class="tiny">${esc(s)}</div></div>`).join('');
+    $('#obMetrics').textContent = JSON.stringify(m, null, 2);
+  } catch (e) { $('#obMetrics').textContent = e.message; }
+
+  try {
+    const d = await api('/admin/qa_log?limit=15');
+    const rows = d.qa_log || [];
+    $('#obQa').innerHTML = rows.length ? `<table><thead><tr><th>时间</th><th>问题</th><th>答案</th><th>trace</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td class="tiny mono">${esc((r.ts || '').slice(5, 19))}</td>
+        <td>${esc(r.question)}</td>
+        <td class="tiny" style="max-width:420px">${esc(String(r.answer || '').slice(0, 160))}</td>
+        <td><button class="btn sm ghost" onclick="openTrace('${esc(r.trace_id || '')}')">${esc(shortId(r.trace_id))}</button></td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty">还没有问答记录</div>';
+  } catch (e) { $('#obQa').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+/* ================= 14 天路线 ================= */
+const PLAN_KEY = 'ownrag.plan.v1';
+const PLAN = [
+  { d: 1, t: '起服务，跑通最小闭环', goal: '把"能跑"变成"我看得见每一步"：起服务 → 上传 CSV → 7 个步骤全 ok。',
+    todo: ['读 README 的快速开始，用 uvicorn 起服务', '打开 /ui，确认顶部 Ollama/步骤注册/kb 三个灯', '上传一份 CSV，展开任务详情，逐个念出步骤名'],
+    check: '能按顺序说出 excel_v1 的 7 步，以及每步产出什么。', tab: 'ingest' },
+  { d: 2, t: '解析链路 A：PDF 与降级链', goal: '理解"解析失败不是任务失败"：看 MinerU 缺失如何降级到 pymupdf。',
+    todo: ['上传一份 PDF，看 trace 里 parse_mineru fail → fallback → pymupdf ok', '对比 parsed 的 metadata.degraded 与 anchors.page', '打开 /admin/chunks 看这块正文里的页码锚点'],
+    check: '能解释 fallback 链的三层，以及降级后丢了什么结构信息。', tab: 'ingest' },
+  { d: 3, t: '解析链路 B/C：音视频与 Excel', goal: 'Excel 走 staging 表、音视频走时间锚点——两条链路为何不能共用 PDF 的做法。',
+    todo: ['上传 xlsx，看 excel_stage 生成的 staging_* 表名与 schema_infer 的列类型', '看 textualize 的 row_card：为什么不是把表格塞进 prompt', '没有 ffmpeg 时上传音频，确认失败进了待办'],
+    check: '能说清 row_card 与 aggregate 的分工（数字来自 SQL，不来自向量）。', tab: 'ingest' },
+  { d: 4, t: '切分：决定检索天花板', goal: '看懂 chunker 的三条硬规则：标题路径、表格不跨块、块头增强。',
+    todo: ['读 ownrag/index/chunker.py 的 split_segments 与 chunk_markdown', '在知识库页查看块首的「文档标题 > 章节路径」', '把 max_tokens 改小重跑一份文档，观察块数变化'],
+    check: '能解释为什么"表格永不跨块"，以及 overlap 只在段落间生效的原因。', tab: 'kb' },
+  { d: 5, t: '关键词通道：FTS5 + 中文按字切分', goal: '亲眼看到 CJK 不分词的问题，以及字符化兜底的代价。',
+    todo: ['在知识库页用 q=报销 与 q=报销口径 分别搜', '对比命中数：为什么更长的词反而更难命中', '读 store.py 的 _fts_cjk，理解"索引与查询两侧必须同函数"'],
+    check: '能解释 bm25 分数为什么取负、OR 回退为什么精度会掉。', tab: 'kb' },
+  { d: 6, t: '向量通道：装与不装是两种系统', goal: '同一次检索，比较 vector=skipped 与 vector 有命中的差别。',
+    todo: ['检索调试页先跑一次（chromadb 未装 / Ollama 未起），记下 channels.vector 与提示', '装 chromadb、拉 bge-m3 后再跑，对比两路命中', '看 metrics 里 embed_version 分布'],
+    check: '能说清丢向量通道后，哪类问题最先退化（同义改写、跨表述）。', tab: 'retrieve' },
+  { d: 7, t: '混合与 RRF：不比分数只比名次', goal: '手算一次 RRF，理解为什么不需要归一化两路分数。',
+    todo: ['检索调试页看两路原始命中与 rrf 值', '挑一个块，按 1/(60+rank) 手算两路贡献并核对', '改 k（代码里 rrf_fuse 的 k）观察名次变化'],
+    check: '能解释 RRF 的假设与失效场景（两路都错时无法救回）。', tab: 'retrieve' },
+  { d: 8, t: 'rerank：为什么还要第二道排序', goal: '区分 bi-encoder 召回与 cross-encoder 重排的分工。',
+    todo: ['检索调试页看 rerank 未启用时的 note 与顺序', '起 bge-reranker 服务并配 OWNRAG_RERANK_URL，再跑同一问题', '对比 rerank_score 与 rrf 的排序差异'],
+    check: '能解释 rerank 为什么不能替代召回，以及延迟代价。', tab: 'retrieve' },
+  { d: 9, t: 'Prompt 与引用格式', goal: '让模型只依据资料回答，是可验证的约束而不是愿望。',
+    todo: ['读 ownrag/configs/prompts/policy_strict_v1.yaml 的四条规则', '问答页问一个资料里没有的问题，看模型是否拒答', '把规则 2 删掉再问，观察闸门二抓什么'],
+    check: '能说明为什么"只靠 prompt 约束不够"，闸门必须存在。', tab: 'chat' },
+  { d: 10, t: '两道闸门：把模型会错变成规则', goal: '生成前卡候选、生成后卡引用与数字。',
+    todo: ['问答页看 gate:post 的 passed/reason/violations', '故意构造"数字无引用"的问题看 violations', '读 generate/gates.py 的 citation_check 三分支'],
+    check: '能解释假引用（块9）与数字幻觉分别怎么被抓到。', tab: 'chat' },
+  { d: 11, t: '上下文预算：num_ctx 是输入+输出', goal: '看到"超窗先截问题"的风险被显式化。',
+    todo: ['设 OWNRAG_NUM_CTX=700、OWNRAG_MAX_NEW_TOKENS=600 重启', '问答页观察 gate:context_budget 的 kept/dropped/truncated', '检索调试页看预算条与 dropped_ids'],
+    check: '能写出预算公式，并解释为什么要给输出预留空间。', tab: 'chat' },
+  { d: 12, t: '失败归因：10 分钟定位', goal: '任何一次"答案不对"，都能回答：召回了什么、模型看到什么、闸门放过什么。',
+    todo: ['制造一次失败（传坏文件 / 断网），从待办点重试', '用 trace_id 在观测页复盘每一步耗时与计数', '对照 qa_log 的 hit_chunks 与 trace 的 counters'],
+    check: '能在 10 分钟内给出"错在解析/切分/召回/生成/闸门"的结论与证据。', tab: 'observe' },
+  { d: 13, t: '评测：先立分母再谈优化', goal: '没有评测集的调参都是猜——用 20 条问答把命中率变成数字。',
+    todo: ['造 data/eval/qa.jsonl（question + expect 关键词）', '跑 scripts/eval_recall.py，记录 hit_rate', '改切分参数再跑，比较两次数字'],
+    check: '能解释"命中率提升但答案变差"的可能原因（召回≠正确）。', tab: 'observe' },
+  { d: 14, t: '复盘与压测：把工程讲成一张图', goal: '能画出数据流并指出瓶颈，才算真搞明白。',
+    todo: ['画一张图：上传→解析→切分→双通道→RRF→rerank→预算→闸门→生成', '用 10 个问题批量跑检索，记录 P50/P95 耗时', '列出 3 个瓶颈与对应 M2 改进项'],
+    check: '能对着图讲 5 分钟，且每个环节都有页面证据。', tab: 'plan' }
+];
+function planState() {
+  try { return JSON.parse(localStorage.getItem(PLAN_KEY) || '{}'); } catch { return {}; }
+}
+function renderPlan() {
+  const st = planState();
+  $('#planList').innerHTML = PLAN.map(p => `
+    <div class="day ${st[p.d] ? 'done' : ''}" data-d="${p.d}">
+      <div class="hd">
+        <span class="dno">D${p.d}</span>
+        <span class="ttl">${esc(p.t)}</span>
+        <span class="check">${st[p.d] ? '✓ 已完成' : '点击展开'}</span>
+      </div>
+      <div class="body">
+        <div class="goal">${esc(p.goal)}</div>
+        <ul>${p.todo.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        <div class="hint" style="margin:9px 0 0">验收：${esc(p.check)}</div>
+        <div class="flex" style="margin-top:9px">
+          <button class="btn sm" data-jump="${esc(p.tab)}">去对应页面</button>
+          <button class="btn sm ghost" data-toggle="${p.d}">${st[p.d] ? '取消完成' : '标记完成'}</button>
+        </div>
+      </div>
+    </div>`).join('');
+  const done = PLAN.filter(p => st[p.d]).length;
+  $('#planN').textContent = done + '/14';
+  $('#planBar').style.width = (done / 14 * 100) + '%';
+  $('#planTip').textContent = done + '/14 已完成';
+}
+$('#planList').addEventListener('click', e => {
+  const jump = e.target.closest('[data-jump]');
+  if (jump) { go(jump.dataset.jump); return; }
+  const tg = e.target.closest('[data-toggle]');
+  if (tg) {
+    const st = planState(), d = tg.dataset.toggle;
+    if (st[d]) delete st[d]; else st[d] = 1;
+    localStorage.setItem(PLAN_KEY, JSON.stringify(st));
+    renderPlan(); return;
+  }
+  const hd = e.target.closest('.hd');
+  if (hd) {
+    const day = hd.parentElement;
+    day.classList.toggle('open');
+    const chk = day.querySelector('.check');
+    const done = day.classList.contains('done');
+    if (chk) chk.textContent = day.classList.contains('open')
+      ? (done ? '✓ 已完成 · 收起' : '点击收起')
+      : (done ? '✓ 已完成' : '点击展开');
+  }
+});
+$('#planReset').onclick = () => {
+  if (!confirm('清空 14 天进度？')) return;
+  localStorage.removeItem(PLAN_KEY); renderPlan(); toast('已重置');
+};
+
+/* 全局：定时刷新健康与待办数 */
+setInterval(async () => {
+  try { S.health = await api('/admin/health'); renderPills(); } catch {}
+}, 20000);
+
+boot();
+</script>
+</body>
+</html>
