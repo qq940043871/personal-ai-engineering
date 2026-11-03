@@ -11,6 +11,7 @@ from .openai_compat import (
     DoubaoProvider,
     QwenProvider,
     DeepSeekProvider,
+    SparkProvider,
     VolcenginePlanProvider,
 )
 
@@ -54,6 +55,7 @@ def create_provider(provider_type: str, **kwargs) -> BaseProvider:
         "doubao": DoubaoProvider,
         "qwen": QwenProvider,
         "deepseek": DeepSeekProvider,
+        "spark": SparkProvider,
         "volcengine_plan": VolcenginePlanProvider,
         "volcengine-plan": VolcenginePlanProvider,
         "volcengine_coding": VolcenginePlanProvider,
@@ -111,6 +113,7 @@ def load_provider_from_config(config: dict, provider_name: str = None) -> BasePr
         "qwen": set(),
         "deepseek": {"base_url"},
         "openai": {"base_url"},
+        "spark": {"base_url"},  # 讯飞星火 MaaS（OpenAI 兼容）
         "volcengine_plan": set(),  # Coding Plan 只接受 api_key 和 model
         "volcengine-plan": set(),
         "volcengine_coding": set(),

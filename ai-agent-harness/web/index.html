@@ -1217,6 +1217,7 @@
                     <div class="form-group">
                         <label class="form-label">LLM Provider</label>
                         <select class="form-select" v-model="config.provider_type">
+                            <option value="spark">✨ 讯飞星火 Spark X2.6</option>
                             <option value="volcengine_plan">🚀 火山引擎 Coding Plan (推荐)</option>
                             <option value="doubao">🎯 豆包 (ByteDance)</option>
                             <option value="claude">🧠 Claude (Anthropic)</option>
@@ -1351,10 +1352,10 @@
 
                 // Config
                 const config = ref({
-                    provider_type: 'volcengine_plan',
+                    provider_type: 'spark',
                     api_key: '',
                     base_url: '',
-                    model: 'ark-code-latest',
+                    model: 'spark-x2.6',
                     max_turns: 50,
                     temperature: 0.7,
                     model_kwargs: {}
@@ -1362,6 +1363,7 @@
 
                 // Provider names
                 const providerNames = {
+                    spark: '讯飞星火',
                     volcengine_plan: '火山引擎',
                     doubao: '豆包',
                     claude: 'Claude',

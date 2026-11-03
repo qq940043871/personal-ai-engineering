@@ -577,7 +577,7 @@ async def _run_agent_async(session: dict, prompt: str, workspace: str, system_pr
     }
     
     # 只有 deepseek 和 openai 支持 base_url
-    if provider_type in ("deepseek", "openai", "openai_compat"):
+    if provider_type in ("deepseek", "openai", "openai_compat", "spark"):
         base_url = config.get("base_url") or yaml_config.get("providers", {}).get(provider_type, {}).get("base_url", "")
         if base_url:
             provider_kwargs["base_url"] = base_url
@@ -681,7 +681,7 @@ async def _run_agent_stream(session_id: str, prompt: str, workspace: str, system
         "model": model,
     }
     
-    if provider_type in ("deepseek", "openai", "openai_compat"):
+    if provider_type in ("deepseek", "openai", "openai_compat", "spark"):
         base_url = config.get("base_url") or yaml_config.get("providers", {}).get(provider_type, {}).get("base_url", "")
         if base_url:
             provider_kwargs["base_url"] = base_url
@@ -864,7 +864,7 @@ async def _run_multi_agent_stream(
         "model": model,
     }
 
-    if provider_type in ("deepseek", "openai", "openai_compat"):
+    if provider_type in ("deepseek", "openai", "openai_compat", "spark"):
         base_url = config.get("base_url") or yaml_config.get("providers", {}).get(provider_type, {}).get("base_url", "")
         if base_url:
             provider_config_dict["base_url"] = base_url

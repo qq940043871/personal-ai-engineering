@@ -115,8 +115,14 @@ class OpenAICompatProvider(BaseProvider):
                 output_tokens=response.usage.completion_tokens,
             )
         
+        content = message.content or ""
+        # 推理模型（spark-x2.6 / deepseek-r1 等）把思考放在 reasoning_content，
+        # 思考耗尽 max_tokens 时 content 为空，兜底避免 Agent 静默无输出
+        if not content and not tool_calls:
+            content = getattr(message, "reasoning_content", None) or ""
+
         return LLMResponse(
-            content=message.content or "",
+            content=content,
             tool_calls=tool_calls,
             usage=usage,
             stop_reason=response.choices[0].finish_reason,
@@ -192,6 +198,23 @@ class DeepSeekProvider(OpenAICompatProvider):
             model=model,
             base_url="https://api.deepseek.com",
         )
+
+
+class SparkProvider(OpenAICompatProvider):
+    """
+    讯飞星火 MaaS Provider - 预配置（OpenAI 兼容协议）
+
+    文档: https://maas-api.cn-huabei-1.xf-yun.com/v2
+    模型: spark-x2.6（深度推理模型，思考内容在 reasoning_content 字段）
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "spark-x2.6",
+        base_url: str = "https://maas-api.cn-huabei-1.xf-yun.com/v2",
+    ):
+        super().__init__(api_key=api_key, model=model, base_url=base_url)
 
 
 class VolcenginePlanProvider(OpenAICompatProvider):

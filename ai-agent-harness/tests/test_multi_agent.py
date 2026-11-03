@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Windows 控制台默认 GBK，emoji 会导致 UnicodeEncodeError
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="replace")
+
 from harness.multi_agent import (
     Orchestrator,
     WorkerPool,

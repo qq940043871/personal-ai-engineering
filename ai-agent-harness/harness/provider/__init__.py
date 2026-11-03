@@ -8,6 +8,8 @@ from .openai_compat import (
     DoubaoProvider,
     QwenProvider,
     DeepSeekProvider,
+    SparkProvider,
+    VolcenginePlanProvider,
 )
 from .factory import (
     create_provider,
@@ -32,6 +34,8 @@ __all__ = [
     "DoubaoProvider",
     "QwenProvider",
     "DeepSeekProvider",
+    "SparkProvider",
+    "VolcenginePlanProvider",
     # 工厂
     "create_provider",
     "load_provider_from_config",

@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from harness import (
     MainLoop,
+    LoopStatus,
     ToolRegistry,
     PromptBuilder,
     SessionManager,
@@ -69,7 +70,8 @@ def setup_parser() -> argparse.ArgumentParser:
     
     parser.add_argument(
         "--provider",
-        choices=["doubao", "claude", "openai", "qwen", "deepseek"],
+        choices=["doubao", "claude", "openai", "qwen", "deepseek", "spark",
+                 "volcengine_plan", "volcengine-plan"],
         help="使用的 LLM Provider（默认：从配置文件读取）",
     )
     
@@ -141,7 +143,11 @@ def load_config(config_path: str, provider_name: str = None, workspace: str = ".
     raise ValueError(f"不支持的 Provider: {provider_type}，请创建配置文件")
 
 
-def create_agent(workspace: str = "."):
+def create_agent(
+    workspace: str = ".",
+    config_path: str = "config/config.yaml",
+    provider_name: str = None,
+):
     """创建 Agent 实例"""
     # 1. 创建工具注册表
     registry = ToolRegistry()
@@ -163,7 +169,7 @@ def create_agent(workspace: str = "."):
         return await edit_tool.edit(path, old_str, new_str)
     
     # 4. 加载配置
-    provider = load_config("config/config.yaml", workspace=workspace)
+    provider = load_config(config_path, provider_name=provider_name, workspace=workspace)
     
     # 5. 构建 System Prompt
     builder = PromptBuilder(workspace)
@@ -180,13 +186,18 @@ def create_agent(workspace: str = "."):
     return loop
 
 
-async def run_single_task(task: str, workspace: str = "."):
+async def run_single_task(
+    task: str,
+    workspace: str = ".",
+    config_path: str = "config/config.yaml",
+    provider_name: str = None,
+):
     """执行单个任务"""
     print(f"📋 任务: {task}")
     print(f"📁 工作目录: {workspace}")
     print("-" * 60)
     
-    loop = create_agent(workspace)
+    loop = create_agent(workspace, config_path, provider_name)
     
     try:
         result = await loop.run(task)
@@ -214,7 +225,11 @@ async def run_single_task(task: str, workspace: str = "."):
         return False
 
 
-async def run_interactive(workspace: str = "."):
+async def run_interactive(
+    workspace: str = ".",
+    config_path: str = "config/config.yaml",
+    provider_name: str = None,
+):
     """交互模式"""
     print("=" * 60)
     print("OpenClaw Agent Harness - 交互模式")
@@ -224,7 +239,7 @@ async def run_interactive(workspace: str = "."):
     print("输入 'clear' 清除对话历史。")
     print("-" * 60)
     
-    loop = create_agent(workspace)
+    loop = create_agent(workspace, config_path, provider_name)
     session_manager = SessionManager(workspace)
     
     messages_history = []
@@ -400,11 +415,13 @@ async def main():
         sys.exit(0 if success else 1)
     elif args.task and not args.interactive:
         # 单任务模式
-        success = await run_single_task(args.task, args.workspace)
+        success = await run_single_task(
+            args.task, args.workspace, args.config, args.provider
+        )
         sys.exit(0 if success else 1)
     else:
         # 交互模式
-        await run_interactive(args.workspace)
+        await run_interactive(args.workspace, args.config, args.provider)
 
 
 if __name__ == "__main__":

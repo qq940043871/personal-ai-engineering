@@ -15,6 +15,7 @@ class EditResult:
     message: str
     match_level: str = ""   # 使用了哪一级匹配
     diff: str = ""          # 变更差异
+    new_content: str = ""   # 替换后的完整文件内容（供非精确匹配回写）
 
 
 class EditTool:
