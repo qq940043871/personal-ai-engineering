@@ -72,3 +72,12 @@ secrets_backup.txt
 # ========== ai-rag-dify 质量门禁与解析产物 ==========
 quality_report*.md
 mineru_out/
+
+# ========== ai-study-labs 运行产物（代码入库，结果不入库） ==========
+# JVM 诊断采集结果：带时间戳目录，jstack/top 等随机器与时刻变化
+ai-study-labs/50_tools/ops/jvm_diag_*/
+# PDF 合同比对生成的报告与 token 统计
+ai-study-labs/40_projects/doubao/pdf_diff/合同差异比对报告*.md
+ai-study-labs/40_projects/doubao/pdf_diff/token消耗统计.json
+# 豆包 API 原始应答转储
+ai-study-labs/40_projects/doubao/应答结果.js

@@ -8,7 +8,7 @@ A personal AI-engineering learning workspace: a monorepo aggregating several ind
 subprojects side by side. There is no single build, package manifest, or test suite at the
 root — each subproject is self-contained and is developed/run on its own.
 
-The root README and the tree below list the same seven subproject directories.
+The root README and the tree below list the same eight subproject directories.
 
 ## Layout
 
@@ -21,6 +21,7 @@ personal-ai-engineering/
 ├── ai-workbench/     # Touch-screen portal home page (single-file HTML)
 ├── ai-rag-dify/      # Dify / RAGFlow knowledge-base tooling + notes (relocated from ai-study-labs)
 ├── ai-rag-self-engineering/  # Self-built RAG engineering (ownrag): design docs 00–05 + FastAPI skeleton
+├── ai-tutorial-video/ # Tutorial-video pipeline: HTML scene → Playwright frames → ffmpeg MP4 + edge-tts
 └── README.md
 ```
 
@@ -38,12 +39,12 @@ the course《从 0 开始构建 Agent Harness》. Before working here, read:
 Core architecture (see `ai-agent-harness/harness/`):
 - `main_loop.py` drives the Think → Act → Observe loop; emits events via `on()`/`off()`.
 - `provider/` is a strategy+factory abstraction over LLM APIs (`claude.py`, `openai_compat.py`;
-  doubao/qwen/deepseek go through OpenAI-compatible providers).
+  doubao/qwen/deepseek/spark/volcengine_plan go through OpenAI-compatible providers).
 - `tools/` uses decorator + registry registration (`registry.tool(...)`), auto-infers JSON
   Schema, supports parallel dispatch. Plugin tools live in `tools/plugins/`.
 - `session/`, `context_compactor.py`, `memory_manager.py`, `middleware.py`, `tracer.py`,
   `cost_tracker.py`, `system_reminders.py`, `subagent.py`, `multi_agent.py` are the surrounding
-  subsystems. `chapter01/`–`chapter06/` are the course notes that map to each module.
+  subsystems. `docs/chapter01/`–`docs/chapter06/` are the course notes that map to each module.
 
 ### Commands (run from `ai-agent-harness/`)
 
@@ -109,6 +110,21 @@ chromadb, langchain — install per-script.
 
 Single-file `index.html`; open directly in a browser, no dependencies, works offline.
 
+## ai-tutorial-video
+
+Tutorial-video generation pipeline: storyboard JSON → edge-tts narration → Playwright frame
+capture → ffmpeg MP4. `src/` holds the modules (`build_video.py` is the orchestrator entry,
+`extract_course.py` is a separate entry that drafts a storyboard from course HTML; `encode.py`,
+`render.py`, `storyboard.py`, `tts.py` are libraries), `scripts/merge_series.py` concatenates
+finished series, and `templates/scene.html` + `storyboards/*.json` are data. Modules are imported
+as `from src import ...` (implicit namespace package — there is no `__init__.py` yet), so entry
+scripts must be run from the subproject root:
+
+```bash
+cd ai-tutorial-video
+python src/build_video.py --storyboard storyboards/llm_base10.json   # → output/llm_base10.mp4
+```
+
 ## ai-rag-dify
 
 Tooling and notes for Dify / RAGFlow knowledge bases: `python/` (uploader scripts +
@@ -132,8 +148,10 @@ Dify. Relocated 2026-11-02 from `personal-investment-notes/02-AI智能体/04-自
 
 - **Large artifacts are gitignored, not committed**: model weights (`*.pth/.pt/.onnx/
   *.safetensors/*.gguf/*.npz`), datasets (`ai-study-labs/20_learn/pytorch/data/`), run data
-  (`db/`, `vector_db/`, `output/`, `sessions/`, `logs/`), build outputs (`build/`, `dist/`,
-  `*.exe`), downloaded video, and contract PDFs (`pdf_diff/*.pdf`). Don't `git add -f` these.
+  (`output/`, `sessions/`, `logs/`, `ai-study-labs/50_tools/ops/jvm_diag_*/` diagnostic dumps),
+  generated `pdf_diff` reports (`合同差异比对报告*.md`, `token消耗统计.json`) and API dumps,
+  build outputs (`build/`, `dist/`, `*.exe`), downloaded video, contract PDFs (`pdf_diff/*.pdf`),
+  and tool state (`.workbuddy/`, `.codebuddy/`, `.zcode/`). Don't `git add -f` these.
 - **Secrets are masked in-repo**: real API keys are replaced with placeholders like
   `sk-REPLACE_WITH_YOUR_KEY` / `dataset-REPLACE_WITH_YOUR_KEY`. `config.yaml`, `.env`,
   `cookies.txt`, and `secrets_backup.txt` are gitignored. Never commit real keys.

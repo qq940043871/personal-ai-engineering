@@ -32,21 +32,19 @@ ai-study-labs/
 │   ├── time_task/      #   定时视频生成任务（方舟 API 批量生成）
 │   └── game/           #   小游戏：贪吃蛇、熊猫射击（源码 + prompts/ 游戏提示词）
 │
-├── 50_tools/           # 独立小工具
-│   ├── utils/          #   抖音/B站视频下载（01_/02_，产物就地存放不入库）、WSET 导入、币种列表、批量重命名、Gitee 批量删除等
-│   └── ops/            #   运维脚本：JVM 诊断、目录扫描
-│
-├── db/                 # [历史运行数据] Chroma 向量库，已无脚本引用（现役 RAG 在 ai-rag-ollama/），可整目录删除
-├── vector_db/          # [历史运行数据] LangChain RAG 向量库
-└── output/             # [运行数据] 各脚本输出
+└── 50_tools/           # 独立小工具
+    ├── utils/          #   抖音/B站视频下载（01_/02_，产物就地存放不入库）、WSET 导入、币种列表、批量重命名、Gitee 批量删除等
+    └── ops/            #   运维脚本：JVM 诊断、目录扫描
 ```
 
 > 本地大模型相关实验（Ollama 多轮对话、搜索引擎、RAG）已迁出为工作区独立子项目 [ai-rag-ollama](../ai-rag-ollama/)。
+> Dify / RAGFlow 知识库工具与笔记已迁出为 [ai-rag-dify](../ai-rag-dify/)（2026-10）。
 
 ## 约定
 
 - 顶层目录按用途分类，编号留出扩展空间（60+、70+ 可继续加分类）。
-- **代码与笔记入库，产物不入库**：`build/`、`dist/`、`temp_images/`、`video/`、模型权重（`pytorch/models/`）、数据集（`pytorch/data/`）、`db/`、`vector_db/`、`output/` 均已被 `.gitignore` 覆盖；合同类 PDF（`pdf_diff/*.pdf`）不入库。
+- **代码与笔记入库，产物不入库**：`build/`、`dist/`、`temp_images/`、`video/`、模型权重（`pytorch/models/`）、数据集（`pytorch/data/`）、向量库与脚本输出目录均已被 `.gitignore` 覆盖；合同类 PDF（`pdf_diff/*.pdf`）与 `ops/` 下的诊断输出不入库。
+- **运行产物不提交**：`ops/jvm_diag_*/`（jstack、top 等采集结果）、`pdf_diff/` 下的比对报告与 token 统计只留在本地。
 - 子目录内布局：源码在根，笔记收进 `notes/`，打包用 `.spec` / `pipinstaller.bat` 随时可重建。
 
 ## 已知问题
@@ -62,7 +60,7 @@ ai-study-labs/
 | 10_提示词 | 10_docs/prompts |
 | 01_huggingface / 01_modelscope / 01_llamafactory | 20_learn/huggingface / modelscope /（空，已删） |
 | 02_pytorch / 02_paddle / 02_paddlex | 20_learn/pytorch / paddle / paddlex |
-| 02_dify / 03_langchain | 20_learn/dify / langchain |
+| 02_dify / 03_langchain | 20_learn/dify（2026-10 再迁出 → ai-rag-dify/）/ langchain |
 | 04_ollama_rag | ai-rag-ollama（迁出为工作区独立子项目） |
 | 05_ffmpge_opencv（拼写修正） | 20_learn/ffmpeg_opencv |
 | 12_ocr / 12_openMNT | 20_learn/ocr / openMNT |
