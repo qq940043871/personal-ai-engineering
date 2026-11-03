@@ -16,7 +16,16 @@
 ### 1. 作为模块导入使用
 
 ```python
-from batch_rename import BatchRenameUtil
+import importlib.util
+from pathlib import Path
+
+# 实现文件名带数字前缀（32_batch_rename_longname.py），无法用 import 语句导入，
+# 这里按文件路径加载
+spec = importlib.util.spec_from_file_location(
+    "batch_rename_longname", Path("32_batch_rename_longname.py"))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+BatchRenameUtil = mod.BatchRenameUtil
 
 # 创建重命名工具实例（默认保留20个字符）
 renamer = BatchRenameUtil(max_length=20)
@@ -38,19 +47,19 @@ for item in preview_result:
 
 ```bash
 # 基本使用
-python batch_rename.py /path/to/directory
+python 32_batch_rename_longname.py /path/to/directory
 
 # 保留前15个字符
-python batch_rename.py /path/to/directory -l 15
+python 32_batch_rename_longname.py /path/to/directory -l 15
 
 # 包含子目录中的文件
-python batch_rename.py /path/to/directory --include-subdirs
+python 32_batch_rename_longname.py /path/to/directory --include-subdirs
 
 # 预览模式（不实际重命名）
-python batch_rename.py /path/to/directory --preview
+python 32_batch_rename_longname.py /path/to/directory --preview
 
 # 查看帮助信息
-python batch_rename.py --help
+python 32_batch_rename_longname.py --help
 ```
 
 ## 返回结果说明

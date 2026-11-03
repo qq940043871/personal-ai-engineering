@@ -43,15 +43,14 @@ python main.py
 |---|---|
 | `10_docs/` | 学习手册、RAGFlow 部署记录、提示词集合 |
 | `20_learn/` | 框架学习代码：PyTorch、Paddle、HuggingFace、ModelScope、LangChain、Dify、OCR 等 |
-| `30_slides/` | 大模型基础 HTML 课件 |
-| `40_projects/` | 成型项目：豆包/方舟图片视频生成、自媒体 Agent、PDF 合同比对、小游戏 |
-| `50_tools/` | 独立小工具与运维脚本 |
+| `50_tools/` | 独立小工具与项目：豆包/方舟图片视频生成、抖音视频 Agent、PDF 合同比对、定时视频任务、下载器与运维脚本 |
 
 ### [ai-study-note](ai-study-note/README.md)
 
 从机器学习基础到大语言模型的课程站，并入大模型面试题库（纯静态站点，160 个文件）。
 
 - 课程页：ML / DL / LLM / 学习路线图（`courses/`）
+- 课件：大模型基础 1.0 / 2.0 分页幻灯片（`slides/`，由 `ai-study-labs/30_slides` 迁入）
 - 面试题库：专项、期数、综合测试与架构图（`exam/`）
 - 内置 Markdown 在线查看器（`md-viewer.html`）
 
@@ -70,7 +69,7 @@ start.bat                        # 或 python -m http.server 3001
 Dify / RAGFlow 知识库操作工具与学习笔记（2026-10 自 `ai-study-labs/20_learn/dify/` 迁出独立）。
 
 - `01-minerU-block/`：中文长文层级分段灌库脚本（`@!@`/`@@` 预埋切分标记 → 父/子分段），详见 [01-minerU-block/README.md](ai-rag-dify/01-minerU-block/README.md)
-- `dify/`、`ragflow/`：Tkinter 上传器、PyInstaller 打包配置与 HTTP API 笔记
+- `03-dify-uploader/`、`04-ragflow-uploader/`：Tkinter 上传器、PyInstaller 打包配置与 HTTP API 笔记
 - `notes/`：Dify 工作流与知识库 API 学习笔记
 
 > 上传工具内为硬编码 API 地址与 Key（已脱敏为占位符），运行前需自行填入。

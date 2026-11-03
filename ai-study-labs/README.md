@@ -1,14 +1,12 @@
 # ai-study-labs — AI 学习工程
 
-个人 AI 学习与实践工程：大模型框架学习代码、成型的应用项目、独立小工具和学习资料。
+个人 AI 学习与实践工程：大模型框架学习代码、独立小工具与项目、学习资料。
 
 ## 目录结构
 
 ```
 ai-study-labs/
-├── 10_docs/            # 学习手册与资料
-│   ├── quick_guide/    #   各技术栈快速学习手册（Dify、LangChain、Qwen、向量数据库等）
-│   ├── ragflow/        #   RAGFlow 部署过程截图记录
+├── 10_docs/            # 学习资料
 │   └── prompts/        #   提示词集合（SQL、DeepSeek、模板引擎）
 │
 ├── 20_learn/           # 框架/主题学习代码
@@ -22,23 +20,17 @@ ai-study-labs/
 │   ├── ocr/            #   PaddleOCR 文字识别
 │   └── openMNT/        #   ModelScope NLLB 中英翻译模型
 │
-├── 30_slides/          # HTML 课件
-│   ├── llm_base10/     #   大模型基础 1.0
-│   └── llm_base20/     #   大模型基础 2.0
-│
-├── 40_projects/        # 成型的项目
-│   ├── doubao/         #   豆包/火山方舟：图片视频生成脚本、抖音视频 Agent（douyin_agent/）、PDF 合同比对工具（pdf_diff/）
-│   ├── self_media/     #   自媒体：公众号文章生成 Agent、B站/抖音素材、选题整理
-│   ├── time_task/      #   定时视频生成任务（方舟 API 批量生成）
-│   └── game/           #   小游戏：贪吃蛇、熊猫射击（源码 + prompts/ 游戏提示词）
-│
-└── 50_tools/           # 独立小工具
+└── 50_tools/           # 独立小工具与项目
+    ├── doubao/         #   豆包/火山方舟：图片视频生成脚本、抖音视频 Agent（douyin_agent/）、PDF 合同比对工具（pdf_diff/）
+    ├── time_task/      #   定时视频生成任务（方舟 API 批量生成）
     ├── utils/          #   抖音/B站视频下载（01_/02_，产物就地存放不入库）、WSET 导入、币种列表、批量重命名、Gitee 批量删除等
     └── ops/            #   运维脚本：JVM 诊断、目录扫描
 ```
 
 > 本地大模型相关实验（Ollama 多轮对话、搜索引擎、RAG）已迁出为工作区独立子项目 [ai-rag-ollama](../ai-rag-ollama/)。
 > Dify / RAGFlow 知识库工具与笔记已迁出为 [ai-rag-dify](../ai-rag-dify/)（2026-10）。
+> HTML 课件（大模型基础 1.0 / 2.0）已迁出为 [ai-study-note/slides](../ai-study-note/slides/)（2026-11）。
+> 各技术栈快速学习手册（原 `10_docs/quick_guide/`）已迁出为 [ai-study-note/quick_guide](../ai-study-note/quick_guide/)（2026-11）。
 
 ## 约定
 
@@ -55,7 +47,7 @@ ai-study-labs/
 
 | 原路径 | 新路径 |
 |---|---|
-| 00_quick_guide | 10_docs/quick_guide |
+| 00_quick_guide | 10_docs/quick_guide（2026-11 迁出 → ai-study-note/quick_guide/） |
 | 04_ragflow_rag | 10_docs/ragflow |
 | 10_提示词 | 10_docs/prompts |
 | 01_huggingface / 01_modelscope / 01_llamafactory | 20_learn/huggingface / modelscope /（空，已删） |
@@ -64,9 +56,9 @@ ai-study-labs/
 | 04_ollama_rag | ai-rag-ollama（迁出为工作区独立子项目） |
 | 05_ffmpge_opencv（拼写修正） | 20_learn/ffmpeg_opencv |
 | 12_ocr / 12_openMNT | 20_learn/ocr / openMNT |
-| 01_llm_base10 / 01_llm_base20 | 30_slides/llm_base10 / llm_base20 |
-| 07_doubao | 40_projects/doubao（PDF 比对工具移入 pdf_diff/） |
-| 00_self_media / 00_time_task / 08_game | 40_projects/self_media / time_task / game |
+| 01_llm_base10 / 01_llm_base20 | 30_slides/llm_base10 / llm_base20（2026-11 迁出 → ai-study-note/slides/） |
+| 07_doubao | 50_tools/doubao（PDF 比对工具移入 pdf_diff/；2026-11 由 40_projects/ 迁入） |
+| 00_self_media / 00_time_task / 08_game | self_media、game 已删除；time_task → 50_tools/time_task（2026-11 由 40_projects/ 迁入） |
 | 00_utils / 11运维工具 | 50_tools/utils / ops |
 | dir / distilled_model / finetuned_gpt2 / models（均为空） | 已删除 |
 

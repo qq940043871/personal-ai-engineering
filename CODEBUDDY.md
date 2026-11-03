@@ -77,15 +77,16 @@ Top-level dirs are numbered by purpose (slots reserved for 60+/70+):
 
 | Dir | Contents |
 |---|---|
-| `10_docs/` | study handbooks (`quick_guide/`), RAGFlow notes, prompt collections |
+| `10_docs/` | prompt collections (`prompts/`) |
 | `20_learn/` | framework learning: pytorch, paddle, paddlex, huggingface, modelscope, langchain, ocr, ffmpeg_opencv, openMNT |
-| `30_slides/` | HTML LLM course slides |
-| `40_projects/` | finished apps: doubao (Ark image/video, douyin_agent, pdf_diff), self_media, time_task, game |
-| `50_tools/` | `utils/` (downloaders, renamers) and `ops/` (JVM/dir scan scripts) |
+| `50_tools/` | `doubao/` (Ark image/video, douyin_agent, pdf_diff), `time_task/`, `utils/` (downloaders, renamers) and `ops/` (JVM/dir scan scripts) |
 
 No unified entrypoint — scripts are run individually. `ai-study-labs/README.md` contains a
 historical path-mapping table (2026-10 reorg). dify/RAGFlow content was moved out in the same
-reorg to the top-level `ai-rag-dify/`.
+reorg to the top-level `ai-rag-dify/`; the former `30_slides/` HTML course decks moved to
+`ai-study-note/slides/` (2026-11), `10_docs/quick_guide/` moved to `ai-study-note/quick_guide/`
+(2026-11), and the former `40_projects/` (`doubao/`, `time_task/`) was folded into `50_tools/`
+(2026-11).
 
 ## ai-study-note (static site, no build step)
 
@@ -97,7 +98,9 @@ python -m http.server 3001
 ```
 
 Entry `index.html`; Markdown viewer is `md-viewer.html?file=<relative-path>`; question bank
-under `exam/`.
+under `exam/`. `slides/` holds the paginated HTML course decks (`llm_base10/`, `llm_base20/`,
+each with `index.html` carousel + `slide/00N.html`). `quick_guide/` holds the per-tech
+"快速学习手册" Markdown handbooks (Dify, LangChain, Qwen, vector DBs, Canal, …).
 
 ## ai-rag-ollama
 
@@ -128,7 +131,8 @@ python src/build_video.py --storyboard storyboards/llm_base10.json   # → outpu
 ## ai-rag-dify
 
 Tooling and notes for Dify / RAGFlow knowledge bases: `01-minerU-block/` (uploader scripts +
-`knowledge.spec`), `dify/`, `ragflow/`, and `notes/`. The uploaders are Tkinter GUIs with
+`knowledge.spec`), `02-ocr/`, `03-dify-uploader/` (`api/` notes), and `04-ragflow-uploader/`
+(`httpapi.md`). The uploaders are Tkinter GUIs with
 hard-coded API base URLs — update host/key before running.
 
 ## ai-rag-self-engineering

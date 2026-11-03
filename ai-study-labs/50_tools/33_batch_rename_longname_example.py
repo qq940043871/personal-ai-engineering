@@ -2,9 +2,16 @@
 批量重命名工具使用示例
 """
 
-from batch_rename import BatchRenameUtil
+import importlib.util
 import os
 from pathlib import Path
+
+# 实现文件名带数字前缀，无法用 import 语句导入，这里按文件路径加载同目录下的实现
+_impl_path = Path(__file__).with_name("32_batch_rename_longname.py")
+_spec = importlib.util.spec_from_file_location("batch_rename_longname", _impl_path)
+_impl = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_impl)
+BatchRenameUtil = _impl.BatchRenameUtil
 
 
 def example_usage():
@@ -40,10 +47,10 @@ def example_usage():
     
     # 示例5: 命令行使用
     print("5. 命令行使用:")
-    print("   python batch_rename.py /path/to/directory")
-    print("   python batch_rename.py /path/to/directory -l 15  # 保留前15个字符")
-    print("   python batch_rename.py /path/to/directory --include-subdirs  # 包含子目录")
-    print("   python batch_rename.py /path/to/directory --preview  # 预览模式")
+    print("   python 32_batch_rename_longname.py /path/to/directory")
+    print("   python 32_batch_rename_longname.py /path/to/directory -l 15  # 保留前15个字符")
+    print("   python 32_batch_rename_longname.py /path/to/directory --include-subdirs  # 包含子目录")
+    print("   python 32_batch_rename_longname.py /path/to/directory --preview  # 预览模式")
     print()
     
     # 实际操作示例

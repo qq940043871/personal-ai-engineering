@@ -16,7 +16,9 @@ ai-study-note/
 ├── md-viewer.html          # Markdown 查看器（?file=exam/... 或 courses 相对路径）
 ├── start.bat               # 启动本地服务 :3001
 ├── courses/                # 课程页（ml / dl / llm / exam 总览 / roadmap）
+├── slides/                 # HTML 课件：llm_base10 / llm_base20（index.html 轮播 + slide/ 分页）
 ├── exam/                   # 面试题库：专项 / 期数 / 综合 / 架构图 / scripts
+├── quick_guide/            # 各技术栈快速学习手册（Dify、LangChain、Qwen、向量数据库、Canal 等）
 ├── documents/              # 文档资料
 ├── assets/                 # 图片等静态资源
 ├── css/

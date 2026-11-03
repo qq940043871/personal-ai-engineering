@@ -1,6 +1,6 @@
 # ai-tutorial-video
 
-AI 学习教程 → 视频生成管线：「HTML 场景动画 → 无头浏览器逐帧抓帧 → ffmpeg 合成 MP4」，支持 edge-tts 中文旁白。把仓库里 `ai-study-note/courses/`、`ai-study-labs/30_slides/` 的教程内容变成连贯的学习视频。
+AI 学习教程 → 视频生成管线：「HTML 场景动画 → 无头浏览器逐帧抓帧 → ffmpeg 合成 MP4」，支持 edge-tts 中文旁白。把仓库里 `ai-study-note/courses/`、`ai-study-note/slides/` 的教程内容变成连贯的学习视频。
 
 ## 一条命令出片
 

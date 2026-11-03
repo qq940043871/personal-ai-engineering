@@ -74,10 +74,17 @@ quality_report*.md
 mineru_out/
 
 # ========== ai-study-labs 运行产物（代码入库，结果不入库） ==========
-# JVM 诊断采集结果：带时间戳目录，jstack/top 等随机器与时刻变化
-ai-study-labs/50_tools/ops/jvm_diag_*/
-# PDF 合同比对生成的报告与 token 统计
-ai-study-labs/40_projects/doubao/pdf_diff/合同差异比对报告*.md
-ai-study-labs/40_projects/doubao/pdf_diff/token消耗统计.json
+# JVM 诊断采集结果：带时间戳目录，jstack/top 等随机器与时刻变化（48 重组后位于 50_tools/ 下）
+ai-study-labs/50_tools/**/jvm_diag_*/
+# PDF 合同比对：原始合同与生成的报告、token 统计
+ai-study-labs/50_tools/doubao/pdf_diff/*.pdf
+ai-study-labs/50_tools/doubao/pdf_diff/合同差异比对报告*.md
+ai-study-labs/50_tools/doubao/pdf_diff/token消耗统计.json
 # 豆包 API 原始应答转储
-ai-study-labs/40_projects/doubao/应答结果.js
+ai-study-labs/50_tools/doubao/应答结果.js
+# 抖音下载器的本地数据库状态
+ai-study-labs/50_tools/**/*.db
+ai-study-labs/50_tools/**/*.db-journal
+# 抖音下载器配置：内嵌登录态 cookie，仅保留脱敏模板
+ai-study-labs/50_tools/01_dydown/dy-*.yaml
+!ai-study-labs/50_tools/01_dydown/dy-*.example.yaml

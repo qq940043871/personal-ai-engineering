@@ -1,0 +1,12 @@
+# 抖音下载器（f2 dy）配置模板
+# 用法：复制为 dy-one.yaml / dy-mix.yaml / dy-post.yaml，填入本人 cookie 后运行对应 .bat
+# 真实配置内嵌登录态 cookie，已由 .gitignore 忽略（dy-*.yaml），切勿提交
+douyin:
+  # 浏览器登录 douyin.com 后，从开发者工具网络请求里复制 Cookie 整行粘贴
+  cookie: COOKIE_REPLACE_WITH_YOUR_OWN_DOUYIN_COOKIE
+  # one=单个视频 / mix=合集 / post=用户主页
+  mode: one
+  url: https://www.douyin.com/video/REPLACE_WITH_VIDEO_ID
+  path: Download
+  interval: all
+  max-connections: 2

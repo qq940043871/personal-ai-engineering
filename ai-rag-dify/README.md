@@ -8,10 +8,10 @@ Dify / RAGFlow 知识库操作工具与学习笔记。2026-10 自 `ai-study-labs
 
 ```text
 ai-rag-dify/
-├── 01-minerU-block/  # 主链路脚本：PDF→MinerU 解析为 md → 切分标记预埋 → 补标题切片 → 层级分段灌库
-├── dify/      # Dify Tkinter 上传器（dify_uploader.py）+ PyInstaller 打包配置
-├── ragflow/   # RAGFlow 上传器 + HTTP API 笔记（httpapi.md）+ 打包配置
-└── notes/     # Dify 工作流 / 知识库 API 学习笔记与样例文档
+├── 01-minerU-block/       # 主链路脚本：PDF→MinerU 解析为 md → 切分标记预埋 → 补标题切片 → 层级分段灌库
+├── 02-ocr/                # OCR 识别实验脚本
+├── 03-dify-uploader/      # Dify Tkinter 上传器（dify_uploader.py）+ API 笔记（api/）+ PyInstaller 打包配置
+└── 04-ragflow-uploader/   # RAGFlow 上传器 + HTTP API 笔记（httpapi.md）+ 打包配置
 ```
 
 ## 使用
@@ -24,5 +24,5 @@ ai-rag-dify/
 ## 注意
 
 - **上传工具内为硬编码 API 地址与 Key（已脱敏为占位符），运行前需自行填入**
-- 脚本面向本机 Dify 实例编写，接口版本变化时需对照 `ragflow/httpapi.md`、`notes/dify_api.md` 校准
+- 脚本面向本机 Dify 实例编写，接口版本变化时需对照 `04-ragflow-uploader/httpapi.md`、`03-dify-uploader/api/dify_api.md` 校准
 - `00_pdf_to_md_mineru.py` 的 MinerU 接口契约（CLI `-p/-o` 与 HTTP `POST /file_parse`）与 `ai-rag-self-engineering/ownrag/ownrag/ingest/pdf_mineru.py` 保持一致，改动时两处需同步
