@@ -4,7 +4,9 @@
 
 MinerU 是一款高效的文档智能解析工具，支持从 PDF、图片等文档中提取结构化信息，特别擅长表格识别和内容提取。
 
-**项目代码位置：** `01_huggingface/01_mineru_pdf_md.py`、`01_modelscope/04_mineru_pdf_md.py`
+**项目代码位置：** `20_learn/modelscope/04_mineru_pdf_md.py`（HuggingFace 版占位脚本已清理，见文末「相关资源」）
+
+> 注意：本文档及配套脚本中的 API 写法为早期推测性整理，未实测。生产使用请以 MinerU 官方 CLI / 服务端方式为准。
 
 ## 🏗️ 核心能力
 

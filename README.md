@@ -69,7 +69,7 @@ start.bat                        # 或 python -m http.server 3001
 
 Dify / RAGFlow 知识库操作工具与学习笔记（2026-10 自 `ai-study-labs/20_learn/dify/` 迁出独立）。
 
-- `python/`：中文长文层级分段灌库脚本（`@!@`/`@@` 预埋切分标记 → 父/子分段），详见 [python/README.md](ai-rag-dify/python/README.md)
+- `01-minerU-block/`：中文长文层级分段灌库脚本（`@!@`/`@@` 预埋切分标记 → 父/子分段），详见 [01-minerU-block/README.md](ai-rag-dify/01-minerU-block/README.md)
 - `dify/`、`ragflow/`：Tkinter 上传器、PyInstaller 打包配置与 HTTP API 笔记
 - `notes/`：Dify 工作流与知识库 API 学习笔记
 

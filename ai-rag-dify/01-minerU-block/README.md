@@ -1,4 +1,4 @@
-# ai-rag-dify / python
+# ai-rag-dify / 01-minerU-block
 
 基于 **Dify 知识库 API** 的文档导入工具集，核心目标是：把一份**中文 Markdown 长文档**（如《郑大乾坤鉴》类中医典籍/资料），按**自定义分隔符**切成"父分段 + 子分段"的**层级结构（hierarchical model）**，再灌入 Dify 知识库，从而精确控制 RAG 检索时的切块粒度。
 

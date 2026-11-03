@@ -127,7 +127,7 @@ python src/build_video.py --storyboard storyboards/llm_base10.json   # → outpu
 
 ## ai-rag-dify
 
-Tooling and notes for Dify / RAGFlow knowledge bases: `python/` (uploader scripts +
+Tooling and notes for Dify / RAGFlow knowledge bases: `01-minerU-block/` (uploader scripts +
 `knowledge.spec`), `dify/`, `ragflow/`, and `notes/`. The uploaders are Tkinter GUIs with
 hard-coded API base URLs — update host/key before running.
 

@@ -15,7 +15,7 @@ ai-study-labs/
 │   ├── pytorch/        #   PyTorch：感知机、手写 autograd、CNN、迁移学习
 │   ├── paddle/         #   百度 PaddlePaddle（LeNet、图像分类训练）
 │   ├── paddlex/        #   PaddleX：OCR、图像分类、目标检测、表格识别
-│   ├── huggingface/    #   HF 生态：GPT2 微调/蒸馏、MinerU、表格检测
+│   ├── huggingface/    #   HF 生态：GPT2 预训练/微调/全参训练/知识蒸馏
 │   ├── modelscope/     #   ModelScope：动物识别、OCR、MinerU
 │   ├── langchain/      #   LangChain：多智能体、RAG 服务、行业 Agent 示例
 │   ├── ffmpeg_opencv/  #   FFmpeg / OpenCV 视频处理
