@@ -1,0 +1,173 @@
+{
+  "meta": {
+    "id": "transformer",
+    "title": "Transformer架构详解",
+    "subtitle": "",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "source": "../ai-study-note/courses/llm/transformer.html",
+    "draft": true
+  },
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "AI 学习教程",
+      "title": "Transformer架构详解",
+      "subtitle": "",
+      "narration": "Transformer架构详解。这一讲，我们系统学习Transformer架构详解。"
+    },
+    {
+      "id": "s02",
+      "type": "bullets",
+      "title": "1整体架构概览",
+      "narration": "Transformer采用经典的编码器-解码器(Encoder-Decoder)架构：Encoder整体概览完全基于注意力机制-抛弃了传统的RNN/CNN结构高度可并行化-不再受序列长度限制长程依赖捕获能力强-注意力机制让模型看到整个序列",
+      "bullets": [
+        {
+          "text": "核心设计思想"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "type": "bullets",
+      "title": "2输入层：嵌入与位置编码",
+      "narration": "将离散的token映射到连续向量空间：为了让模型理解单词的顺序，添加位置编码：将TokenEmbedding和PositionalEncoding逐元素相加：",
+      "bullets": [
+        {
+          "text": "2.1TokenEmbedding"
+        },
+        {
+          "text": "2.2PositionalEncoding"
+        },
+        {
+          "text": "2.3最终输入"
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "type": "bullets",
+      "title": "3自注意力机制详解",
+      "narration": "类比：搜索引擎—Query(Q)=用户输入的搜索关键词，Key(K)=网页标题用于匹配，Value(V)=网页内容实际提供信息。图解：QKV矩阵计算通过可学习的权重矩阵线性变换：图解：ScaledDot-ProductAttention计算流程",
+      "bullets": [
+        {
+          "text": "3.1QKV概念"
+        },
+        {
+          "text": "3.2QKV的计算"
+        },
+        {
+          "text": "3.3注意力分数计算"
+        },
+        {
+          "text": "3.4缩放(Scaling)"
+        },
+        {
+          "text": "3.5Mask(掩码)-仅解码器需要"
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "type": "bullets",
+      "title": "4多头注意力机制",
+      "narration": "4多头注意力机制",
+      "bullets": [
+        {
+          "text": "4.1为什么要多头？"
+        },
+        {
+          "text": "4.2多头注意力结构"
+        },
+        {
+          "text": "4.3数学表示"
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "type": "bullets",
+      "title": "5前馈网络",
+      "narration": "先扩展到高维(d_ff=4*d_model):给模型更多的表达空间再压缩回去:提取最有用的信息每个位置独立处理:不像注意力那样混合不同位置的信息",
+      "bullets": [
+        {
+          "text": "5.1网络结构"
+        },
+        {
+          "text": "5.2数学公式"
+        },
+        {
+          "text": "5.3为什么是这样的结构？"
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "type": "bullets",
+      "title": "6编码器完整结构",
+      "narration": "图解：Encoder输入层与位置编码图解：Multi-HeadAttention多头合并残差连接解决了深度网络中梯度消失的问题，直接\"抄近路\"过去！",
+      "bullets": [
+        {
+          "text": "6.1编码器层"
+        },
+        {
+          "text": "6.2残差连接和层归一化"
+        },
+        {
+          "text": "6.3N层堆叠"
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "type": "bullets",
+      "title": "7解码器与掩码注意力",
+      "narration": "图解：Decoder整体概览图解：MaskedMulti-HeadAttention图解：Cross-Attention机制",
+      "bullets": [
+        {
+          "text": "7.1解码器层"
+        },
+        {
+          "text": "7.2编码器-解码器注意力"
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "type": "bullets",
+      "title": "8输出层",
+      "narration": "输出层的线性层权重W_out和输入层的嵌入矩阵W_e可以共享，减少参数量：",
+      "bullets": [
+        {
+          "text": "8.1Linear+Softmax"
+        },
+        {
+          "text": "8.2权重共享技巧"
+        },
+        {
+          "text": "8.3采样策略"
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "type": "bullets",
+      "title": "9总结",
+      "narration": "Encoder+Add&Norm+FFNDecoder整体概览与Cross-Attention恭喜你现在已经完全理解了Transformer架构！接下来可以看一些经典论文：AttentionIsAllYouNeed(2017)·BERT(2018)·GPT系列(2018-2020)",
+      "bullets": [
+        {
+          "text": "Transformer核心组件回顾"
+        },
+        {
+          "text": "完整架构图解"
+        },
+        {
+          "text": "原论文超参数"
+        },
+        {
+          "text": "Transformer的优势"
+        }
+      ]
+    }
+  ]
+}

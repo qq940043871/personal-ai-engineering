@@ -1,0 +1,322 @@
+{
+  "meta": {
+    "id": "llm_base10",
+    "title": "大模型基础入门",
+    "subtitle": "从 Token 到 RLHF，一堂课看懂大模型的十个核心概念",
+    "accent": "#22d3ee",
+    "fps": 24,
+    "width": 1920,
+    "height": 1080,
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "narration": true,
+    "source": "ai-study-labs/30_slides/llm_base10（12 页课件扩写）"
+  },
+  "scenes": [
+    {
+      "id": "s01", "type": "title",
+      "kicker": "AI 学习教程 · 第 1 讲",
+      "title": "大模型基础入门",
+      "subtitle": "从 Token 到 RLHF，一堂课看懂大模型的十个核心概念",
+      "chips": ["10 个概念", "零基础友好", "约 8 分钟"],
+      "narration": "你好，欢迎来到 AI 学习教程系列。这一讲是整个系列的第一课：大模型基础入门。我们会用十个核心概念，把大模型从识字、思考，到训练、使用，一次讲清楚。"
+    },
+    {
+      "id": "s02", "type": "diagram", "chapter": "开场", "chapterIndex": 1, "chapterTotal": 7,
+      "kicker": "课程导览",
+      "title": "十个概念，一条主线",
+      "steps": [
+        { "label": "读懂文字", "sub": "Token · Embedding" },
+        { "label": "搭起骨架", "sub": "Transformer" },
+        { "label": "训练成型", "sub": "预训练 · 微调 · RLHF" },
+        { "label": "学会使用", "sub": "Prompt · 上下文" }
+      ],
+      "footer": "四步主线，十个概念",
+      "narration": "整堂课沿着一条主线展开：模型如何读懂文字，靠什么骨架思考，怎样被训练成型，最后我们该如何使用它。带着这条主线，我们出发。"
+    },
+
+    {
+      "id": "s03", "type": "section", "chapter": "模型如何读懂文字", "chapterIndex": 2, "chapterTotal": 7,
+      "kicker": "第一章", "ghost": "01",
+      "title": "模型如何读懂文字",
+      "subtitle": "Token · Embedding",
+      "narration": "第一章，先解决最基础的问题：文字是怎么变成模型能理解的数字的？"
+    },
+    {
+      "id": "s04", "type": "bullets", "chapter": "模型如何读懂文字", "chapterIndex": 2, "chapterTotal": 7,
+      "kicker": "概念 01",
+      "title": "Token：模型眼中的最小文字单位",
+      "bullets": [
+        { "text": "大模型阅读和书写的最小单位", "note": "模型不直接看到字，而是先切分成 Token" },
+        { "text": "一个 Token 不一定是完整单词", "note": "可能是词缀、单个汉字，也可能是标点" },
+        { "text": "语言与数字之间的桥梁", "note": "文本先变成 Token 序列，再进入模型" }
+      ],
+      "footer": "上下文窗口的大小，就是按 Token 数量来算的",
+      "narration": "第一个概念：Token，词元。它是大模型阅读和书写的最小单位。注意，Token 不一定是完整的单词，它可能是词缀、单个汉字，甚至是标点。模型看到的一切，都是 Token 序列。"
+    },
+    {
+      "id": "s05", "type": "diagram", "chapter": "模型如何读懂文字", "chapterIndex": 2, "chapterTotal": 7,
+      "kicker": "动手看看",
+      "title": "一段话，如何被切成 Token",
+      "subtitle": "中英文混合时，英文常用词常常一个词一个 Token，中文则多按字或词切分",
+      "steps": [
+        { "label": "I", "sub": "代词" },
+        { "label": "love", "sub": "动词" },
+        { "label": "AI", "sub": "专有名词" },
+        { "label": "模型", "sub": "名词" },
+        { "label": "!", "sub": "标点" }
+      ],
+      "footer": "切分方式由分词器（Tokenizer）决定",
+      "narration": "看一个直观的例子。这句话会被切成五个 Token：I、love、AI、模型和感叹号。切分方式由模型的分词器决定，同一个词在不同模型里，Token 数可能不一样。"
+    },
+    {
+      "id": "s06", "type": "bullets", "chapter": "模型如何读懂文字", "chapterIndex": 2, "chapterTotal": 7,
+      "kicker": "概念 02",
+      "title": "Embedding：让文字变成可计算的向量",
+      "bullets": [
+        { "text": "把 Token 转化为高维空间中的坐标", "note": "一个 Token 对应一个向量" },
+        { "text": "语义相近的词，距离更近", "note": "『国王』和『女王』在向量空间中位置接近" },
+        { "text": "模型理解语义的核心机制", "note": "计算在向量上进行，而不是在文字上" }
+      ],
+      "narration": "第二个概念：Embedding，嵌入。它把每个 Token 变成高维空间里的一个坐标。关键在于：语义相近的词，位置也相近。国王和女王，在向量空间里就是好邻居。模型对语义的理解，就建立在这张地图上。"
+    },
+    {
+      "id": "s07", "type": "quote", "chapter": "模型如何读懂文字", "chapterIndex": 2, "chapterTotal": 7,
+      "text": "国王 − 男人 + 女人 ≈ 女王：语义，是可以计算的",
+      "attribution": "词向量的经典发现",
+      "narration": "词向量有一个经典发现：国王减去男人，再加上女人，结果非常接近女王。这说明 Embedding 不只是编码，它让语义本身，变成了可以计算的东西。"
+    },
+
+    {
+      "id": "s08", "type": "section", "chapter": "大模型的骨架", "chapterIndex": 3, "chapterTotal": 7,
+      "kicker": "第二章", "ghost": "02",
+      "title": "大模型的骨架",
+      "subtitle": "Transformer · 自注意力",
+      "narration": "读完了文字，模型靠什么思考？第二章，我们讲大模型的骨架：Transformer。"
+    },
+    {
+      "id": "s09", "type": "bullets", "chapter": "大模型的骨架", "chapterIndex": 3, "chapterTotal": 7,
+      "kicker": "概念 03",
+      "title": "Transformer：所有大模型的基础架构",
+      "bullets": [
+        { "text": "大模型的『骨架』", "note": "2017 年提出，如今几乎所有大模型都基于它" },
+        { "text": "核心是自注意力机制", "note": "每个词都会『环顾』全句，捕捉长距离依赖" },
+        { "text": "Encoder-Decoder 两种结构", "note": "理解任务用编码器，生成任务用解码器" }
+      ],
+      "narration": "第三个概念：Transformer，大模型的骨架。它的核心是自注意力机制——读每个词的时候，都会环顾整句话，把相关的词联系起来，所以能捕捉长距离依赖。今天几乎所有大模型，都是在这个架构上长出来的。"
+    },
+    {
+      "id": "s10", "type": "diagram", "chapter": "大模型的骨架", "chapterIndex": 3, "chapterTotal": 7,
+      "kicker": "架构速览",
+      "title": "一句话在 Transformer 里的旅程",
+      "steps": [
+        { "label": "输入", "sub": "切分 Token · 向量化" },
+        { "label": "编码器", "sub": "自注意力理解全文" },
+        { "label": "解码器", "sub": "逐个预测下一个词" },
+        { "label": "输出", "sub": "下一个 Token 的概率" }
+      ],
+      "footer": "生成 = 反复预测下一个 Token",
+      "narration": "把前面学的东西串起来：输入先切成 Token 并向量化，编码器用自注意力理解全文，解码器逐个预测下一个 Token，最后输出一个概率分布。训练和使用，本质上都是『猜下一个词』这个游戏。"
+    },
+
+    {
+      "id": "s11", "type": "section", "chapter": "模型如何练成", "chapterIndex": 4, "chapterTotal": 7,
+      "kicker": "第三章", "ghost": "03",
+      "title": "模型如何练成",
+      "subtitle": "预训练 · 微调 · RLHF",
+      "narration": "有了骨架，模型怎么从一张白纸变成得力助手？第三章，讲训练的三部曲。"
+    },
+    {
+      "id": "s12", "type": "bullets", "chapter": "模型如何练成", "chapterIndex": 4, "chapterTotal": 7,
+      "kicker": "概念 04",
+      "title": "Pre-training：模型的海量通识教育",
+      "bullets": [
+        { "text": "在海量数据上学习语言规律", "note": "书籍、网页、文章，语料以万亿 Token 计" },
+        { "text": "核心任务还是『预测下一个词』", "note": "猜得准，说明学到了知识和规律" },
+        { "text": "产出强大的基础模型", "note": "Base 模型：什么都会一点，但不一定听话" }
+      ],
+      "narration": "第四个概念：预训练。这是模型的海量通识教育——把书籍、网页、文章喂给它，让它反复玩『预测下一个词』的游戏。练完之后得到的是基础模型，什么都知道一点，但还不一定按你想要的方式回答。"
+    },
+    {
+      "id": "s13", "type": "compare", "chapter": "模型如何练成", "chapterIndex": 4, "chapterTotal": 7,
+      "kicker": "概念 05",
+      "title": "预训练 vs 微调：先通识，后专业",
+      "left": {
+        "label": "预训练 Pre-training",
+        "items": ["海量通用数据，成本极高", "学语言规律 + 世界知识", "产出：基础模型 Base"]
+      },
+      "right": {
+        "label": "微调 Fine-tuning",
+        "items": ["特定领域数据，成本较低", "适应医疗、法律等具体任务", "产出：专用模型 SFT"]
+      },
+      "footer": "在基础模型上『专业技能培训』，让模型胜任垂直场景",
+      "narration": "第五个概念：微调。如果预训练是通识教育，微调就是专业技能培训——用医疗、法律等领域数据，在基础模型上做小规模调整，让它适应具体任务。成本远低于预训练，效果立竿见影。"
+    },
+    {
+      "id": "s14", "type": "diagram", "chapter": "模型如何练成", "chapterIndex": 4, "chapterTotal": 7,
+      "kicker": "全景图",
+      "title": "大模型训练三部曲",
+      "steps": [
+        { "label": "预训练", "sub": "通识教育 · 万亿 Token" },
+        { "label": "微调 SFT", "sub": "指令跟随 · 领域数据" },
+        { "label": "RLHF", "sub": "人类偏好 · 价值对齐" }
+      ],
+      "narration": "把训练阶段画成一张全景图：先预训练打底，再用监督微调教会它听指令，最后用 RLHF 对齐人类偏好。三步走完，一个又聪明又好用的助手，就诞生了。"
+    },
+    {
+      "id": "s15", "type": "bullets", "chapter": "模型如何练成", "chapterIndex": 4, "chapterTotal": 7,
+      "kicker": "概念 06",
+      "title": "RLHF：用人类的好恶校准模型",
+      "bullets": [
+        { "text": "基于人类反馈的强化学习", "note": "人类对模型的多个回答排序打分" },
+        { "text": "用偏好数据训练奖励模型", "note": "告诉模型什么是好回答、什么是差回答" },
+        { "text": "让模型更安全、更有用", "note": "对齐人类价值观，减少有害输出" }
+      ],
+      "narration": "第六个概念：RLHF，基于人类反馈的强化学习。做法是让人类对模型的回答进行排序，训练出一个奖励模型，再用它去校准大模型。经过这一步，模型会更安全、更有用、更符合人类的期望。"
+    },
+
+    {
+      "id": "s16", "type": "section", "chapter": "模型的规模", "chapterIndex": 5, "chapterTotal": 7,
+      "kicker": "第四章", "ghost": "04",
+      "title": "模型的规模",
+      "subtitle": "Parameters · 参数量",
+      "narration": "我们常听说 7B、175B，这些数字说的是什么？第四章，讲参数。"
+    },
+    {
+      "id": "s17", "type": "bullets", "chapter": "模型的规模", "chapterIndex": 5, "chapterTotal": 7,
+      "kicker": "概念 07",
+      "title": "Parameters：模型内部的亿万级旋钮",
+      "bullets": [
+        { "text": "参数是模型内部的可调数值", "note": "训练，就是不断旋动这些旋钮的过程" },
+        { "text": "参数存储着知识和能力", "note": "7B 表示 70 亿参数，GPT-3 有 1750 亿" },
+        { "text": "参数量决定模型的能力上限", "note": "但上限高，不等于每次都答得好" }
+      ],
+      "narration": "第七个概念：参数。可以把它理解为模型内部数以亿计的旋钮，知识和能力就存在这些旋钮里。所谓 7B、175B，指的就是参数量。参数量决定能力上限，但旋钮多，不代表每次都拧对。"
+    },
+    {
+      "id": "s18", "type": "diagram", "chapter": "模型的规模", "chapterIndex": 5, "chapterTotal": 7,
+      "kicker": "规模感受",
+      "title": "参数量的三个量级",
+      "steps": [
+        { "label": "小模型", "sub": "约 1 亿参数 · 手机可跑" },
+        { "label": "中型模型", "sub": "约 130 亿参数 · 单卡可跑" },
+        { "label": "大模型", "sub": "1750 亿参数 · GPT-3 量级" }
+      ],
+      "footer": "规模越大，成本越高，能力上限也越高",
+      "narration": "直观感受一下参数量级：一亿参数的小模型，手机就能跑；一百三十亿的中型模型，一张消费级显卡可以推理；而 GPT-3 级别的一千七百五十亿参数，需要大规模集群。规模越大，成本越高，能力也越强。"
+    },
+
+    {
+      "id": "s19", "type": "section", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "第五章", "ghost": "05",
+      "title": "如何使用大模型",
+      "subtitle": "Prompt · 上下文窗口 · 上下文学习",
+      "narration": "模型练好了，怎么用？第五章，讲三个使用层面的概念。"
+    },
+    {
+      "id": "s20", "type": "bullets", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "概念 08",
+      "title": "Prompt：与模型沟通的唯一接口",
+      "bullets": [
+        { "text": "Prompt 就是给模型的指令或问题", "note": "一切交互，都从一段 Prompt 开始" },
+        { "text": "质量直接影响输出效果", "note": "说清背景、要求和示例，答案天差地别" },
+        { "text": "使用大模型的核心技能", "note": "提示词工程，值得专门练习" }
+      ],
+      "narration": "第八个概念：Prompt，提示词。它是你和模型沟通的唯一接口。同一个模型，提问质量不同，输出天差地别。所以提示词工程，是使用大模型的第一项核心技能。"
+    },
+    {
+      "id": "s21", "type": "compare", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "实际感受",
+      "title": "同一个问题，两种问法",
+      "left": {
+        "label": "模糊提问",
+        "items": ["『解释一下量子计算』", "输出长篇学术定义", "可能看不懂、用不上"]
+      },
+      "right": {
+        "label": "清晰提问",
+        "items": ["『用通俗的比喻，三句话讲清量子计算』", "输出口语化、有比喻", "直接可读可用"]
+      },
+      "footer": "把要求、背景和格式说清楚，就是好的 Prompt",
+      "narration": "体会一下 Prompt 的威力。模糊地问『解释一下量子计算』，你会得到一篇学术定义；换成『用通俗的比喻，三句话讲清楚』，输出立刻变得可读可用。好 Prompt 的秘诀，就是把要求说清楚。"
+    },
+    {
+      "id": "s22", "type": "bullets", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "概念 09",
+      "title": "Context Window：模型的短期记忆",
+      "bullets": [
+        { "text": "一次能处理的最大 Token 数", "note": "常见 4K、32K、128K，逐代扩大" },
+        { "text": "窗口之外的内容，模型看不到", "note": "长对话要靠摘要、检索来延续记忆" },
+        { "text": "决定长文本与多轮对话能力", "note": "读代码库、写长文，都在跟窗口打交道" }
+      ],
+      "narration": "第九个概念：上下文窗口，模型的短期记忆。它限定了模型一次能处理的 Token 数量，比如 4K、32K、128K。窗口之外的，模型一概不知。所以长文档和多轮对话，本质上都是在跟这个窗口做斗争。"
+    },
+    {
+      "id": "s23", "type": "diagram", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "数量级感受",
+      "title": "上下文窗口的进化",
+      "steps": [
+        { "label": "4K", "sub": "约 3000 字 · 早期默认" },
+        { "label": "32K", "sub": "约 2 万字 · 整篇长文档" },
+        { "label": "128K+", "sub": "一整本书放得下" }
+      ],
+      "narration": "窗口大小几年间进化了几个数量级：从早期的四千 Token，大约三千字；到三万二，能放下一篇长文档；再到十二万八以上，一整本书都放得下。窗口越大，能装下的任务就越复杂。"
+    },
+    {
+      "id": "s24", "type": "code", "chapter": "如何使用大模型", "chapterIndex": 6, "chapterTotal": 7,
+      "kicker": "概念 10",
+      "title": "In-context Learning：给几个例子，现学现卖",
+      "file": "few-shot.txt",
+      "lines": [
+        "任务：情感分类（正面 / 负面 / 中性）",
+        "",
+        "示例：\"这部电影太棒了！\" → 正面",
+        "示例：\"服务态度很差。\"   → 负面",
+        "示例：\"食物还可以。\"     → 中性",
+        "",
+        "提问：\"这家餐厅的环境很舒适。\" → ?"
+      ],
+      "footer": "模型输出：正面 —— 全程没有更新任何参数",
+      "narration": "最后一个概念：上下文学习。只要在 Prompt 里给几个示例，模型就能现学现卖——比如给它三条情感分类的例子，它立刻学会了做第四条。注意，全程没有更新任何参数，这就是大模型通用智能的魔力。"
+    },
+
+    {
+      "id": "s25", "type": "section", "chapter": "总结与展望", "chapterIndex": 7, "chapterTotal": 7,
+      "kicker": "第六章", "ghost": "06",
+      "title": "总结与展望",
+      "subtitle": "一张图带走十个概念",
+      "narration": "最后，我们把这一讲的内容收个尾。"
+    },
+    {
+      "id": "s26", "type": "summary", "chapter": "总结与展望", "chapterIndex": 7, "chapterTotal": 7,
+      "kicker": "一页回顾",
+      "title": "十个核心概念，一图带走",
+      "bullets": [
+        { "text": "Token", "note": "最小单位" },
+        { "text": "Embedding", "note": "语义向量" },
+        { "text": "Transformer", "note": "基础架构" },
+        { "text": "Pre-training", "note": "通识教育" },
+        { "text": "Fine-tuning", "note": "专业培训" },
+        { "text": "RLHF", "note": "人类对齐" },
+        { "text": "Parameters", "note": "规模旋钮" },
+        { "text": "Prompt", "note": "沟通接口" },
+        { "text": "Context Window", "note": "短期记忆" },
+        { "text": "In-context Learning", "note": "现学现卖" }
+      ],
+      "footer": "这十个概念，就是大模型的入门地图",
+      "narration": "快速回顾：Token 和 Embedding 解决读懂文字；Transformer 是骨架；预训练、微调、RLHF 是训练三部曲；参数决定规模；Prompt、上下文窗口、上下文学习，是使用三件套。十个概念，就是大模型的全部入门地图。"
+    },
+    {
+      "id": "s27", "type": "quote", "chapter": "总结与展望", "chapterIndex": 7, "chapterTotal": 7,
+      "text": "更大规模 · 更强能力 · 更安全可靠",
+      "attribution": "大模型的下一步",
+      "narration": "大模型的未来，正朝着更大规模、更强能力、更安全可靠的方向演进。理解了这十个概念，你就拿到了进入这个世界的门票。"
+    },
+    {
+      "id": "s28", "type": "end",
+      "title": "谢谢观看",
+      "subtitle": "本讲内容整理自课程站《大模型核心概念科普》课件",
+      "next": "Transformer 架构详解 —— 深入自注意力机制",
+      "brand": "AI 学习教程系列 · 第 1 讲",
+      "narration": "这一讲就到这里。下一讲，我们深入 Transformer 的内部，拆解自注意力机制的原理与实现。我们下次见！"
+    }
+  ]
+}

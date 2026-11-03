@@ -1,6 +1,6 @@
 # personal-ai-engineering
 
-个人 AI 工程学习工作区，聚合多个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、Dify/RAGFlow 知识库工具、自研 RAG 工程、AI 课程站与面试题库、AI 工作台门户。
+个人 AI 工程学习工作区，聚合多个子项目：多智能体框架实践、AI 技术栈学习主工程、本地大模型实验、Dify/RAGFlow 知识库工具、自研 RAG 工程、AI 课程站与面试题库、AI 工作台门户、教程视频生成管线。
 
 ## 目录结构
 
@@ -13,6 +13,7 @@ personal-ai-engineering/
 ├── ai-rag-dify/      # Dify / RAGFlow 知识库上传工具与笔记
 ├── ai-rag-self-engineering/  # 自研 RAG 工程（ownrag：不依赖 Dify 的完整链路，设计文档 + 代码骨架）
 ├── ai-workbench/     # AI 工作台首页（触屏门户，单文件 HTML）
+├── ai-tutorial-video/  # 教程视频生成管线（HTML 动画 → 抓帧 → ffmpeg MP4，含 TTS 旁白）
 ├── README.md
 └── .gitignore
 ```
@@ -99,6 +100,21 @@ python -m pytest            # 契约测试（执行器/闸门/切分），不依
 - 链接页：常用网址收藏（localStorage 本地存储，支持增删）
 
 双击 `ai-workbench/index.html` 即可在浏览器打开，离线可用，无需任何依赖。
+
+### [ai-tutorial-video](ai-tutorial-video/README.md)
+
+AI 学习教程视频生成管线：「HTML 场景动画 → Playwright 逐帧抓帧 → ffmpeg 合成 MP4」，把课程站与课件内容变成连贯的学习视频。
+
+- 剧本驱动：`storyboards/*.json` 分幕编排，9 种幕类型（标题/章节/要点/流程图/对比/代码/引言/总结/片尾）
+- edge-tts 中文旁白，幕时长自动按旁白对齐；无网络自动降级无声字幕
+- 确定性动画时间轴（逐帧可复现）、幕级缓存断点续跑、系列一键合并
+
+```bash
+cd ai-tutorial-video
+pip install -r requirements.txt
+python -m playwright install chromium
+python src/build_video.py --storyboard storyboards/llm_base10.json   # → output/llm_base10.mp4
+```
 
 ## 仓库约定
 
