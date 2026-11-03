@@ -8,18 +8,21 @@ Dify / RAGFlow 知识库操作工具与学习笔记。2026-10 自 `ai-study-labs
 
 ```text
 ai-rag-dify/
-├── python/    # Dify 知识库 API 脚本：切分标记预埋 → 补标题切片 → 层级分段灌库
+├── python/    # 主链路脚本：PDF→MinerU 解析为 md → 切分标记预埋 → 补标题切片 → 层级分段灌库
 ├── dify/      # Dify Tkinter 上传器（dify_uploader.py）+ PyInstaller 打包配置
-├── ragflow/   # RAGFlow HTTP API 笔记（httpapi.md）+ 打包配置
+├── ragflow/   # RAGFlow 上传器 + HTTP API 笔记（httpapi.md）+ 打包配置
 └── notes/     # Dify 工作流 / 知识库 API 学习笔记与样例文档
 ```
 
 ## 使用
 
 - `python/` 的完整思路、文件清单与调用链见 [python/README.md](python/README.md)
+- **第 0 步（PDF → Markdown）**：`python 00_pdf_to_md_mineru.py xxx.pdf -o ./mineru_out`，用 MinerU 把 PDF/扫描件解析成带标题层级的 md 并做结构归一化，再交给后续切分/灌库脚本
+- **质量门禁（A 解析 + B 分片）**：`python 09_quality_gate.py parse --pdf x.pdf --md x_norm.md`、`python 09_quality_gate.py chunk --md 切片后.md`；有 FAIL 时退出码为 1，可当流水线前置检查
 - 打包：各目录内 `pipinstaller.bat` 一键打包（产物 `*.exe` 已被 .gitignore 排除）
 
 ## 注意
 
 - **上传工具内为硬编码 API 地址与 Key（已脱敏为占位符），运行前需自行填入**
 - 脚本面向本机 Dify 实例编写，接口版本变化时需对照 `ragflow/httpapi.md`、`notes/dify_api.md` 校准
+- `00_pdf_to_md_mineru.py` 的 MinerU 接口契约（CLI `-p/-o` 与 HTTP `POST /file_parse`）与 `ai-rag-self-engineering/ownrag/ownrag/ingest/pdf_mineru.py` 保持一致，改动时两处需同步

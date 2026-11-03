@@ -45,6 +45,8 @@ config.yaml
 
 # ========== 工具状态 ==========
 .workbuddy/
+# 终端 AI 工具的计划/会话缓存（含本地绝对路径，不入库）
+.zcode/
 
 # ========== IDE / 编辑器 ==========
 .idea/
@@ -66,3 +68,7 @@ secrets_backup.txt
 
 # AI 笔记站点工具状态
 .codebuddy/
+
+# ========== ai-rag-dify 质量门禁与解析产物 ==========
+quality_report*.md
+mineru_out/

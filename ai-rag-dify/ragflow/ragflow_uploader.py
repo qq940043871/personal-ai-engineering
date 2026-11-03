@@ -21,7 +21,7 @@ class RagflowDocumentUploader:
 
         # 配置变量
         self.api_base_url = tk.StringVar(value="http://10.17.1.134:30002")
-        self.api_key = tk.StringVar(value="ragflow-I4YWJhNmU0NjA2MzExZjA5NDQ0NmI3NG")
+        self.api_key = tk.StringVar(value="ragflow-REPLACE_WITH_YOUR_KEY")
         self.dataset_id = tk.StringVar()
         self.document_id = tk.StringVar()
         self.selected_file = tk.StringVar()

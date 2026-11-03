@@ -26,7 +26,7 @@ data_json = {
                 "separator": "@!@",
                 "max_tokens": 2000
             },
-            "subchunk_segmentation ": {
+            "subchunk_segmentation": {
                 "separator": "@@",
                 "max_tokens": 500
             }
