@@ -54,3 +54,11 @@ def test_citation_check_requires_refs_for_numbers():
 def test_sufficiency_empty_pool():
     assert not sufficiency_check([]).passed
     assert sufficiency_check([{"rrf": 0.03}]).passed
+
+
+def test_schema_check_modes():
+    """输出结构校验三态：非 JSON 模式跳过 / 合法 JSON 放行 / 非法 JSON 拦截。"""
+    from ownrag.generate.gates import schema_check
+    assert schema_check("这不是 JSON").passed            # 非 JSON 模式：跳过
+    assert schema_check('{"a": 1}', expect_json=True).passed
+    assert not schema_check('{"a": ', expect_json=True).passed

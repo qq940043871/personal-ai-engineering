@@ -24,6 +24,7 @@ class Chunk:
 
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _TABLE_LINE = re.compile(r"^\s*(\|.*|<table\b.*|</table>\s*)$", re.IGNORECASE)
+_TIME_ANCHOR = re.compile(r"\[(\d{1,2}:\d{2})\]")   # 音视频块内 [mm:ss] 锚点
 
 
 def split_segments(markdown: str) -> list[dict]:
@@ -101,6 +102,12 @@ def chunk_markdown(markdown: str, *, doc_id: str, kb: str, source_type: str,
             if key in base_meta:
                 anchors[key] = base_meta[key]
         anchors["heading_path"] = heading_path
+        if source_type == "av":
+            # 时间锚结构化进 anchors（引用粒度=块，范围=块内首末 [mm:ss]）：
+            # 内容+来源两类信息缺一不可——正文参与搜索，anchors 供播放器回跳与引用核验。
+            stamps = _TIME_ANCHOR.findall(body)
+            if stamps:
+                anchors["t"] = f"{stamps[0]}-{stamps[-1]}"
         has_table = any(s["kind"] == "table" for s in segs)
         chunks.append(Chunk(
             chunk_id=f"{doc_id}#{ordinal:04d}", doc_id=doc_id, kb=kb,
@@ -139,15 +146,23 @@ class ChunkMarkdown(Step):
         parsed: dict = ctx.data.get("parsed") or {}
         if not parsed.get("markdown"):
             return StepResult.fail("无 parsed.markdown——上游解析步骤缺失或未产出")
+        max_tokens = int(params.get("max_tokens", 512))
+        overlap = int(params.get("overlap", 64))
         chunks = chunk_markdown(
             parsed["markdown"], doc_id=ctx.doc_id, kb=ctx.kb,
             source_type=parsed.get("source_type", "unknown"),
             base_meta=parsed.get("metadata", {}),
-            max_tokens=int(params.get("max_tokens", 512)),
-            overlap=int(params.get("overlap", 64)),
+            max_tokens=max_tokens, overlap=overlap,
         )
         if not chunks:
             return StepResult.fail("切分零块")
+        # 处理版本链：块上留痕管道名与切分参数（解析侧 split_params 已随 metadata 带入 meta，
+        # 加上 embed_version），重灌后同块可比较新旧口径——没有版本，引用无法稳定归因。
+        pipeline = ctx.data.get("_pipeline")
+        for c in chunks:
+            if pipeline:
+                c.meta["pipeline"] = pipeline
+            c.meta["chunker"] = {"max_tokens": max_tokens, "overlap": overlap}
         ctx.data["chunks"] = [c.__dict__ | {"anchors": c.anchors, "meta": c.meta} for c in chunks]
         return StepResult.ok(chunks=len(chunks),
                              tables=sum(1 for c in chunks if c.meta.get("has_table")))

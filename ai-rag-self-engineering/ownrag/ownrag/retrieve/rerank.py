@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import httpx
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -15,7 +16,6 @@ def rerank(settings: "Settings", query: str, candidates: list[dict], top_n: int 
     if not settings.rerank_base_url:
         return candidates[:top_n], "rerank 未启用，RRF 顺序兜底"
 
-    import httpx
     pairs = [[query, c.get("text", "")] for c in candidates]
     try:
         resp = httpx.post(f"{settings.rerank_base_url.rstrip('/')}/rerank",

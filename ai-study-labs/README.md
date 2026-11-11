@@ -6,37 +6,31 @@
 
 ```
 ai-study-labs/
-├── 10_docs/            # 学习资料
-│   └── prompts/        #   提示词集合（SQL、DeepSeek、模板引擎）
+├── 10_prompts/         # 提示词集合（SQL、DeepSeek、模板引擎）
 │
-├── 20_learn/           # 框架/主题学习代码
-│   ├── pytorch/        #   PyTorch：感知机、手写 autograd、CNN、迁移学习
-│   ├── paddle/         #   百度 PaddlePaddle（LeNet、图像分类训练）
-│   ├── paddlex/        #   PaddleX：OCR、图像分类、目标检测、表格识别
-│   ├── huggingface/    #   HF 生态：GPT2 预训练/微调/全参训练/知识蒸馏
-│   ├── modelscope/     #   ModelScope：动物识别、OCR、MinerU
-│   ├── langchain/      #   LangChain：多智能体、RAG 服务、行业 Agent 示例
-│   ├── ffmpeg_opencv/  #   FFmpeg / OpenCV 视频处理
-│   ├── ocr/            #   PaddleOCR 文字识别
-│   └── openMNT/        #   ModelScope NLLB 中英翻译模型
-│
-└── 50_tools/           # 独立小工具与项目
-    ├── doubao/         #   豆包/火山方舟：图片视频生成脚本、抖音视频 Agent（douyin_agent/）、PDF 合同比对工具（pdf_diff/）
-    ├── time_task/      #   定时视频生成任务（方舟 API 批量生成）
-    ├── utils/          #   抖音/B站视频下载（01_/02_，产物就地存放不入库）、WSET 导入、币种列表、批量重命名、Gitee 批量删除等
-    └── ops/            #   运维脚本：JVM 诊断、目录扫描
+└── 20_learn/           # 框架/主题学习代码
+    ├── pytorch/        #   PyTorch：感知机、手写 autograd、CNN、迁移学习
+    ├── paddle/         #   百度 PaddlePaddle（LeNet、图像分类训练）
+    ├── paddlex/        #   PaddleX：OCR、图像分类、目标检测、表格识别
+    ├── huggingface/    #   HF 生态：GPT2 预训练/微调/全参训练/知识蒸馏
+    ├── modelscope/     #   ModelScope：动物识别、OCR、MinerU
+    ├── langchain/      #   LangChain：多智能体、RAG 服务、行业 Agent 示例
+    ├── ffmpeg_opencv/  #   FFmpeg / OpenCV 视频处理
+    ├── ocr/            #   PaddleOCR 文字识别
+    └── openMNT/        #   ModelScope NLLB 中英翻译模型
 ```
 
 > 本地大模型相关实验（Ollama 多轮对话、搜索引擎、RAG）已迁出为工作区独立子项目 [ai-rag-ollama](../ai-rag-ollama/)。
 > Dify / RAGFlow 知识库工具与笔记已迁出为 [ai-rag-dify](../ai-rag-dify/)（2026-10）。
 > HTML 课件（大模型基础 1.0 / 2.0）已迁出为 [ai-study-note/slides](../ai-study-note/slides/)（2026-11）。
 > 各技术栈快速学习手册（原 `10_docs/quick_guide/`）已迁出为 [ai-study-note/quick_guide](../ai-study-note/quick_guide/)（2026-11）。
+> 独立小工具与项目（原 `50_tools/`）已整体迁出为顶层 [ai-tools](../ai-tools/)（2026-11），本目录只保留学习代码与提示词。
 
 ## 约定
 
 - 顶层目录按用途分类，编号留出扩展空间（60+、70+ 可继续加分类）。
-- **代码与笔记入库，产物不入库**：`build/`、`dist/`、`temp_images/`、`video/`、模型权重（`pytorch/models/`）、数据集（`pytorch/data/`）、向量库与脚本输出目录均已被 `.gitignore` 覆盖；合同类 PDF（`pdf_diff/*.pdf`）与 `ops/` 下的诊断输出不入库。
-- **运行产物不提交**：`ops/jvm_diag_*/`（jstack、top 等采集结果）、`pdf_diff/` 下的比对报告与 token 统计只留在本地。
+- **代码与笔记入库，产物不入库**：`build/`、`dist/`、`temp_images/`、`video/`、模型权重（`pytorch/models/`）、数据集（`pytorch/data/`）、向量库与脚本输出目录均已被 `.gitignore` 覆盖。
+- **运行产物不提交**：工具侧的合同 PDF、比对报告、`jvm_diag_*/` 诊断快照与登录态 cookie 配置，现由根 `.gitignore` 的 `ai-tools/` 规则统一排除。
 - 子目录内布局：源码在根，笔记收进 `notes/`，打包用 `.spec` / `pipinstaller.bat` 随时可重建。
 
 ## 已知问题
@@ -44,6 +38,8 @@ ai-study-labs/
 - 部分脚本内写死的绝对路径指向旧目录（`d:\ai_coder\p000_ai_study_py\...` 等），运行前需按脚本内提示改为当前路径或改为相对路径。
 
 ## 历史路径对照（2026-10 整理）
+
+> 下表是当时的迁移记录，不代表当前目录结构；其中 `50_tools/` 已于 2026-11 再迁出为顶层 `ai-tools/`
 
 | 原路径 | 新路径 |
 |---|---|

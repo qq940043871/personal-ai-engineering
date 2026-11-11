@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/
+# 运行数据不入库；评测资产（data/eval 问答集+语料）必须进 Git（规则表随评测集回归）
+data/*
+!data/eval/
 .env
 .coverage
 build/

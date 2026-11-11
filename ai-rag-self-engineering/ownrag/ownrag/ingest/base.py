@@ -10,9 +10,10 @@ from dataclasses import asdict, dataclass, field
 
 @dataclass
 class Structure:
-    kind: str                 # table | image | formula | keyframe
+    kind: str                 # table | image | formula | keyframe | ocr_text
     location: str             # 位置锚点：page:3 / t:12:34 / row:3-7
     pointer: str | None = None  # 产物指针（assets 的 key 或内联说明）
+    text: str | None = None   # 结构化文本（OCR 画面文字等）：与正文分字段保存，不拼接进 markdown
 
 
 @dataclass

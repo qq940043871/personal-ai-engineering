@@ -28,8 +28,10 @@ pipelines:
         params: { engine: faster-whisper, model: medium, vad: true }
         fallback:
           - { type: asr_transcribe, params: { engine: funasr, model: paraformer-zh } }
-      - type: segment_by_time         # 按时长聚段；块带 [mm:ss] 锚点可回跳源视频
-        params: { max_sec: 60 }
+      - type: segment_by_time         # 优先语义边界（停顿/句尾），其次时长上限；块带 [mm:ss] 锚点
+        params: { max_sec: 60, gap_sec: 1.5 }
+      - type: ocr_keyframes           # 可选：画面文字进 structures 分字段保存（OCR 不可用显式降级）
+        params: {}
       - type: chunk_markdown          # 三链路同一收敛点：parse → chunk → embed → index
         params: { max_tokens: 512, overlap: 64 }
       - type: embed                   # allow_skip=Ollama 不可用时显式降级 BM25 单路（metric 可见）

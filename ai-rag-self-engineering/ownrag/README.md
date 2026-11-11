@@ -1,6 +1,6 @@
 # ownrag · 自研 RAG 工程（代码骨架）
 
-> **口径先读**：本工程 = 个人实战骨架（Python + FastAPI），与 `../../../personal-investment-notes/02-AI智能体/01-认知框架/Harness-详细设计与项目落地.md` 同一条个人线；**不是公司平台技术栈**（公司 = Java 中台 + Dify 智能层）。设计文档见上级目录 `00`–`05` 五篇，模块与文档一一对应。
+> **口径先读**：本工程 = 个人实战骨架（Python + FastAPI），与 `../../../personal-investment-notes/02-AI智能体/01-认知框架/Harness-详细设计与项目落地.md` 同一条个人线；**不是公司平台技术栈**（公司 = Java 中台 + Dify 智能层）。设计文档见上级目录 `00`–`06`，模块与文档一一对应；`06` 是全链路环节×可验证性清单与「视频 RAG」问题逐条对照。
 
 ## 一句话
 
@@ -68,13 +68,17 @@ python scripts/run_demo.py --file 样例.pdf --question "报告里的报销口�
 
 ```bash
 python scripts/eval_recall.py --qa data/eval/qa.example.jsonl --kb policy_v1
-# 任何切分/embedding/解析器变更，先跑这个再合入（评测先行）
+# 任何切分/embedding/解析器变更，先跑这个再合入（评测先行；全判中退出码 0，否则 1）
 ```
+
+评测资产已入库（`data/eval/`）：`corpus_policy_example.md` 小语料 + 8 题问答集，判中口径三选一——
+`expect` 任一关键词（找对）/ `expect_all` 全部要件（找全）/ `expect_empty` 无答案题零召回（该拒答的拒答）。
+离线等价回归：`tests/test_eval_chain.py`（BM25 单路，不依赖 Ollama）。
 
 ### 测试
 
 ```bash
-python -m pytest        # 执行器/闸门/切分契约，全程不依赖外部服务
+python -m pytest        # 56 例：契约/执行器/闸门/切分/存储生命周期/检索融合/评测链路，全程不依赖外部服务
 ```
 
 ## 三条解析链路（ownrag/configs/pipelines.yaml 即低代码入口）
@@ -82,12 +86,12 @@ python -m pytest        # 执行器/闸门/切分契约，全程不依赖外部�
 | 管道 | 链路 | 降级链 |
 |---|---|---|
 | `pdf_v1` | detect_pages 页级路由 → MinerU（pipeline/VLM）→ 校验 → 切分 → 索引 | MinerU↔后端互换 → PyMuPDF 纯文本 → 待办 |
-| `av_v1` | ffmpeg 抽音轨+关键帧 → 本地 ASR（faster-whisper）→ 按时间切分（`[mm:ss]` 锚点）→ 索引 | faster-whisper → FunASR → 待办 |
+| `av_v1` | ffmpeg 抽音轨+关键帧 → 本地 ASR（faster-whisper）→ 语义切分（停顿/句尾优先，`[mm:ss]` 锚点）→ 关键帧 OCR（可选）→ 索引 | faster-whisper → FunASR → 待办；OCR 不可用显式 skipped |
 | `excel_v1` | 全 TEXT 落 staging 临时表 → schema 推断 → 列映射（LLM 建议+人工确认）→ row_card 文本化 → 索引 | 映射待办人工确认 |
 
 ## 骨架边界（诚实清单，对应 05 文档路线图）
 
-- **已落位**：DSL 执行器（检查点/fallback/待办）、三链路适配、结构感知切分、FTS5 关键词通道、混合检索 RRF、直击库、两道闸门、SSE 问答、trace、评测脚本、契约测试、**控制台 `/ui`（含 14 天路线）**、**上下文预算裁剪（超窗丢块可见）**、**KB 白名单 + 上传体积上限**、**配置随包分发（wheel/只读镜像可解析）**、**embedding 熔断（后端挂掉不再拖慢每个请求）**。
+- **已落位**：DSL 执行器（检查点/fallback/待办）、三链路适配、结构感知切分、AV 语义切分（停顿/句尾 + 时间锚结构化 `anchors.t`）、关键帧 OCR 分字段、FTS5 关键词通道、混合检索 RRF、直击库、两道闸门、SSE 问答、trace、**块级版本链（pipeline/chunker/split_params/embed_version）**、评测集与评测脚本、契约测试、**删除端点（三通道退出可检索）**、**控制台 `/ui`（含 14 天路线）**、**上下文预算裁剪（超窗丢块可见）**、**KB 白名单 + 上传体积上限**、**配置随包分发（wheel/只读镜像可解析）**、**embedding 熔断（后端挂掉不再拖慢每个请求）**。
 - **显式降级**：chromadb 未装 → 向量通道跳过（BM25 单路，metric 可见）；rerank 未配置 → RRF 兜底；MinerU/ASR 未装 → 降级链穷尽后进待办；候选超上下文预算 → 按序丢尾块并下发 `gate(context_budget)` 事件。
 - **M2 待办**：aggregate 文本化的 SQL 路径、元数据权限过滤接线、直击库 L2 回流、评测基线数字、闸门/rerank 编排配置化（当前只读 env 与代码内固定顺序）、鉴权与任务队列（长任务仍在进程内线程池）。
 - **不做**：训练微调、多租户 SaaS、复杂前端（管理面 = JSON API，页面壳后置）。

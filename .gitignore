@@ -73,18 +73,30 @@ secrets_backup.txt
 quality_report*.md
 mineru_out/
 
-# ========== ai-study-labs 运行产物（代码入库，结果不入库） ==========
-# JVM 诊断采集结果：带时间戳目录，jstack/top 等随机器与时刻变化（48 重组后位于 50_tools/ 下）
-ai-study-labs/50_tools/**/jvm_diag_*/
-# PDF 合同比对：原始合同与生成的报告、token 统计
-ai-study-labs/50_tools/doubao/pdf_diff/*.pdf
-ai-study-labs/50_tools/doubao/pdf_diff/合同差异比对报告*.md
-ai-study-labs/50_tools/doubao/pdf_diff/token消耗统计.json
-# 豆包 API 原始应答转储
-ai-study-labs/50_tools/doubao/应答结果.js
-# 抖音下载器的本地数据库状态
-ai-study-labs/50_tools/**/*.db
-ai-study-labs/50_tools/**/*.db-journal
+# ========== ai-tools 运行产物与凭证（2026-11 由 ai-study-labs/50_tools 迁入） ==========
 # 抖音下载器配置：内嵌登录态 cookie，仅保留脱敏模板
-ai-study-labs/50_tools/01_dydown/dy-*.yaml
-!ai-study-labs/50_tools/01_dydown/dy-*.example.yaml
+ai-tools/01_dydown/dy-*.yaml
+!ai-tools/01_dydown/dy-*.example.yaml
+# 各类本地数据库 / 账号库及其备份（douyin_*.db、jobs.db、accounts.db、*.db.bak* 等）
+ai-tools/**/*.db*
+# 配置备份：含登录态 cookie 与邮箱/SMTP 配置，一律不入库
+ai-tools/**/config.yaml.bak*
+# 微信岗位抓取的 cookie 与运行输出
+ai-tools/personal-wechat-jobs/out/
+# 会议纪要产物、录屏与构建崩溃报告
+ai-tools/**/summaries/
+ai-tools/**/recordings/*.avi
+ai-tools/**/nuitka-crash-report.xml
+# 代理模型配置条目（可能内嵌 key）
+ai-tools/opencode-go-proxy/models.json.条目.json
+# JVM 诊断采集结果：带时间戳目录，jstack/top 等随机器与时刻变化
+ai-tools/**/jvm_diag_*/
+ai-tools/jvm_diag_*/
+# 会议录音：体积大且含语音内容
+ai-tools/**/recordings/*.wav
+# PDF 合同比对：原始合同、生成报告与 token 统计
+ai-tools/doubao/pdf_diff/*.pdf
+ai-tools/doubao/pdf_diff/合同差异比对报告*.md
+ai-tools/doubao/pdf_diff/token消耗统计.json
+# 豆包 API 原始应答转储
+ai-tools/doubao/应答结果.js

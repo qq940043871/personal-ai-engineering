@@ -105,6 +105,30 @@ def status(doc_id: str) -> dict:
         conn.close()
 
 
+@router.delete("/{doc_id}")
+def delete_doc(doc_id: str) -> dict:
+    """删除文档 = 派生内容全部退出可检索状态（chunks/FTS/向量三通道一次清），
+    查询过滤不再命中——不是只在页面上藏一个按钮。向量通道不可用时降级可见。"""
+    settings = get_settings()
+    conn = connect(settings.db_path)
+    try:
+        from ownrag.index.store import keyword_delete_doc, vector_delete_doc
+        rows = conn.execute(
+            "SELECT kb, COUNT(*) AS n FROM chunks WHERE doc_id=? GROUP BY kb",
+            (doc_id,)).fetchall()
+        if not rows:
+            raise HTTPException(404, f"doc 不存在或无已索引块：{doc_id}")
+        keyword_delete_doc(conn, doc_id)
+        vector_notes = [f"{r['kb']}:{'ok' if vector_delete_doc(settings, r['kb'], doc_id) else 'skipped'}"
+                        for r in rows]
+        conn.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
+        conn.commit()
+        return {"doc_id": doc_id, "chunks_removed": sum(r["n"] for r in rows),
+                "vector": ",".join(vector_notes)}
+    finally:
+        conn.close()
+
+
 @router.post("/tasks/{task_id}/retry")
 def retry(task_id: str) -> dict:
     """重跑 = 同一入口 resume：检查点在任务表里，幂等键 doc_id+step。"""

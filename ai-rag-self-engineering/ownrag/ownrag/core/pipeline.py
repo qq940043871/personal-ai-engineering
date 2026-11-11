@@ -53,6 +53,7 @@ def run_pipeline(conn: sqlite3.Connection, settings: Any, task_id: str,
             ctx.data = json.loads(task["state_json"])
         except Exception:
             ctx.data = {}
+    ctx.data["_pipeline"] = pipeline_name  # 步骤留版本链用（chunk meta 记录管道名）
     if resume and task["current_step"]:
         start = next((i for i, s in enumerate(steps) if s.get("type") == task["current_step"]), 0)
         # 检查点坏了就从头来：源文件还在，重跑安全（按 doc_id 原子替换索引）
