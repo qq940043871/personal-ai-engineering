@@ -106,10 +106,11 @@ def generate_sql_insert(table_name, fields, row_data):
 
 # 主函数
 def main():
-    # 文件路径
-    excel_file_path = "d:/workspace/p012_import_wset/batch_wset_one.xlsx"
-    sql_file_path = "d:/workspace/p012_import_wset/sql"
-    output_file_path = "d:/workspace/p012_import_wset/generated_sql.sql"
+    # 文件路径：基于脚本所在目录，避免依赖旧机器上的绝对路径
+    here = os.path.dirname(os.path.abspath(__file__))
+    excel_file_path = os.path.join(here, "batch_wset_one.xlsx")
+    sql_file_path = os.path.join(here, "sql")
+    output_file_path = os.path.join(here, "generated_sql.sql")
     
     # 读取字段和表的对应关系
     mapping, table_fields = read_sql_mapping(sql_file_path)

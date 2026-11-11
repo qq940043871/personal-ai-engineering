@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from paddlex import create_pipeline
+
+HERE = Path(__file__).resolve().parent
 
 pipeline = create_pipeline(pipeline="OCR")
 
 output = pipeline.predict(
-    input="D:\\workspace\\p001_ai_study_py\\12_ocr\\1.jpg",
+    input=str(HERE / "1.jpg"),
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
     use_textline_orientation=False,

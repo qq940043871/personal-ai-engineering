@@ -1,8 +1,15 @@
-import json
+"""从币种 JSON 提取 currencyDisplayName，输出到同目录 41_currency_display_names.txt。
 
-# 定义文件路径
-file_path = 'd:\\workspace\\p001_ai_study_py\\00_utils\\币种.txt'
-output_file_path = 'd:\\workspace\\p001_ai_study_py\\00_utils\\currency_display_names.txt'
+用法：python 40_parse_currency_json.py [输入文件]
+默认输入为相邻的 04_currency_list/币种.txt。
+"""
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+file_path = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "04_currency_list" / "币种.txt"
+output_file_path = HERE / "41_currency_display_names.txt"
 
 try:
     # 打开文件并读取内容

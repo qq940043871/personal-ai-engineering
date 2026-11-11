@@ -178,9 +178,11 @@ Dify. Relocated 2026-11-02 from `personal-investment-notes/02-AI智能体/04-自
   recordings, `cookie_*.txt` and the proxy model entry file are all gitignored; only
   `dy-config.example.yaml` is kept as a placeholder. The old `ai-study-labs/50_tools/...`
   ignore rules were replaced when that tree moved out.
-- **Historical absolute paths**: learning scripts contain stale paths (e.g.
-  `d:\ai_coder\p000_ai_study_py\...`, `D:\workspace\...`). Fix to relative/current paths before
-  running.
+- **Historical absolute paths**: the OCR examples and the ai-tools data scripts
+  (`40_*`, `42_*`, `03_import_wset`, `opengauss`, `time_task/parse_models.py`) now resolve paths
+  from `__file__`. Some learning scripts under `ai-study-labs/20_learn/` and a few tools still
+  contain stale paths (e.g. `d:\ai_coder\p000_ai_study_py\...`, `D:\workspace\...`); fix to
+  relative/current paths before running. See `ai-tools/README.md` for the per-file list.
 - **Subdir file layout** in ai-study-labs: source at dir root, notes in `notes/`, packaging
   rebuildable from `.spec` / `pipinstaller.bat`.
 

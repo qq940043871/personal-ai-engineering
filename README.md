@@ -92,16 +92,16 @@ python -m pytest            # 契约测试（执行器/闸门/切分），不依
 
 > 跨库引用（Harness 六机制、MinerU 选型、直击库三层等）写 `../personal-investment-notes/...`。
 
-### ai-tools
+### [ai-tools](ai-tools/README.md)
 
-独立小工具与实验项目的集合：2026-11 由 `ai-study-labs/50_tools/` 整体迁入，并陆续加入了几个新的独立项目。没有统一入口，各脚本在各自目录内单独运行。
+独立小工具与实验项目的集合：2026-11 由 `ai-study-labs/50_tools/` 整体迁入，并陆续加入了几个新的独立项目。没有统一入口，各脚本在各自目录内单独运行；目录导览、运行约定与凭证排除规则见 [ai-tools/README.md](ai-tools/README.md)。
 
 - 下载与数据处理：`01_dydown/`（抖音）、`02_bibidown/`（B 站）、`03_import_wset/`（WSET 导入）、`04_currency_list/`
 - 编号通用脚本 `10_*`–`43_*`：mock 数据、地图可视化、目录扫描、批量重命名、MD5、Gitee 批量操作等
 - 独立项目：`doubao/`（方舟图片/视频、PDF 合同比对）、`time_task/`、`opengauss/`、`disk_cleaner/`、`doubao_multi_login/`、`meeting_minutes/`、`personal-wechat-jobs/`、`opencode-go-proxy/`
 - `meeting_minutes/`、`personal-wechat-jobs/` 各自带 `requirements.txt` / `setup.py`；目录内有 12 个独立 `test_*.py` 脚本
 
-> 运行产物不入库：下载视频（`video/`）、`*.db`、会议录音 `*.wav`、`jvm_diag_*/` 诊断快照，以及含登录态 cookie 的 `dy-*.yaml`（仅保留 `dy-config.example.yaml` 脱敏模板）。部分脚本含历史绝对路径，运行前需改。
+> 运行产物不入库：下载视频（`video/`）、`*.db`、会议录音 `*.wav`、`jvm_diag_*/` 诊断快照，以及含登录态 cookie 的 `dy-*.yaml`（仅保留 `dy-config.example.yaml` 脱敏模板）。编号数据处理脚本与 OCR 示例已改为基于脚本目录的相对路径；少数需要自填目标目录的脚本仍保留占位路径，详见 [ai-tools/README.md](ai-tools/README.md)。
 
 ### [ai-tutorial-video](ai-tutorial-video/README.md)
 

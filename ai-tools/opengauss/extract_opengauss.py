@@ -87,6 +87,8 @@ def extract_reserved_keywords(html_file, output_file):
     print(f"已提取 {len(reserved_keywords)} 个保留关键字到 {output_file}")
 
 if __name__ == "__main__":
-    html_file = r"d:\ai_coder\p000_ai_study_py\00_utils\html\opengauss.html"
-    output_file = r"d:\ai_coder\p000_ai_study_py\00_utils\html\opengauss_reserved.md"
+    # 基于脚本所在目录定位样本与输出，避免依赖旧机器上的绝对路径
+    here = os.path.dirname(os.path.abspath(__file__))
+    html_file = os.path.join(here, "opengauss.html")
+    output_file = os.path.join(here, "opengauss_reserved.md")
     extract_reserved_keywords(html_file, output_file)
