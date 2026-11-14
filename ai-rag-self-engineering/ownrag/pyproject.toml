@@ -26,7 +26,7 @@ asr = ["faster-whisper>=1.0"]      # 本地语音识别主引擎
 funasr = ["funasr>=1.1"]           # 中文备选引擎
 all = ["ownrag[pdf,excel,vector,asr]"]
 
-dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.10"]
 
 [tool.setuptools]
 # 显式包清单：configs/ 已移入包内，flat-layout 自动发现会把 data/ 等目录误判成 namespace 包
@@ -40,3 +40,49 @@ ownrag = ["configs/*.yaml", "configs/prompts/*.yaml", "web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# ---------------------------------------------------------------- 质量门禁（本地一键：check.bat）
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+# 运行期产物与语料不进 lint（data/ 是运行数据，pdf/ 是测试用文档）
+extend-exclude = ["data", "pdf", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = [
+    "E501",  # 中文长句注释/提示语不折行：折了反而难读
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ownrag"]
+
+[tool.mypy]
+# 本地解释器口径（3.12）：numpy 等第三方 stub 用了 3.12 的 type 语句，按 3.10 解析会崩在依赖里。
+# 3.10 兼容性由 ruff target-version = py310 兜底（语法层面）。
+python_version = "3.12"
+files = ["ownrag"]
+# 重依赖（pymupdf/chromadb/faster_whisper）多为可选组件，缺桩不阻塞类型检查
+ignore_missing_imports = true
+# PyYAML 无官方 stub：显式关掉而不是装 types-PyYAML（骨架不追加必装依赖）
+disable_error_code = ["import-untyped"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+# 未注解函数体内的问题也查（本工程 96% 函数有注解，此开关覆盖面足够）
+check_untyped_defs = true
+show_error_codes = true
+
+[tool.coverage.run]
+source = ["ownrag"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+# 基线取当前实测值下方：防止无痛下滑，也避免小改动即红
+fail_under = 70
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

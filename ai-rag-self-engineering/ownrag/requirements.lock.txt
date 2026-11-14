@@ -1,0 +1,41 @@
+# ownrag 依赖钉版本（复活用）——版本来源：本机实测通过 97 个用例 + check.bat 全绿的环境
+#
+# 语义（别误读）：这是**直接依赖钉版本**，不是完整传递依赖锁（无 hash、传递依赖仍由 pip 解析）。
+# 目的只有一个：半年后 clone 下来，pip 不会装上 fastapi 0.16x / pytest 9 / numpy 3 这类
+# 未经本工程验证的版本（pytest 9 会把 pandas importorskip 的 deprecation 直接变 error）。
+#
+# 用法：
+#   pip install -r requirements.lock.txt            # 全组件（PDF+Excel+向量+ASR+开发工具）
+#   pip install -e .                               # 只要最小运行集（7 个包，走 pyproject）
+#
+# 升级流程：改 pyproject 的下限 -> 装上去跑 check.bat -> 绿了再把这里的版本号同步改。
+# 想生成完整传递锁：uv lock（需能访问 index；本机走清华镜像 UV_INDEX_URL）。
+
+# ---- 运行时核心（pyproject dependencies）----
+fastapi==0.136.1
+uvicorn==0.46.0
+PyYAML==6.0.2
+pydantic==2.14.3
+httpx==0.28.1
+python-multipart==0.0.33
+python-dotenv==1.2.2
+
+# ---- extra: pdf ----
+PyMuPDF==1.27.2.3
+
+# ---- extra: excel ----
+pandas==2.2.2
+openpyxl==3.1.5
+
+# ---- extra: vector ----
+chromadb==1.5.9
+
+# ---- extra: asr（主引擎）----
+faster-whisper==1.2.1
+# funasr（备选引擎）未在本机验证，暂不钉版本：pip install ownrag[funasr]
+
+# ---- extra: dev（质量门禁 check.bat 依赖）----
+pytest==8.3.4
+pytest-cov==6.2.1
+ruff==0.15.12
+mypy==1.11.2

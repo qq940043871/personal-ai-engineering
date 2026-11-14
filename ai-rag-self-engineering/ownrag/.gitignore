@@ -2,6 +2,11 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+# 质量门禁工具的本地缓存（check.bat 会生成）
+.ruff_cache/
+.mypy_cache/
+# 测试用大文档（几十 MB 级 PDF）不入库；放到 pdf/ 下本地自测即可
+pdf/
 # 运行数据不入库；评测资产（data/eval 问答集+语料）必须进 Git（规则表随评测集回归）
 data/*
 !data/eval/
