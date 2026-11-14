@@ -6,7 +6,7 @@ RRF 等权起步——没有评测集之前调权重都是猜（评测先行原�
 from __future__ import annotations
 
 import sqlite3
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ownrag.index.store import keyword_search, read_chunks, vector_search
 

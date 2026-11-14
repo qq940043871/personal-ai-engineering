@@ -46,7 +46,7 @@ def match(conn: sqlite3.Connection, kb_list: list[str], question: str,
             kb_list).fetchall()
         if rows:
             embs = embed_texts(get_settings(), [r["question"] for r in rows])
-            for row, emb in zip(rows, embs):
+            for row, emb in zip(rows, embs, strict=False):
                 sim = _cosine(q_emb, emb)
                 if sim >= l1_threshold:
                     return DirectHit(row["id"], row["level"], row["question"], row["answer"], round(sim, 4))
@@ -61,7 +61,7 @@ def _normalize(s: str) -> str:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    num = sum(x * y for x, y in zip(a, b))
+    num = sum(x * y for x, y in zip(a, b, strict=False))
     da = sum(x * x for x in a) ** 0.5
     db = sum(x * x for x in b) ** 0.5
     return num / (da * db) if da and db else 0.0

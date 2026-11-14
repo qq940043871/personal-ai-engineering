@@ -1,7 +1,6 @@
 """文档接入路由：上传 → 任务表 → 后台执行管道（失败入待办，绝不静默丢文档）。"""
 from __future__ import annotations
 
-import sqlite3
 import uuid
 from pathlib import Path
 
@@ -10,9 +9,8 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from ownrag.config import get_settings
 from ownrag.core import tasks as taskstore
 from ownrag.core import trace
-from ownrag.core.db import connect, init_schema
+from ownrag.core.db import connect
 from ownrag.core.pipeline import run_pipeline
-from ownrag.core.registry import STEP_REGISTRY
 
 router = APIRouter(prefix="/docs", tags=["docs"])
 
@@ -46,7 +44,7 @@ def _save_upload(src, dest: Path, limit_bytes: int) -> int:
 
 
 @router.post("/upload")
-def upload(background: BackgroundTasks, file: UploadFile = File(...),
+def upload(background: BackgroundTasks, file: UploadFile = File(...),  # noqa: B008 —— FastAPI 声明式依赖惯用法
            kb: str = Form("default")) -> dict:
     settings = get_settings()
     suffix = Path(file.filename or "").suffix.lower()

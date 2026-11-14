@@ -102,14 +102,33 @@ def health() -> dict:
             import httpx
             # trust_env=False：本地模型服务不穿代理；连接超时压到 2s，健康检查不能拖住页面
             resp = httpx.get(f"{settings.ollama_base_url}/api/tags", timeout=2, trust_env=False)
-            ollama = {"ok": resp.ok, "detail": "" if resp.ok else f"HTTP {resp.status_code}"}
+            ollama = {"ok": resp.is_success, "detail": "" if resp.is_success else f"HTTP {resp.status_code}"}
         except Exception as exc:
             ollama = {"ok": False, "detail": str(exc)[:120]}
+        # chat 后端按供应商探测：openai = 远程 /models（Bearer）；ollama = 上面的 /api/tags
+        # （ollama 块始终保留：嵌入通道仍依赖它，起不来 = BM25 单路降级，得在这里看见）
+        chat_backend = {"provider": settings.chat_provider, "model": settings.chat_model,
+                        "ok": False, "detail": ""}
+        if settings.chat_provider == "openai":
+            try:
+                import httpx
+                base = (settings.chat_base_url or "").rstrip("/")
+                resp = httpx.get(f"{base}/models",
+                                 headers={"Authorization": f"Bearer {settings.chat_api_key}"},
+                                 timeout=5, trust_env=False)
+                chat_backend["ok"] = resp.is_success
+                chat_backend["detail"] = "" if resp.is_success else f"HTTP {resp.status_code}"
+            except Exception as exc:
+                chat_backend["detail"] = str(exc)[:120]
+        else:
+            chat_backend["ok"] = ollama["ok"]
+            chat_backend["detail"] = ollama["detail"]
         from ownrag.index.embedder import breaker_open, breaker_remaining
         embed_backend = {"breaker_open": breaker_open(), "retry_in": breaker_remaining()}
         return {"steps_registered": sorted(STEP_REGISTRY),
                 "pipeline_missing_steps": missing,
                 "ollama": ollama,
+                "chat_backend": chat_backend,
                 "embed_backend": embed_backend,
                 "rerank_enabled": bool(settings.rerank_base_url),
                 "mineru_mode": settings.mineru_mode,

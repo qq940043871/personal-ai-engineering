@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from typing import cast
 
 from ownrag.tokens import est_tokens
 
@@ -68,10 +69,10 @@ def fit_candidates(candidates: list[dict], budget_tokens: int) -> BudgetResult:
             parts.append(block_prompt(trimmed))
             used = est_tokens(parts[-1])
             return BudgetResult(kept, "\n\n".join(parts), used,
-                                [x.get("chunk_id") for x in candidates[idx + 1:]] +
-                                [c.get("chunk_id")], True)
+                                cast("list[str]", [x.get("chunk_id") for x in candidates[idx + 1:]]) +
+                                cast("list[str]", [c.get("chunk_id")]), True)
         return BudgetResult(kept, "\n\n".join(parts), used,
-                            [x.get("chunk_id") for x in candidates[idx:]], False)
+                            cast("list[str]", [x.get("chunk_id") for x in candidates[idx:]]), False)
 
     return BudgetResult(kept, "\n\n".join(parts), used)
 

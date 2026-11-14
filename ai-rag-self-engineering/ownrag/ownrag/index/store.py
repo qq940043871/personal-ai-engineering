@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ownrag.core.pipeline import StepContext
@@ -76,14 +75,23 @@ def keyword_search(conn: Any, kb: str, query: str, top_k: int) -> list[dict]:
 
 
 # ---------------------------------------------------------------- 向量通道（Chroma，可选）
+_CHROMA_DEGRADED: str | None = None   # chromadb 不可用原因；once-only 提示，避免每次调用刷屏
+
+
 def _get_collection(settings: "Settings", kb: str):
-    try:
-        import chromadb
-    except ImportError:
-        return None
-    global _CHROMA
+    """chromadb 未装或装了但不可用（如与 NumPy 2 不兼容，import 即炸）→ 返回 None = 向量通道降级。
+    降级必须可见：坏 import 与「未装」同等待遇，只损失向量通道，不炸入库任务。"""
+    global _CHROMA, _CHROMA_DEGRADED
+    if _CHROMA is None and _CHROMA_DEGRADED is None:
+        try:
+            import chromadb
+            _CHROMA = chromadb.PersistentClient(path=str(settings.chroma_dir))
+        except Exception as exc:
+            _CHROMA_DEGRADED = f"chromadb 不可用（{type(exc).__name__}: {exc}）"
+            print(f"[向量通道] {_CHROMA_DEGRADED}——降级为 BM25 单路")
+            return None
     if _CHROMA is None:
-        _CHROMA = chromadb.PersistentClient(path=str(settings.chroma_dir))
+        return None
     return _CHROMA.get_or_create_collection(f"kb_{kb}", metadata={"hnsw:space": "cosine"})
 
 
@@ -118,7 +126,7 @@ def vector_search(settings: "Settings", kb: str, query_embedding: list[float], t
     ids = (res.get("ids") or [[]])[0]
     dists = (res.get("distances") or [[]])[0]
     return [{"chunk_id": i, "score": 1.0 - float(d), "channel": "vector"}
-            for i, d in zip(ids, dists)]
+            for i, d in zip(ids, dists, strict=False)]
 
 
 def read_chunks(conn: Any, chunk_ids: list[str]) -> dict[str, dict]:
@@ -171,7 +179,7 @@ class IndexUpsert(Step):
         metrics = {"chunks": len(chunks), "vector": "ok" if vectors_ok else "skipped"}
         if params.get("require_vector") and not vectors_ok:
             return StepResult.fail("向量通道不可用（chromadb 未安装）且 require_vector=true", **metrics)
-        return StepResult.ok(**metrics)
+        return StepResult.ok(None, **metrics)
 
 
 # ---------------------------------------------------------------- 步骤：embed

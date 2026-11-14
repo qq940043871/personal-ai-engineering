@@ -1,4 +1,4 @@
-"""Ollama chat 客户端：流式（/api/chat stream）+ 聚合；模型中立——换远程只改端点配置。"""
+"""Ollama chat 客户端：流式（/api/chat stream）+ 聚合；供应商切换由 generate/client.py 分派。"""
 from __future__ import annotations
 
 import json
@@ -8,14 +8,18 @@ if TYPE_CHECKING:
     from ownrag.config import Settings
 
 
-class OllamaError(RuntimeError):
-    pass
+class ChatError(RuntimeError):
+    """生成侧统一异常（供应商无关）：ollama / openai 兼容端点共用，调用方统一捕获转 SSE error。"""
+
+
+# 旧名兼容：既有引用仍可读出"本地 Ollama 出错"的语义
+OllamaError = ChatError
 
 
 def chat_stream(settings: "Settings", messages: list[dict], model: str | None = None,
                 num_ctx: int | None = None, temperature: float = 0.2,
                 num_predict: int | None = None) -> Iterator[str]:
-    """逐 token 产出文本；连接/模型异常抛 OllamaError（调用方转 SSE error 事件，快速失败不吊死）。"""
+    """逐 token 产出文本；连接/模型异常抛 ChatError（调用方转 SSE error 事件，快速失败不吊死）。"""
     import httpx
 
     options: dict = {"temperature": temperature}
@@ -36,14 +40,14 @@ def chat_stream(settings: "Settings", messages: list[dict], model: str | None = 
                         continue
                     chunk = json.loads(line)
                     if chunk.get("error"):
-                        raise OllamaError(f"Ollama 返回错误：{chunk['error']}")
+                        raise ChatError(f"Ollama 返回错误：{chunk['error']}")
                     piece = ((chunk.get("message") or {}).get("content")) or ""
                     if piece:
                         yield piece
                     if chunk.get("done"):
                         return
     except httpx.HTTPError as exc:
-        raise OllamaError(
+        raise ChatError(
             f"Ollama 不可达（{settings.ollama_base_url}，模型 {payload['model']}）：{exc}") from exc
 
 

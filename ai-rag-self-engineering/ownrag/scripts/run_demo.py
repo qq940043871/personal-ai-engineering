@@ -83,7 +83,7 @@ def main() -> int:
         print(f"      {text[:100].replace(chr(10), ' ')}")
 
     try:
-        from ownrag.generate.ollama_client import chat_stream
+        from ownrag.generate.client import chat_stream
         from ownrag.generate.prompts import render
         blocks = "\n\n".join(f"[块{chunks[c['chunk_id']].get('ordinal', i)}] {chunks[c['chunk_id']]['text']}"
                              for i, c in enumerate(result["candidates"], start=1))

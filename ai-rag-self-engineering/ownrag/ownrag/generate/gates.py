@@ -12,7 +12,12 @@ from dataclasses import dataclass, field
 _REF = re.compile(r"\[来源[:：]\s*块?(\d+)\]|块(\d+)")
 _NUM = re.compile(r"\d[\d,，.]*")
 _DATE = re.compile(r"\d{4}[-/年]\d{1,2}([-/月]\d{1,2})?日?")
+# 行首列表序号（1. / 1、 / 1）是格式不是事实数字；(?!\d) 防吞小数（"2.5 万元"的 2. 不是序号）
+_LIST_ORD = re.compile(r"^\s*\d+\s*[.、)）](?!\d)\s*")
 _MIN_SCORE = 0.0  # RRF 分数下限——骨架期只做非空与相对值校验，阈值随评测集校准（M2）
+# 重排分下限：bge-reranker-v2-m3 校准（相关块 ~0.9+，语义邻近无关块 ~0.0）——向量通道开启后
+# 检索层永远"捞得到"，拒答语义从「零召回」迁移到「重排分不足」，评测集随门禁回归校准
+_MIN_RERANK_SCORE = 0.05
 
 
 @dataclass
@@ -25,8 +30,20 @@ class GateResult:
 
 # ---------------------------------------------------------------- 闸门一：生成前
 def sufficiency_check(candidates: list[dict]) -> GateResult:
+    """候选不足不进模型。有重排分（rerank 已启用）时按重排分下限校验——
+    向量通道永远能捞回"语义邻近"的块，RRF 名次分区分不了实质依据；无重排分退回 RRF 口径。"""
     if not candidates:
         return GateResult("sufficiency_check", False, "候选池为空：未找到有效依据，不进模型")
+    rerank_scores: list[float] = [
+        float(s) for c in candidates if (s := c.get("rerank_score")) is not None
+    ]
+    if rerank_scores:
+        top = max(rerank_scores)
+        if top < _MIN_RERANK_SCORE:
+            return GateResult("sufficiency_check", False,
+                              f"最高重排分过低（{top:.4f} < {_MIN_RERANK_SCORE}）：语义邻近但无实质依据，拒答")
+        return GateResult("sufficiency_check", True,
+                          f"候选 {len(candidates)} 条，top-rerank={top:.4f}")
     top = candidates[0].get("rrf", 0.0)
     if top <= _MIN_SCORE:
         return GateResult("sufficiency_check", False, f"最高融合分过低（{top}）")
@@ -47,6 +64,7 @@ def citation_check(answer: str, candidates: list[dict]) -> GateResult:
     for line in lines:
         refs = [int(a or b) for a, b in _REF.findall(line)]
         bare = _REF.sub("", line)  # 剔除引用标注本身，防"块1"的 1 被当数字校验
+        bare = _LIST_ORD.sub("", bare)  # 编号列表的行首序号同理是格式，不参与数字核验
         nums = _NUM.findall(bare) + _DATE.findall(bare)
         if not refs:
             if nums:  # 有数字但无引用——数字幻觉的温床

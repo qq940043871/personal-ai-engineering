@@ -135,9 +135,9 @@ def chunk_markdown(markdown: str, *, doc_id: str, kb: str, source_type: str,
 
 
 # ---------------------------------------------------------------- 步骤
-from ownrag.core.pipeline import StepContext          # noqa: E402  (置于函数定义后注册)
+from ownrag.core.pipeline import StepContext  # noqa: E402  (置于函数定义后注册)
 from ownrag.core.registry import Step, StepResult, register  # noqa: E402
-from ownrag.ingest.base import ParsedDoc              # noqa: E402
+from ownrag.ingest.base import ParsedDoc  # noqa: E402
 
 
 @register("chunk_markdown")

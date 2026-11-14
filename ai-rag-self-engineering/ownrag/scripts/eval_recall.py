@@ -6,8 +6,8 @@
 判中口径（每题三选一，题型互补对应"找对 / 找全 / 该拒答的拒答"）：
   expect       任一关键词出现在召回块正文（或 chunk_id 直接命中）——找对
   expect_all   全部关键词出现在召回正文合集——找全（证据够不够）
-  expect_empty 资料里没有答案的题：期望检索层一无所获（捞到了就会进模型，
-               被包装成看似合理的答案）——该拒答的拒答
+  expect_empty 资料里没有答案的题：与生产拒答同路径判定（检索 → 重排 → 闸门一）——
+               向量通道开启后检索层永远捞得回语义邻近块，拒答语义从「零召回」迁移到「重排分不足」
 门禁：全部判中退出码 0，否则 1（切分 / embedding / 解析器任何变更先跑本脚本再合入）。
 """
 from __future__ import annotations
@@ -23,14 +23,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import ownrag.steps  # noqa: F401
 from ownrag.config import get_settings
 from ownrag.core.db import connect
+from ownrag.generate import gates
 from ownrag.retrieve import hybrid
+from ownrag.retrieve import rerank as rerank_mod
 
 
 def judge(case: dict, candidates: list[dict], texts: dict[str, str]) -> bool:
-    """单题判中。texts: chunk_id -> 块正文（候选池内的）。
-    口径三选一（格式契约保证）：expect 任一命中 / expect_all 全部要件 / expect_empty 零召回。"""
-    if case.get("expect_empty"):
-        return len(candidates) == 0
+    """单题判中（answerable 题）。texts: chunk_id -> 块正文（候选池内的）。
+    口径二选一（格式契约保证）：expect 任一命中 / expect_all 全部要件；
+    expect_empty 由闸门一判（与生产拒答同一路径，见 main 循环）。"""
     if case.get("expect_all"):
         joined = "\n".join(texts.values()).lower()
         return all(k.lower() in joined for k in case["expect_all"])
@@ -64,26 +65,32 @@ def main() -> int:
         question = case["question"]
         result = hybrid.search(conn, settings, case.get("kb", args.kb),
                                question, top_n=args.top_n)
+        # 与生产同一路径：检索 → 重排 → 闸门一（向量通道永远捞得回语义邻近块，拒答以重排分判）
+        candidates, _note = rerank_mod.rerank(settings, question,
+                                              result["candidates"], top_n=args.top_n)
+        gate = gates.sufficiency_check(candidates)
         chunks = {c["chunk_id"]: c for c in
-                  [dict(row) for row in _rows(conn, [c["chunk_id"] for c in result["candidates"]])]}
+                  [dict(row) for row in _rows(conn, [c["chunk_id"] for c in candidates])]}
         texts = {cid: c.get("text", "") for cid, c in chunks.items()}
         if case.get("expect_empty"):
             refusal["cases"] += 1
-            refusal["refused"] += int(not result["candidates"])
-        if judge(case, result["candidates"], texts):
+            refusal["refused"] += int(not gate.passed)
+        judged_ok = (not gate.passed) if case.get("expect_empty") else judge(case, candidates, texts)
+        if judged_ok:
             hits += 1
         else:
             misses.append({"question": question, "expect": case.get("expect"),
                            "expect_all": case.get("expect_all"),
                            "expect_empty": case.get("expect_empty", False),
                            "got": [(c["chunk_id"], (chunks.get(c["chunk_id"], {}).get("text", ""))[:60])
-                                   for c in result["candidates"][:3]]})
+                                   for c in candidates[:3]]})
 
     elapsed = time.perf_counter() - t0
     report = {"total": total, "hits": hits,
               "hit_rate": round(hits / total, 4) if total else 0.0,
               "refusal": refusal,
               "vector": "on" if not misses else _probe_vector(settings),
+              "rerank": f"on（{settings.rerank_provider}）" if settings.rerank_provider else "off",
               "elapsed_sec": round(elapsed, 2)}
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if misses:

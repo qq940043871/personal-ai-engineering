@@ -13,7 +13,8 @@ apps:
       enabled: true
       levels: [L0, L1, L2]
     generation:
-      model: qwen2.5:7b-instruct-q4_K_M
+      # model 不在此逐应用硬编码：统一走模型注册表 OWNRAG_CHAT_MODEL（或 models.yaml defaults.chat），
+      # 否则本地模型名会压过远程供应商切换（generate/client.py 按 chat_provider 分派）
       prompt: policy_strict_v1          # configs/prompts/policy_strict_v1.yaml
       stream: true
       max_ctx_tokens: 6144              # 总窗口：上下文预算 = 该值 - prompt 开销 - max_new_tokens

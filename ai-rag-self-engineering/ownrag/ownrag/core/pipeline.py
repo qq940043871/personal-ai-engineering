@@ -94,7 +94,7 @@ def _run_with_fallbacks(step_spec: dict, ctx: StepContext) -> StepResult:
 
 def _invoke(step_spec: dict, ctx: StepContext, attempt_tag: str) -> StepResult:
     step_type = step_spec.get("type")
-    cls = STEP_REGISTRY.get(step_type)
+    cls = STEP_REGISTRY.get(step_type) if isinstance(step_type, str) else None
     if cls is None:
         return StepResult.fail(f"步骤类型未注册：{step_type}")
 

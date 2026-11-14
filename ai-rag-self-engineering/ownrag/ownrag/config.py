@@ -54,15 +54,27 @@ class Settings:
     config_dir: Path
     ollama_base_url: str
     chat_model: str
+    chat_provider: str                    # ollama | openai（OpenAI 兼容远程 /v1/chat/completions）
+    chat_base_url: str | None
+    chat_api_key: str | None              # 只走环境变量 OWNRAG_CHAT_API_KEY，不落配置文件
     embed_model: str
+    embed_provider: str                   # ollama | openai（OpenAI 兼容 /embeddings：魔搭 API / DashScope 等）
+    embed_base_url: str | None
+    embed_api_key: str | None             # 只走环境变量 OWNRAG_EMBED_API_KEY，不落配置文件
+    embed_query_instruct: str | None      # Qwen3-Embedding 系 query 侧指令；None=默认值，空串=关闭
     embed_version: str
     num_ctx: int
     max_new_tokens: int                   # 生成侧硬上限：无上限 = 单请求可无限占资源
     max_upload_mb: int                    # 上传体积上限（0 = 不限制，仅测试用）
     rerank_base_url: str | None
-    mineru_mode: str                      # cli | http
+    rerank_provider: str                  # "" 未启用 | service 自建 /rerank | siliconflow 云 API（兼容：base_url 有值即 service）
+    rerank_model: str | None              # siliconflow 模式模型名
+    rerank_api_key: str | None            # 只走环境变量 OWNRAG_RERANK_API_KEY，不落配置文件
+    mineru_mode: str                      # cli | http | open
     mineru_base_url: str | None
     mineru_cmd: list[str]
+    mineru_open_token: str | None         # 开放平台（mineru.net）API Token：只走环境变量，不落配置文件
+    mineru_open_base_url: str             # 开放平台基地址
     asr_engine: str                       # faster-whisper | funasr
     asr_model: str
     pipelines: dict                       # 管道 DSL（02 文档 §一）
@@ -98,6 +110,10 @@ def get_settings() -> Settings:
     pipelines = load_yaml(config_dir / "pipelines.yaml").get("pipelines", {})
     apps = load_yaml(config_dir / "apps.yaml").get("apps", {})
     defaults = models.get("defaults", {})
+    endpoints = models.get("endpoints", {})
+    chat_ep = endpoints.get("chat", {})
+    embed_ep = endpoints.get("embed", {})
+    rerank_ep = endpoints.get("rerank", {})
     mineru = models.get("mineru", {})
     asr = models.get("asr", {})
 
@@ -114,15 +130,28 @@ def get_settings() -> Settings:
         ollama_base_url=env("OLLAMA_BASE_URL", models.get("endpoints", {}).get("ollama", {}).get(
             "base_url", "http://127.0.0.1:11434")),
         chat_model=env("OWNRAG_CHAT_MODEL", defaults.get("chat", "qwen2.5:7b-instruct-q4_K_M")),
+        chat_provider=env("OWNRAG_CHAT_PROVIDER") or chat_ep.get("provider") or "ollama",
+        chat_base_url=env("OWNRAG_CHAT_BASE_URL") or chat_ep.get("base_url") or None,
+        chat_api_key=env("OWNRAG_CHAT_API_KEY") or None,
         embed_model=env("OWNRAG_EMBED_MODEL", defaults.get("embed", "bge-m3")),
+        embed_provider=env("OWNRAG_EMBED_PROVIDER") or embed_ep.get("provider") or "ollama",
+        embed_base_url=env("OWNRAG_EMBED_BASE_URL") or embed_ep.get("base_url") or None,
+        embed_api_key=env("OWNRAG_EMBED_API_KEY") or None,
+        embed_query_instruct=env("OWNRAG_EMBED_QUERY_INSTRUCT"),
         embed_version=env("OWNRAG_EMBED_VERSION", defaults.get("embed_version", "bge-m3@ollama")),
         num_ctx=int(env("OWNRAG_NUM_CTX", str(defaults.get("num_ctx", 6144)))),
         max_new_tokens=int(env("OWNRAG_MAX_NEW_TOKENS", str(defaults.get("max_new_tokens", 512)))),
         max_upload_mb=int(env("OWNRAG_MAX_UPLOAD_MB", str(defaults.get("max_upload_mb", 200)))),
-        rerank_base_url=env("OWNRAG_RERANK_URL") or defaults.get("rerank_base_url") or None,
+        rerank_base_url=env("OWNRAG_RERANK_URL") or rerank_ep.get("base_url") or defaults.get("rerank_base_url") or None,
+        rerank_provider=env("OWNRAG_RERANK_PROVIDER") or rerank_ep.get("provider") or "",
+        rerank_model=env("OWNRAG_RERANK_MODEL") or rerank_ep.get("model") or None,
+        rerank_api_key=env("OWNRAG_RERANK_API_KEY") or None,
         mineru_mode=env("MINERU_MODE", mineru.get("mode", "cli")),
         mineru_base_url=env("MINERU_BASE_URL") or mineru.get("base_url") or None,
         mineru_cmd=mineru_cmd,
+        mineru_open_token=env("MINERU_OPEN_TOKEN") or mineru.get("open_token") or None,
+        mineru_open_base_url=env("MINERU_OPEN_BASE_URL") or mineru.get(
+            "open_base_url") or "https://mineru.net/api/v4",
         asr_engine=env("OWNRAG_ASR_ENGINE", asr.get("engine", "faster-whisper")),
         asr_model=env("OWNRAG_ASR_MODEL", asr.get("model", "medium")),
         pipelines=pipelines,

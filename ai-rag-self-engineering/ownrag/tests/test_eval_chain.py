@@ -102,16 +102,16 @@ def test_answerable_questions_hit(env):
 
 
 def test_unanswerable_questions_refused(env):
-    """该拒答的拒答：语料里没有的内容，检索层一无所获——
-    捞到了就会进模型，被包装成看似合理的答案。"""
-    from scripts.eval_recall import judge
+    """该拒答的拒答：语料里没有的内容必须被闸门一拦下——
+    捞到了就会进模型，被包装成看似合理的答案。
+    口径与生产同路径（检索 → 重排 → sufficiency_check）：BM25 单路下靠零召回/低融合分，
+    向量通道开启后靠重排分下限（gates._MIN_RERANK_SCORE，随评测集校准）。"""
     for case in _cases():
         if not case.get("expect_empty"):
             continue
         result = _search(env, case["question"])
-        assert judge(case, result["candidates"], _candidate_texts(env, result)), \
-            f"无答案题被捞出候选（拒答门槛失效）：{case['question']}"
-        assert not sufficiency_check(result["candidates"]).passed
+        assert not sufficiency_check(result["candidates"]).passed, \
+            f"无答案题未被闸门拒答（拒答门槛失效）：{case['question']}"
 
 
 def test_eval_script_end_to_end(env, monkeypatch, capsys):

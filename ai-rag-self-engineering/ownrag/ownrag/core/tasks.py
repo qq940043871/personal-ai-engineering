@@ -49,7 +49,7 @@ def add_todo(conn: sqlite3.Connection, task_id: str | None, doc_id: str | None,
         (task_id, doc_id, reason[:300], json.dumps(payload or {}, ensure_ascii=False)),
     )
     conn.commit()
-    return cur.lastrowid
+    return int(cur.lastrowid or 0)
 
 
 def list_tasks(conn: sqlite3.Connection, limit: int = 50) -> list[sqlite3.Row]:

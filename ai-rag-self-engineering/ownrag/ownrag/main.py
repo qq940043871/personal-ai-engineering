@@ -12,10 +12,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 import ownrag.steps  # noqa: F401  —— import 即注册全部步骤类型
+from ownrag.api import routes_admin, routes_chat, routes_docs, routes_inspect, routes_ui
 from ownrag.config import get_settings
 from ownrag.core.db import init_schema
 from ownrag.core.registry import STEP_REGISTRY, validate_pipeline_steps
-from ownrag.api import routes_admin, routes_chat, routes_docs, routes_inspect, routes_ui
 
 
 @asynccontextmanager

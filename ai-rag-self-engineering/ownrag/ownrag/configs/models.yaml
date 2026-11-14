@@ -3,7 +3,15 @@ endpoints:
   ollama:
     base_url: http://127.0.0.1:11434
   rerank:
-    base_url: ""            # 可选：bge-reranker-v2-m3 独立服务；留空 = RRF 名次兜底
+    base_url: ""            # 自建 bge-reranker 服务地址，或 SiliconFlow 基地址 https://api.siliconflow.cn/v1
+    provider: ""            # "" 未启用（RRF 兜底）| service 自建 /rerank 协议 | siliconflow 云 API（base_url 有值未声明 provider 时按 service 兼容）
+    model: BAAI/bge-reranker-v2-m3   # siliconflow 模式模型名（SF 上免费）；api_key 只走 OWNRAG_RERANK_API_KEY
+  chat:
+    provider: ollama        # ollama | openai（OpenAI 兼容远程 /chat/completions，本地 GPU 不足时切此档）
+    base_url: ""            # openai 模式基地址：如 https://apihub.agnes-ai.com/v1（api_key 只走 OWNRAG_CHAT_API_KEY，不落配置文件）
+  embed:
+    provider: ollama        # ollama | openai（OpenAI 兼容 /embeddings：SiliconFlow / DashScope / llama.cpp server 等）
+    base_url: ""            # openai 模式基地址：如 https://api.siliconflow.cn/v1（api_key 只走 OWNRAG_EMBED_API_KEY）
 
 defaults:
   chat: qwen2.5:7b-instruct-q4_K_M    # 8GB 显存基准档【设计口径，须实测校正】
@@ -15,9 +23,10 @@ defaults:
   rerank_base_url: ""
 
 mineru:
-  mode: cli                 # cli = 子进程（省显存）| http = 常驻服务（长批推荐）
+  mode: cli                 # cli = 子进程（省显存）| http = 常驻服务（长批推荐）| open = 开放平台云端 API（零 GPU，耗每日页额度）
   base_url: ""              # http 模式：POST /file_parse，返回 {"markdown","pages","assets"}
   cmd: mineru               # cli 模式可执行名（旧版可改 magic-pdf）
+  open_base_url: https://mineru.net/api/v4   # open 模式基地址；token 走环境变量 MINERU_OPEN_TOKEN，不落配置文件
 
 asr:
   engine: faster-whisper    # faster-whisper | funasr（中文标点/热词更强）

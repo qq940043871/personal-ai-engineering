@@ -62,7 +62,8 @@ class ParsedDoc:
 
 - **服务化（推荐长批）**：MinerU 起 HTTP 服务，ownrag 走客户端适配器——显存可独立管理、并发可控。
 - **CLI 拉起（省资源档）**：子进程逐文档调用，代价是模型加载开销。
-- 两种形态同接口（`parse(file, backend) -> ParsedDoc`），配置切换。
+- **开放平台（零 GPU 档）**：PDF 传 mineru.net 云端解析（`/api/v4` 批量三步流：申请预签名 URL → 裸 PUT → 轮询取 zip），本机不加载任何模型，代价是每日页数额度与文档出境；token 走环境变量 `MINERU_OPEN_TOKEN`。客户端适配器见 `ownrag/ingest/mineru_openapi.py`。
+- 三种形态同接口（`parse(file, backend) -> ParsedDoc`），配置切换（`MINERU_MODE=cli|http|open`）。
 
 ### 2.4 失败兜底（绝不静默丢文档）
 
@@ -150,4 +151,4 @@ parse_mineru 失败
 
 ---
 
-*实现对应：`ownrag/ownrag/ingest/`（base.py 契约 / pdf_mineru.py / av_asr.py / excel_staging.py）；三管道 DSL 见 `ownrag/configs/pipelines.yaml`。*
+*实现对应：`ownrag/ownrag/ingest/`（base.py 契约 / pdf_mineru.py / mineru_openapi.py / av_asr.py / excel_staging.py）；三管道 DSL 见 `ownrag/configs/pipelines.yaml`。*

@@ -14,8 +14,8 @@ import ownrag.steps  # noqa: F401  注册内置步骤
 from ownrag.config import get_settings, reset_settings_cache
 from ownrag.core.db import connect, init_schema
 from ownrag.core.pipeline import StepContext
-from ownrag.ingest import av_asr
 from ownrag.index.chunker import chunk_markdown
+from ownrag.ingest import av_asr
 
 
 @pytest.fixture()

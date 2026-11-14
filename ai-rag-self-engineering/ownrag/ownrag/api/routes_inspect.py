@@ -24,7 +24,8 @@ from ownrag.core.db import connect
 from ownrag.generate import budget as budget_mod
 from ownrag.generate import gates
 from ownrag.index.store import keyword_search, read_chunks
-from ownrag.retrieve import direct_hit, hybrid, rerank as rerank_mod
+from ownrag.retrieve import direct_hit, hybrid
+from ownrag.retrieve import rerank as rerank_mod
 
 router = APIRouter(prefix="/admin", tags=["inspect"])
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from pathlib import Path
 
 from ownrag.core.pipeline import StepContext
@@ -17,6 +16,13 @@ from ownrag.ingest.base import ParsedDoc
 
 def _sanitize(name: str) -> str:
     return re.sub(r"[^0-9A-Za-z_\u4e00-\u9fa5]", "_", name)[:40] or "sheet"
+
+
+def _match_rate(vals: list, rx: re.Pattern) -> float:
+    """样本中符合该正则的占比。提到模块级：闭包捕获循环变量是 B023 典型坑。"""
+    if not vals:
+        return 0.0
+    return sum(1 for v in vals if rx.match(str(v).strip())) / len(vals)
 
 
 # ---------------------------------------------------------------- 步骤：落地临时表
@@ -93,10 +99,9 @@ class SchemaInfer(Step):
                 nonnull_rate = round(len(vals) / max(item["rows"], 1), 2)
                 ctype = "text"
                 if vals:
-                    match_rate = lambda rx: sum(1 for v in vals if rx.match(str(v).strip())) / len(vals)
-                    if match_rate(self.TYPE_RULES[0][1]) > 0.8:
+                    if _match_rate(vals, self.TYPE_RULES[0][1]) > 0.8:
                         ctype = self.TYPE_RULES[0][0]
-                    elif match_rate(self.TYPE_RULES[1][1]) > 0.8:
+                    elif _match_rate(vals, self.TYPE_RULES[1][1]) > 0.8:
                         ctype = self.TYPE_RULES[1][0]
                     elif len(set(vals)) <= max(3, len(vals) // 20):
                         ctype = "enum"

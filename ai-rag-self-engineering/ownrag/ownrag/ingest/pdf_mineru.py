@@ -1,14 +1,12 @@
 """链路 A：MinerU 识别 PDF（03 文档 §二）。
 
 步骤：detect_pages（页级路由）→ parse_mineru（主）→ parse_pymupdf（纯文本降级）。
-主解析形态 http / cli 双模同接口；重活失败走 DSL fallback 链，绝不静默丢文档。
+主解析形态 http / open / cli 三模同接口；重活失败走 DSL fallback 链，绝不静默丢文档。
 """
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
-import uuid
 from pathlib import Path
 
 from ownrag.core.pipeline import StepContext
@@ -50,7 +48,7 @@ class DetectPages(Step):
 # ---------------------------------------------------------------- 步骤：MinerU 解析
 @register("parse_mineru")
 class ParseMinerU(Step):
-    """MinerU 解析 → ParsedDoc（统一中间态）。mode: http | cli 同接口。"""
+    """MinerU 解析 → ParsedDoc（统一中间态）。mode: http | open | cli 同接口。"""
 
     def run(self, ctx: StepContext, params: dict) -> StepResult:
         src = Path(ctx.data["source_path"])
@@ -59,8 +57,12 @@ class ParseMinerU(Step):
             backend = {"pipeline": "pipeline", "vlm": "vlm"}.get(
                 ctx.data.get("page_route", "pipeline"), "pipeline")
         # VLM 后端与 chat 模型抢显存——由全局队列排程兜底（01 文档 §四并发现实）。
+        # open 模式走云端不抢本地显存；cli/http 模式才受此约束。
+        structures: list[Structure] = []
         if ctx.settings.mineru_mode == "http":
             md, assets, stats = self._via_http(src, ctx, params)
+        elif ctx.settings.mineru_mode == "open":
+            md, assets, structures, stats = self._via_open(src, ctx, params, backend)
         else:
             md, assets, stats = self._via_cli(src, ctx, params)
         if not md or not md.strip():
@@ -69,7 +71,7 @@ class ParseMinerU(Step):
         doc = ParsedDoc(
             doc_id=ctx.doc_id, source_type="pdf", markdown=md,
             metadata={"source_file": src.name, **ctx.data.get("source_meta", {})},
-            assets=assets, stats={"backend": backend, **stats},
+            structures=structures, assets=assets, stats={"backend": backend, **stats},
         )
         ok, why = doc.is_usable()
         if not ok:
@@ -92,6 +94,26 @@ class ParseMinerU(Step):
         resp.raise_for_status()
         payload = resp.json()
         return payload.get("markdown", ""), payload.get("assets", {}), {"pages": payload.get("pages", 0)}
+
+    # ---- open 模式：mineru.net 开放平台云端解析（零 GPU，消耗每日页额度） ----
+    def _via_open(self, src: Path, ctx: StepContext, params: dict, backend: str):
+        from ownrag.ingest.mineru_openapi import parse_via_openapi
+        # is_ocr 语义对齐官方 API：vlm 内置视觉理解通常无需显式 OCR，is_ocr 主要对 pipeline 有意义——
+        # 仅当页级路由判了扫描件却落回 pipeline 时才默认强制开
+        is_ocr = params.get("is_ocr")
+        if is_ocr is None:
+            is_ocr = backend == "pipeline" and ctx.data.get("page_route") == "vlm"
+        return parse_via_openapi(
+            src, doc_id=ctx.doc_id,
+            base_url=ctx.settings.mineru_open_base_url,
+            token=ctx.settings.mineru_open_token,
+            model_version=backend,                    # 官方参数名 model_version：pipeline / vlm
+            lang=params.get("lang", "ch"),
+            is_ocr=bool(is_ocr),
+            poll_interval=float(params.get("poll_interval", 5)),
+            poll_timeout=float(params.get("poll_timeout", 3600)),
+            out_dir=ctx.settings.parsed_dir / ctx.doc_id,
+        )
 
     # ---- cli 模式：子进程拉起，读输出目录的 .md ----
     def _via_cli(self, src: Path, ctx: StepContext, params: dict):

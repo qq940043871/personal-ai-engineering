@@ -99,7 +99,7 @@ class AsrTranscribe(Step):
         try:
             from faster_whisper import WhisperModel
         except ImportError:
-            raise RuntimeError("faster-whisper 未安装（pip install 'ownrag[asr]'）")
+            raise RuntimeError("faster-whisper 未安装（pip install 'ownrag[asr]'）") from None
         # CPU 档 int8 可跑；长音频按 VAD 段喂，不整段进显存
         model = WhisperModel(model_name, device="auto", compute_type="int8")
         raw_iter, info = model.transcribe(wav, vad_filter=vad, word_timestamps=False)
@@ -112,7 +112,7 @@ class AsrTranscribe(Step):
         try:
             from funasr import AutoModel
         except ImportError:
-            raise RuntimeError("funasr 未安装（pip install 'ownrag[funasr]'）")
+            raise RuntimeError("funasr 未安装（pip install 'ownrag[funasr]'）") from None
         model = AutoModel(model=model_name, vad_model="fsmn-vad", punc_model="ct-punc")
         res = model.generate(input=wav, batch_size_s=300)
         sentences = (res[0] or {}).get("sentence_info", [])

@@ -63,7 +63,7 @@ def validate_pipeline_steps(pipelines: dict) -> list[str]:
 
 def _check_one(pipe_name: str, step_spec: dict) -> set[str]:
     t = step_spec.get("type")
-    cls = STEP_REGISTRY.get(t)
+    cls = STEP_REGISTRY.get(t) if isinstance(t, str) else None
     if cls is None:
         return {f"{pipe_name}: 步骤类型未注册 -> {t!r}"}
     if not (inspect.isclass(cls) and issubclass(cls, Step)):
