@@ -1,0 +1,62 @@
+# 应用模板 —— 与 Python 版 apps.yaml 同构：一个问答应用 = 一份配置；换模型/换Prompt/开关闸门都不动代码
+apps:
+  policy_qa:
+    knowledge_bases: [policy_v1]
+    retrieval:
+      vector_topk: 20
+      bm25_topk: 20
+      top_n: 12                       # RRF 融合后候选池——宁窄勿宽
+      rerank:
+        enabled: false                # 无 rerank 服务时 RRF 顺序兜底（OWNRAG_RERANK_URL）
+    direct_hit:
+      enabled: true
+      levels: [L0, L1, L2]
+    generation:
+      prompt: policy_strict_v1        # configs/prompts/policy_strict_v1.yaml
+      stream: true
+      max_ctx_tokens: 6144            # 总窗口：上下文预算 = 该值 - prompt 开销 - max_new_tokens
+      max_new_tokens: 512             # 环境变量 OWNRAG_NUM_CTX / OWNRAG_MAX_NEW_TOKENS 优先级高于本段
+    gates:
+      pre: [sufficiency_check]
+      post: [citation_check, schema_check]
+
+  # 以下两个为数字分身双模式（Python 版无对应物）：知识库白名单同时是上传收口
+  interview_coach:
+    knowledge_bases: [kb_interview, kb_b2b]
+    retrieval:
+      vector_topk: 20
+      bm25_topk: 20
+      top_n: 12
+      rerank:
+        enabled: false
+    direct_hit:
+      enabled: true                   # L0 直击库灌主线件口径/双开场/三句式，答法完全可控
+      levels: [L0, L1, L2]
+    generation:
+      prompt: persona_v1              # configs/prompts/persona_v1.yaml
+      stream: true
+      max_ctx_tokens: 6144
+      max_new_tokens: 512
+    gates:
+      pre: [sufficiency_check]
+      post: [citation_check, schema_check]
+
+  knowledge_advisor:
+    knowledge_bases: [kb_interview, kb_b2b, kb_ai_eng, kb_backend, kb_style]
+    retrieval:
+      vector_topk: 20
+      bm25_topk: 20
+      top_n: 12
+      rerank:
+        enabled: false
+    direct_hit:
+      enabled: true
+      levels: [L0]                    # 顾问模式只走 L0 精确命中，语义题留给 RAG
+    generation:
+      prompt: persona_v1
+      stream: true
+      max_ctx_tokens: 6144
+      max_new_tokens: 512
+    gates:
+      pre: [sufficiency_check]
+      post: [citation_check, schema_check]

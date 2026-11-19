@@ -1,0 +1,38 @@
+# 模型端点注册表 —— 与 Python 版 models.yaml 同构；模型中立：换模型/换远程 = 改这里
+# 优先级：环境变量 > 本文件（api_key 一律只走环境变量，不落配置文件）
+endpoints:
+  ollama:
+    base_url: http://127.0.0.1:11434
+  rerank:
+    base_url: ""            # 自建 bge-reranker 服务地址，或 SiliconFlow 基地址 https://api.siliconflow.cn/v1
+    provider: ""            # "" 未启用（RRF 兜底）| service 自建 /rerank 协议 | siliconflow 云 API
+    model: BAAI/bge-reranker-v2-m3
+  chat:
+    provider: ollama        # ollama | openai（OpenAI 兼容远程 /chat/completions）
+    base_url: ""            # openai 模式基地址：如 https://apihub.agnes-ai.com/v1（api_key 走 OWNRAG_CHAT_API_KEY）
+  embed:
+    provider: ollama        # ollama | openai（OpenAI 兼容 /embeddings：SiliconFlow / DashScope 等）
+    base_url: ""            # openai 模式基地址：如 https://api.siliconflow.cn/v1（api_key 走 OWNRAG_EMBED_API_KEY）
+
+defaults:
+  chat: qwen2.5:7b-instruct-q4_K_M
+  embed: bge-m3
+  embed_version: bge-m3@ollama        # 与向量兼容性绑定：换值 = 全量重建索引
+  num_ctx: 6144
+  max_new_tokens: 512
+  max_upload_mb: 200                  # 0 = 不限制（仅测试用）
+
+mineru:
+  mode: open                # Java 版默认 open（开放平台云端 API，零 GPU）；http 模式 = 自部署 POST /file_parse
+  base_url: ""              # http 模式基地址，返回约定 {"markdown","pages","assets"}
+  open_base_url: https://mineru.net/api/v4   # open 模式基地址；token 走环境变量 MINERU_OPEN_TOKEN
+
+# 与 Python 版的差异：JDK 8 无法进程内跑 faster-whisper/funasr，ASR 改走 OpenAI 兼容 HTTP 契约
+# （本地 whisper.cpp-server：base_url=http://127.0.0.1:8081/v1, model=whisper-1  → 段级真实时间戳；
+#   云端 SiliconFlow：base_url=https://api.siliconflow.cn/v1, model=FunAudioLLM/SenseVoiceSmall
+#   → 该端点只回纯文本无时间戳，Java 端按句切分+字符占比估算时间，并以 ts_approximated=true 显式标注）
+asr:
+  engine: openai            # openai 兼容 /audio/transcriptions（verbose_json 携带段时间戳）
+  base_url: ""              # api_key 走环境变量 OWNRAG_ASR_API_KEY；为空时 av_v1 解析步骤失败入待办
+  model: FunAudioLLM/SenseVoiceSmall
+  language: zh

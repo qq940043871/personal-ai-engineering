@@ -1,0 +1,32 @@
+server:
+  port: 8420
+  tomcat:
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: ownrag-java
+  servlet:
+    multipart:
+      # 上传体积上限运行时按 models.yaml defaults.max_upload_mb 二次校验（超限 413）
+      max-file-size: 300MB
+      max-request-size: 310MB
+  web:
+    resources:
+      add-mappings: true
+  jackson:
+    default-property-inclusion: non_null
+
+# Windows 控制台默认 GBK：日志强制 UTF-8，避免中文乱码（控制台窗口建议先 chcp 65001）
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
+  level:
+    com.ownrag: INFO
+
+ownrag:
+  # 运行数据目录：SQLite 单文件 + files/ 原件 + parsed/ 解析产物 + review/ 复核工件
+  data-dir: ./data
+  # 配置目录：留空用 classpath:/configs；指向文件系统目录可免重启改管道 DSL
+  config-dir: ""

@@ -1,0 +1,19 @@
+target/
+data/
+*.log
+logs/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# 运行期调试产物（ASR 接口响应 dump，随时可重抓）
+asr_*.json
+curl_err.log
+
+# e2e 音视频样例可由 e2e/gen_speech.ps1 + ffmpeg 重建，不入库（二进制 ~4MB）
+e2e/*.mp4
+e2e/*.wav
+e2e/*.mkv
+e2e/*.m4a

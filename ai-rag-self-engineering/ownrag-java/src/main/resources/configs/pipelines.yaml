@@ -1,0 +1,128 @@
+# 管道 DSL（与 Python 版 pipelines.yaml 同构）：新数据源 = 加一段配置；type 必须在 StepRegistry 注册表内
+pipelines:
+  pdf_v1:
+    source: { type: upload, accept: [.pdf] }
+    steps:
+      - type: detect_pages            # 页级路由探测：电子版→pipeline，扫描/复杂→vlm
+        params: { sample_pages: 3 }
+      - type: parse_mineru            # 主解析（backend=auto 沿用路由结论）
+        params: { backend: auto, lang: ch }
+        fallback:                     # 失败降级链：前败后继，穷尽入待办
+          - { type: parse_mineru, params: { backend: pipeline } }
+          - { type: parse_pdfbox }    # 纯文本兜底：结构丢了内容也要在（Python 版为 parse_pymupdf）
+      - type: validate_parsed         # 独立校验闸：空/过短/页缺失 = 与解析失败同待遇
+        params: { min_chars_per_page: 20 }
+      - type: chunk_markdown          # 结构感知切分：表格永不跨块
+        params: { max_tokens: 512, overlap: 64 }
+      - type: dedupe_chunks           # 块级去重（只查不写；hash 登记在 index_upsert，reject 不占坑）
+        params: {}
+      - type: prepare_review          # 解析复核：产物+切分落盘 + 质量检查，置 pending
+        params: { auto_approve: false, min_chars_per_page: 20 }
+      - type: review_gate             # 入库闸门：pending/rejected 一律不许写索引
+        params: {}
+      - type: embed                   # 批量嵌入；allow_skip=显式降级关键词单路
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert            # 双通道写入，按 doc_id 先删后插（幂等）
+        params: { replace_by_doc: true }
+
+  av_v1:
+    source: { type: upload, accept: [.mp4, .mkv, .mov, .mp3, .wav, .m4a, .flac] }
+    steps:
+      - type: ff_extract_audio        # -vn -ac 1 -ar 16000 + 关键帧
+        params: { ac: 1, ar: 16000, keyframe_fps: 1/60 }
+      - type: asr_transcribe          # OpenAI 兼容 HTTP ASR（models.yaml asr 段配置服务地址）
+        params: {}
+      - type: segment_by_time         # 优先语义边界（停顿/句尾），其次时长上限；块带 [mm:ss] 锚点
+        params: { max_sec: 60, gap_sec: 1.5 }
+      - type: ocr_keyframes           # 可选：Java 版暂无进程内 OCR，未配置时显式 skipped（降级可见）
+        params: {}
+      - type: chunk_markdown          # 三链路同一收敛点：parse → chunk → embed → index
+        params: { max_tokens: 512, overlap: 64 }
+      - type: dedupe_chunks
+        params: {}
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }
+
+  excel_v1:
+    source: { type: upload, accept: [.xlsx, .xlsm, .csv] }
+    steps:
+      - type: excel_stage             # 全 TEXT 保真落 SQLite staging 临时表
+        params: {}
+      - type: schema_infer            # 列名/非空率/样本/类型推断
+        params: { sample_n: 5 }
+      - type: column_mapping          # 恒等映射起步（HITL 属 M2）
+        params: { suggest_by_llm: false }
+      - type: textualize              # row_card 行级卡片；aggregate 属 M2（SQL 路径）
+        params: { strategy: row_card, max_rows: 5000 }
+      - type: chunk_markdown
+        params: { max_tokens: 512, overlap: 0 }
+      - type: dedupe_chunks
+        params: {}
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }
+
+  # 以下三条为个人知识库场景新增（Python 版无对应物）：
+  # md/txt 直传零外部依赖，docx 走 POI XWPF；三链路同收敛点 parse → chunk → review → embed → index
+  md_v1:
+    source: { type: upload, accept: [.md, .markdown] }
+    steps:
+      - type: parse_textfile          # 原生 Markdown 直通；UTF-8 严格解码失败 → GBK 兜底（降级可见）
+        params: {}
+      - type: validate_parsed
+        params: { min_chars_per_page: 20 }
+      - type: chunk_markdown          # 标题树/表格/代码围栏由 Chunker 结构感知承接
+        params: { max_tokens: 512, overlap: 64 }
+      - type: dedupe_chunks
+        params: {}
+      - type: prepare_review
+        params: { auto_approve: false, min_chars_per_page: 20 }
+      - type: review_gate             # 入库闸门：人工复核后 resume 从此步续跑
+        params: {}
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }
+
+  txt_v1:
+    source: { type: upload, accept: [.txt] }
+    steps:
+      - type: parse_textfile          # 纯文本透传；no_headings 警告属预期
+        params: { format: txt }
+      - type: validate_parsed
+        params: { min_chars_per_page: 20 }
+      - type: chunk_markdown
+        params: { max_tokens: 512, overlap: 64 }
+      - type: dedupe_chunks
+        params: {}
+      - type: prepare_review
+        params: { auto_approve: false, min_chars_per_page: 20 }
+      - type: review_gate
+        params: {}
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }
+
+  docx_v1:
+    source: { type: upload, accept: [.docx] }
+    steps:
+      - type: parse_docx              # POI XWPF：标题样式→#、表格→管道表、图片计数跳过
+        params: { max_table_rows: 500 }
+      - type: validate_parsed
+        params: { min_chars_per_page: 20 }
+      - type: chunk_markdown
+        params: { max_tokens: 512, overlap: 64 }
+      - type: dedupe_chunks
+        params: {}
+      - type: prepare_review
+        params: { auto_approve: false, min_chars_per_page: 20 }
+      - type: review_gate
+        params: {}
+      - type: embed
+        params: { batch: 32, allow_skip: true }
+      - type: index_upsert
+        params: { replace_by_doc: true }

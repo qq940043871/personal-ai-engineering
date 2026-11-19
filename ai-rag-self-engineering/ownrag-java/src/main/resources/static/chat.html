@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>问答 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="stylesheet" href="/ui/assets/katex/katex.min.css?v=20261117">
+</head>
+<body data-page="chat">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>问答</h1><div class="pills" id="pills"></div></div>
+
+    <div class="card">
+      <div class="row">
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">应用</label><select id="chatApp"></select>
+        </div>
+        <div>
+          <label class="f">问题</label>
+          <input id="chatQ" placeholder="例：报销口径是什么？" value="报销口径是什么">
+        </div>
+        <div class="fix"><button class="btn primary" id="chatGo">提问（SSE）</button></div>
+      </div>
+      <div class="tiny" style="margin-top:8px">
+        事件顺序：hit（直击库）→ ctx（候选）→ token（流式）→ gate（闸门）→ done。任何降级都会以 gate 事件出现。
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <h3>回答 <span class="tag" id="chatState"></span></h3>
+        <div class="answer" id="chatAnswer"><span class="muted">还没有提问</span></div>
+        <div class="sep"></div>
+        <h3>事件流</h3>
+        <div class="log" id="chatLog"><span class="t">等待请求…</span></div>
+      </div>
+      <div class="card">
+        <h3>模型看到的上下文 <span class="tag tiny" id="chatCtxN"></span></h3>
+        <div id="chatCtx"><div class="empty">提问后展示（只显示真正进 prompt 的块）</div></div>
+        <div class="sep"></div>
+        <h3>引用与校验</h3>
+        <div id="chatGate" class="muted">—</div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script src="/ui/assets/katex/katex.min.js?v=20261117"></script>
+<script src="/ui/assets/katex/auto-render.min.js?v=20261117"></script>
+<script src="/ui/assets/md.js?v=20261117"></script>
+<script>
+let chatAbort = null;
+$('#chatGo').onclick = () => runChat();
+$('#chatQ').addEventListener('keydown', e => { if (e.key === 'Enter') runChat(); });
+
+async function runChat() {
+  const question = $('#chatQ').value.trim();
+  if (!question) return toast('先写一个问题');
+  if (chatAbort) chatAbort.abort();
+  chatAbort = new AbortController();
+  $('#chatAnswer').innerHTML = '<span class="muted">生成中…</span>';
+  $('#chatCtx').innerHTML = '<div class="empty">等待 ctx 事件</div>';
+  $('#chatGate').innerHTML = '—';
+  $('#chatCtxN').textContent = '';
+  $('#chatState').innerHTML = '<span class="chip warn">running</span>';
+  const log = $('#chatLog'); log.innerHTML = '';
+  const t0 = performance.now();
+  const add = (html) => { log.innerHTML += html + '\n'; log.scrollTop = log.scrollHeight; };
+  let answer = '', citations = [], traceId = '', firstToken = 0;
+
+  try {
+    await sse('/chat', { app: $('#chatApp').value, question }, (ev, d) => {
+      if (ev === 'hit') {
+        add(`<span class="acc">[hit]</span> 直击库 ${d.level} · ${esc(d.question)} → ${esc(d.answer)}`);
+        answer = d.answer; traceId = d.trace_id || '';
+        $('#chatAnswer').textContent = answer;
+        $('#chatState').innerHTML = '<span class="chip v">direct_hit</span>';
+      } else if (ev === 'ctx') {
+        const cs = d.candidates || [];
+        $('#chatCtxN').textContent = cs.length + ' 块';
+        $('#chatCtx').innerHTML = cs.map(c => {
+          const docId = String(c.chunk_id || '').split('#')[0];
+          const t = c.anchors && c.anchors.t;
+          return `
+          <div class="ctx">
+            <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
+              <span class="tiny mono">${esc(shortId(c.chunk_id))}</span>
+              ${c.score ? `<span class="chip">rrf ${Number(c.score).toFixed(4)}</span>` : ''}
+              ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)}</span>`).join('')}
+              <span class="sp"></span>${Md.playBtn(docId, t)}
+              <span class="tiny">${esc(JSON.stringify(c.anchors || {}))}</span></div>
+            <div class="b md-body">${Md.render(c.preview || '', { docId })}</div>
+          </div>`;
+        }).join('');
+        Md.typeset($('#chatCtx'));
+        add(`<span class="acc">[ctx]</span> ${cs.length} 块进入上下文：${cs.map(c => '块' + c.ordinal).join(' ')}`);
+      } else if (ev === 'token') {
+        if (!firstToken) { firstToken = performance.now() - t0; }
+        answer += d.t || '';
+        $('#chatAnswer').textContent = answer;
+        if (d.repaired) add(`<span class="warn">[token]</span> 闸门重答版本开始`);
+      } else if (ev === 'gate') {
+        const bad = d.passed === false;
+        const bits = [];
+        if (d.stage) bits.push('stage=' + d.stage);
+        if (d.reason) bits.push(d.reason);
+        if (d.note) bits.push(d.note);
+        if (d.passed != null) bits.push('passed=' + d.passed);
+        if (d.stage === 'context_budget') bits.push(`kept ${d.kept}/dropped ${d.dropped} · ctx ${d.ctx_tokens}tok / 可用 ${d.available} · 输出预留 ${d.reserved_output}`);
+        if ((d.violations || []).length) bits.push('violations: ' + d.violations.join(' / '));
+        add(`<span class="${bad ? 'bad' : 'warn'}">[gate:${esc(d.stage || '')}]</span> ${esc(bits.join(' · '))}`);
+        if (d.stage === 'context_budget') {
+          $('#chatGate').innerHTML += `<div class="hint">预算：kept ${d.kept} / dropped ${d.dropped} / ctx ${d.ctx_tokens} tok，窗口 ${d.num_ctx}，输出预留 ${d.reserved_output}${d.truncated ? '（首块被截断）' : ''}</div>`;
+        }
+      } else if (ev === 'no_evidence') {
+        $('#chatState').innerHTML = '<span class="chip warn">no_evidence</span>';
+        $('#chatAnswer').innerHTML = `<span class="muted">没有依据，按规则拒答（这是正确行为）</span>`;
+        add(`<span class="warn">[no_evidence]</span> ${esc(d.reason)}`);
+        traceId = d.trace_id || traceId;
+      } else if (ev === 'error') {
+        $('#chatState').innerHTML = '<span class="chip bad">error</span>';
+        add(`<span class="bad">[error]</span> ${esc(d.message)}`);
+        $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#7a2f2f">
+          <b>生成阶段不可达</b>（检索与闸门已跑完，见右侧上下文）。<br>
+          <span class="mono tiny">${esc(d.message)}</span><br>
+          <span class="tiny">起 Ollama 后重试：<code>ollama serve</code> + <code>ollama pull qwen2.5:7b-instruct-q4_K_M</code></span></div>`;
+        traceId = d.trace_id || traceId;
+      } else if (ev === 'done') {
+        citations = d.citations || [];
+        traceId = d.trace_id || traceId;
+        const dt = Math.round(performance.now() - t0);
+        $('#chatState').innerHTML = `<span class="chip ok">done · ${dt}ms</span>`;
+        if (d.source) add(`<span class="ok">[done]</span> source=${esc(d.source)}`);
+      }
+    }, chatAbort.signal);
+  } catch (e) {
+    if (e.name !== 'AbortError') { add(`<span class="bad">[fatal]</span> ${esc(e.message)}`); toast(e.message, 'bad'); }
+    $('#chatState').innerHTML = '<span class="chip bad">中断</span>';
+  }
+  if (citations.length) {
+    // 回答定型：Markdown + 公式 + 图片一次渲染（流式期间保持纯文本以省开销）
+    const ansEl = $('#chatAnswer');
+    ansEl.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
+    Md.typeset(ansEl);
+    $('#chatGate').innerHTML = citations.map(c => {
+      const t = c.anchors && c.anchors.t;
+      return `<div class="tiny mono" style="display:flex;align-items:center;gap:6px">
+        <span>块${esc(c.ordinal)} · doc ${esc(shortId(c.doc_id))} · ${esc(JSON.stringify(c.anchors || {}))}</span>
+        ${Md.playBtn(c.doc_id, t)}</div>`;
+    }).join('');
+  } else if (traceId !== '' || answer) {
+    const ansEl = $('#chatAnswer');
+    ansEl.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
+    Md.typeset(ansEl);
+  }
+  if (traceId) {
+    $('#chatGate').innerHTML += `<div style="margin-top:8px"><button class="btn sm ghost" onclick="openTrace('${esc(traceId)}')">用 trace ${esc(shortId(traceId))} 复盘</button></div>`;
+  }
+}
+boot();
+</script>
+</body>
+</html>

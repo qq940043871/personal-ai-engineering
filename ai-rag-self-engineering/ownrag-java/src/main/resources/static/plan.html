@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14 天路线 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+</head>
+<body data-page="plan">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>14 天路线</h1><div class="pills" id="pills"></div></div>
+
+    <div class="card">
+      <h3>14 天：从“能跑”到“讲得清”</h3>
+      <div class="hint">每天只做一件事，但必须留下证据：页面上能看到的现象 + 一句能讲给别人的结论。
+        打勾会存在本机 localStorage，刷新不丢。</div>
+      <div class="flex" style="margin:10px 0 14px">
+        <button class="btn sm ghost" id="planReset">重置进度</button>
+        <span class="sp"></span>
+        <span class="tiny" id="planTip">0/14</span>
+      </div>
+      <div id="planList"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+function renderPlan() {
+  const st = planState();
+  $('#planList').innerHTML = PLAN.map(p => `
+    <div class="day ${st[p.d] ? 'done' : ''}" data-d="${p.d}">
+      <div class="hd">
+        <span class="dno">D${p.d}</span>
+        <span class="ttl">${esc(p.t)}</span>
+        <span class="check">${st[p.d] ? '✓ 已完成' : '点击展开'}</span>
+      </div>
+      <div class="body">
+        <div class="goal">${esc(p.goal)}</div>
+        <ul>${p.todo.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+        <div class="hint" style="margin:9px 0 0">验收：${esc(p.check)}</div>
+        <div class="flex" style="margin-top:9px">
+          <button class="btn sm" data-jump="${esc(p.tab)}">去对应页面</button>
+          <button class="btn sm ghost" data-toggle="${p.d}">${st[p.d] ? '取消完成' : '标记完成'}</button>
+        </div>
+      </div>
+    </div>`).join('');
+  const done = PLAN.filter(p => st[p.d]).length;
+  $('#planN').textContent = done + '/14';
+  $('#planBar').style.width = (done / 14 * 100) + '%';
+  $('#planTip').textContent = done + '/14 已完成';
+}
+$('#planList').addEventListener('click', e => {
+  const jump = e.target.closest('[data-jump]');
+  if (jump) { goto(jump.dataset.jump); return; }
+  const tg = e.target.closest('[data-toggle]');
+  if (tg) {
+    const st = planState(), d = tg.dataset.toggle;
+    if (st[d]) delete st[d]; else st[d] = 1;
+    localStorage.setItem(PLAN_KEY, JSON.stringify(st));
+    renderPlan(); return;
+  }
+  const hd = e.target.closest('.hd');
+  if (hd) {
+    const day = hd.parentElement;
+    day.classList.toggle('open');
+    const chk = day.querySelector('.check');
+    const done = day.classList.contains('done');
+    if (chk) chk.textContent = day.classList.contains('open')
+      ? (done ? '✓ 已完成 · 收起' : '点击收起')
+      : (done ? '✓ 已完成' : '点击展开');
+  }
+});
+$('#planReset').onclick = () => {
+  if (!confirm('清空 14 天进度？')) return;
+  localStorage.removeItem(PLAN_KEY); renderPlan(); toast('已重置');
+};
+
+renderPlan();
+boot();
+</script>
+</body>
+</html>

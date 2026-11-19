@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>检索调试 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="stylesheet" href="/ui/assets/katex/katex.min.css?v=20261117">
+</head>
+<body data-page="retrieve">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>检索调试</h1><div class="pills" id="pills"></div></div>
+
+    <div class="card">
+      <div class="row">
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">应用</label><select id="retApp"></select>
+        </div>
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">知识库</label><select id="retKb"></select>
+        </div>
+        <div>
+          <label class="f">问题（不调生成模型，只看检索侧）</label>
+          <input id="retQ" value="报销口径是什么">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">vector_topk</label><input id="retV" type="number" value="20"></div>
+        <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">bm25_topk</label><input id="retB" type="number" value="20"></div>
+        <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">top_n</label><input id="retN" type="number" value="12"></div>
+        <div class="fix" style="width:130px;flex:0 0 130px"><label class="f">rerank_top_n</label><input id="retR" type="number" value="6"></div>
+        <div class="fix"><button class="btn primary" id="retGo">跑检索</button></div>
+      </div>
+    </div>
+    <div id="retSummary" style="margin-top:14px"></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><h3>关键词通道（FTS5 / BM25）<span class="tag chip" id="retBm25N">–</span></h3><div id="retBm25"><div class="empty">未运行</div></div></div>
+      <div class="card"><h3>向量通道（Chroma）<span class="tag chip" id="retVecN">–</span></h3><div id="retVec"><div class="empty">未运行</div></div></div>
+    </div>
+    <div class="grid g32" style="margin-top:14px">
+      <div class="card"><h3>融合结果（RRF）与预算</h3><div id="retFused"><div class="empty">未运行</div></div></div>
+      <div class="card"><h3>闸门一 / 重排 / 诊断</h3><div id="retDiag"><div class="empty">未运行</div></div></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/katex/katex.min.js?v=20261117"></script>
+<script src="/ui/assets/katex/auto-render.min.js?v=20261117"></script>
+<script src="/ui/assets/md.js?v=20261117"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+$('#retGo').onclick = runRetrieve;
+async function runRetrieve() {
+  const q = $('#retQ').value.trim();
+  if (!q) return toast('先写问题');
+  $('#retSummary').innerHTML = '<div class="card"><div class="muted">检索中…</div></div>';
+  try {
+    const d = await postJSON('/admin/retrieve', {
+      question: q, app: $('#retApp').value, kb: $('#retKb').value,
+      vector_topk: +$('#retV').value || 20, bm25_topk: +$('#retB').value || 20,
+      top_n: +$('#retN').value || 12, rerank_top_n: +$('#retR').value || 6
+    });
+    renderRetrieve(d);
+  } catch (e) {
+    $('#retSummary').innerHTML = `<div class="card"><span class="chip bad">失败</span> ${esc(e.message)}</div>`;
+    toast(e.message, 'bad');
+  }
+}
+function renderRetrieve(d) {
+  const bm = d.channels.bm25 || [], vc = d.channels.vector || [];
+  $('#retBm25N').textContent = bm.length;
+  $('#retVecN').textContent = vc.length;
+  $('#retBm25').innerHTML = bm.length ? bm.map(h => `<div class="ctx">
+      <div class="h"><span class="chip info">#${h.chunk_id.split('#')[1] || ''}</span>
+        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
+        <span class="chip">-bm25 ${Number(h.score).toFixed(4)}</span></div></div>`).join('')
+    : '<div class="empty">无命中（中文按字切分，换短词试试）</div>';
+  $('#retVec').innerHTML = vc.length ? vc.map(h => `<div class="ctx">
+      <div class="h"><span class="chip v">#${h.chunk_id.split('#')[1] || ''}</span>
+        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
+        <span class="chip">cos ${Number(h.score).toFixed(3)}</span></div></div>`).join('')
+    : `<div class="empty">${esc(d.vector_skipped_reason || '向量通道无命中')}</div>`;
+
+  const b = d.budget || {};
+  const used = b.available ? Math.min(100, Math.round(b.ctx_tokens / b.available * 100)) : 0;
+  $('#retSummary').innerHTML = `
+    <div class="card">
+      <div class="flex">
+        <span class="chip info">${esc(d.kb)}</span>
+        <span class="chip">${d.ms} ms</span>
+        <span class="chip ${d.gate_pre.passed ? 'ok' : 'warn'}">闸门一 ${d.gate_pre.passed ? '通过' : '拦截'}：${esc(d.gate_pre.reason)}</span>
+        <span class="chip ${d.direct_hit.hit ? 'v' : ''}">直击库 ${d.direct_hit.hit ? ('命中 ' + esc(d.direct_hit.level)) : '未命中'}</span>
+        <span class="sp"></span>
+        <span class="tiny">${esc(d.rerank.note)}</span>
+      </div>
+      <div class="sep"></div>
+      <div class="flex" style="justify-content:space-between">
+        <span class="tiny">上下文预算：${fmt(b.ctx_tokens)} / ${fmt(b.available)} tok（窗口 ${fmt(b.num_ctx)}，prompt 开销 ${fmt(b.prompt_overhead)}，输出预留 ${fmt(b.reserved_output)}）</span>
+        <span class="tiny">kept ${b.kept} · dropped ${b.dropped}${b.truncated ? ' · 首块截断' : ''}</span>
+      </div>
+      <div class="bar"><i style="width:${used}%"></i></div>
+      ${d.vector_skipped_reason ? `<div class="hint">${esc(d.vector_skipped_reason)}</div>` : ''}
+    </div>`;
+
+  $('#retFused').innerHTML = (d.budget.blocks || []).length ? d.budget.blocks.map((c, i) => {
+    const docId = String(c.chunk_id || '').split('#')[0];
+    return `
+    <div class="ctx">
+      <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
+        <span class="tiny mono">${esc(c.chunk_id)}</span>
+        <span class="chip">rrf ${Number(c.rrf).toFixed(4)}</span>
+        ${c.rerank_score != null ? `<span class="chip warn">rerank ${Number(c.rerank_score).toFixed(3)}</span>` : ''}
+        ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)} ${Number(ch.score).toFixed(3)}</span>`).join('')}
+        <span class="sp"></span><span class="tiny">${c.chars} 字</span></div>
+      <div class="b md-body">${Md.render(c.preview, { docId })}</div>
+    </div>`;
+  }).join('') : '<div class="empty">没有候选能进入上下文</div>';
+  Md.typeset($('#retFused'));
+
+  $('#retDiag').innerHTML = `
+    <div class="tiny mono" style="line-height:1.9">
+      <div>retrieval_path: ${esc(JSON.stringify(d.retrieval_path))}</div>
+      <div>dropped: ${esc((b.dropped_ids || []).join(', ') || '—')}</div>
+      <div>rerank: ${esc(d.rerank.note)}</div>
+      <div>direct_hit: ${esc(JSON.stringify(d.direct_hit))}</div>
+    </div>
+    <div class="hint">看这三件事：① 关键词与向量是否各捞到不同块（互补性）② 融合后名次是否符合直觉
+      ③ 预算是否悄悄砍掉了你要的那块——砍了就说明切分太粗或 top_n 太大。</div>`;
+}
+boot();
+</script>
+</body>
+</html>
