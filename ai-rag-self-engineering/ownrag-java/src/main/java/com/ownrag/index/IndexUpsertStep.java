@@ -102,6 +102,7 @@ public class IndexUpsertStep implements Step {
                 }
                 vectorsOk = ChunkStore.vectorUpsert(ctx.conn, ctx.kb, chunks, embeddings);
             }
+            com.ownrag.core.DocumentStore.refreshStats(ctx.conn, ctx.docId);
             ctx.conn.commit();
 
             Map<String, Object> metrics = new LinkedHashMap<>();

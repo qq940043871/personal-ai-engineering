@@ -109,6 +109,9 @@ public class PipelineExecutor {
                 return fail(conn, taskId, reason);
             }
             ctx.data.putAll(result.data);
+            // 步骤内部若做过 SELECT（dedupe 查指纹、复核读 parse_reviews…），读事务会挂到下一步的写上；
+            // 每步收尾结束读事务，避免整条管道在并发灌库时连环撞 SQLITE_BUSY_SNAPSHOT
+            Db.endRead(conn);
         }
 
         Map<String, Object> doneFields = new LinkedHashMap<>();

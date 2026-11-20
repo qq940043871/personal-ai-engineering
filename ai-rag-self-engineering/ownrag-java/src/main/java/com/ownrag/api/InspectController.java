@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ownrag.config.AppDef;
+import com.ownrag.config.KbWhitelist;
 import com.ownrag.config.Settings;
 import com.ownrag.core.Db;
 import com.ownrag.core.TaskStore;
@@ -56,7 +57,7 @@ public class InspectController {
 
     // ---- 配置视图 ----
     @GetMapping("/admin/config")
-    public Map<String, Object> getConfig() {
+    public Map<String, Object> getConfig() throws Exception {
         Map<String, Object> models = com.ownrag.util.Yamls.load(
                 settings.getConfigDir().isEmpty() ? "classpath:configs/models.yaml"
                         : java.nio.file.Paths.get(settings.getConfigDir(), "models.yaml").toString());
@@ -65,7 +66,7 @@ public class InspectController {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("config_dir", settings.getConfigDir());
         out.put("data_dir", settings.getDataDir().toString());
-        out.put("known_kbs", new ArrayList<>(settings.getKnownKbs()));
+        out.put("known_kbs", new ArrayList<>(KbWhitelist.all(settings)));
         out.put("pipelines", settings.getPipelines());
         out.put("apps", settings.getApps());
         out.put("models", models);
@@ -236,23 +237,47 @@ public class InspectController {
             throw new ApiError(422, "question 与 answer 不能为空");
         }
         String hitId = Ids.short12().substring(0, 10);
+        // 幂等：同 (kb, question) 已存在 → 更新内容并返回原 id，不新增行（灌库脚本可重跑）
+        String existingId = null;
         try (Connection conn = Db.connect(settings.getDbPath())) {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO direct_hits(id,kb,level,question,aliases_json,answer,enabled) "
-                            + "VALUES (?,?,?,?,?,?,1)")) {
-                ps.setString(1, hitId);
-                ps.setString(2, body.kb);
-                ps.setString(3, body.level);
-                ps.setString(4, body.question.trim());
-                ps.setString(5, Json.write(body.aliases == null ? new ArrayList<>() : body.aliases));
-                ps.setString(6, body.answer);
-                ps.executeUpdate();
+                    "SELECT id FROM direct_hits WHERE kb=? AND question=?")) {
+                ps.setString(1, body.kb);
+                ps.setString(2, body.question.trim());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        existingId = rs.getString("id");
+                    }
+                }
+            }
+            Db.endRead(conn);  // 先查后写：读事务不收尾，下面的写会撞 BUSY_SNAPSHOT
+            if (existingId != null) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE direct_hits SET level=?, aliases_json=?, answer=? WHERE id=?")) {
+                    ps.setString(1, body.level);
+                    ps.setString(2, Json.write(body.aliases == null ? new ArrayList<>() : body.aliases));
+                    ps.setString(3, body.answer);
+                    ps.setString(4, existingId);
+                    ps.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO direct_hits(id,kb,level,question,aliases_json,answer,enabled) "
+                                + "VALUES (?,?,?,?,?,?,1)")) {
+                    ps.setString(1, hitId);
+                    ps.setString(2, body.kb);
+                    ps.setString(3, body.level);
+                    ps.setString(4, body.question.trim());
+                    ps.setString(5, Json.write(body.aliases == null ? new ArrayList<>() : body.aliases));
+                    ps.setString(6, body.answer);
+                    ps.executeUpdate();
+                }
             }
             conn.commit();
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", hitId);
-        out.put("status", "created");
+        out.put("id", existingId != null ? existingId : hitId);
+        out.put("status", existingId != null ? "updated" : "created");
         return out;
     }
 

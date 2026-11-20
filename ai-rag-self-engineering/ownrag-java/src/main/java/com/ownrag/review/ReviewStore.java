@@ -281,12 +281,19 @@ public final class ReviewStore {
     // ---------------------------------------------------------------- 状态机
 
     public static Map<String, Object> getReview(Connection conn, String docId) throws SQLException {
+        Map<String, Object> row = null;
         try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM parse_reviews WHERE doc_id=?")) {
             ps.setString(1, docId);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? com.ownrag.core.TaskStore.rowToMap(rs) : null;
+                if (rs.next()) {
+                    row = com.ownrag.core.TaskStore.rowToMap(rs);
+                }
             }
         }
+        // 调用方读完多半立刻写（saveReview / setStatus 审批）：
+        // 先结束读事务，避免读快照升级写锁时撞 SQLITE_BUSY_SNAPSHOT
+        com.ownrag.core.Db.endRead(conn);
+        return row;
     }
 
     public static List<Map<String, Object>> listReviews(Connection conn, String status, int limit)
@@ -308,6 +315,7 @@ public final class ReviewStore {
                 while (rs.next()) {
                     out.add(com.ownrag.core.TaskStore.rowToMap(rs));
                 }
+                com.ownrag.core.Db.endRead(conn);
                 return out;
             }
         }
@@ -372,6 +380,7 @@ public final class ReviewStore {
             ps.setString(2, note);
             ps.setString(3, docId);
             boolean ok = ps.executeUpdate() > 0;
+            com.ownrag.core.DocumentStore.setStatus(conn, docId, "review_status", status);
             conn.commit();
             return ok;
         }

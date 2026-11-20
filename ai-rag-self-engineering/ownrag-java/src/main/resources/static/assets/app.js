@@ -62,7 +62,7 @@ const S = { config: null, health: null, kbs: [], apps: [], poll: null };
 const PLAN_KEY = 'ownrag.plan.v1';
 const PLAN = [
   { d: 1, t: '起服务，跑通最小闭环', goal: '把"能跑"变成"我看得见每一步"：起服务 → 上传 CSV → 7 个步骤全 ok。',
-    todo: ['读 README 的快速开始，用 uvicorn 起服务', '打开 /ui，确认顶部 Ollama/步骤注册/kb 三个灯', '上传一份 CSV，展开任务详情，逐个念出步骤名'],
+    todo: ['读 README 的快速开始，用 restart.ps1 起服务', '打开 /ui，确认顶部 LLM / embed / 步骤注册 / kb 几个灯', '上传一份 CSV，展开任务详情，逐个念出步骤名'],
     check: '能按顺序说出 excel_v1 的 7 步，以及每步产出什么。', tab: 'ingest' },
   { d: 2, t: '解析链路 A：PDF 与降级链', goal: '理解"解析失败不是任务失败"：看 MinerU 缺失如何降级到 pymupdf。',
     todo: ['上传一份 PDF，看 trace 里 parse_mineru fail → fallback → pymupdf ok', '对比 parsed 的 metadata.degraded 与 anchors.page', '打开 /admin/chunks 看这块正文里的页码锚点'],
@@ -129,17 +129,24 @@ function fillSelect(sel, items, value) {
 function renderPills() {
   const h = S.health || {};
   const ollama = h.ollama || {};
+  const cb = h.chat_backend || {};
   const eb = h.embed_backend || {};
+  // 首灯统一按「生成后端」口径：本地 ollama 与远程 OpenAI 兼容端点（agnes 等）都归 LLM，
+  // 不再出现"Ollama 未使用"这种和当前档位无关的告警。
+  const ollamaUsed = ollama.used !== false;
   const pills = [
-    { t: 'Ollama', ok: !!ollama.ok, d: ollama.ok ? '就绪' : (ollama.detail || '不可达') },
-    { t: 'embed', ok: !eb.breaker_open, d: eb.breaker_open ? `熔断 ${eb.retry_in}s` : '可用' },
+    { t: 'LLM', ok: !!cb.ok,
+      d: cb.ok ? (cb.model || cb.provider || '可用')
+        : (cb.detail || '不可达') + (cb.provider ? `（${cb.provider}）` : '') },
+    { t: 'embed', ok: !eb.breaker_open,
+      d: eb.breaker_open ? `熔断 ${eb.retry_in}s` : (ollamaUsed ? 'ollama' : '远程') },
     { t: '步骤注册', ok: !(h.pipeline_missing_steps || []).length, d: (h.steps_registered || []).length + ' 个' },
     { t: 'rerank', ok: !!h.rerank_enabled, d: h.rerank_enabled ? '已配置' : 'RRF 兜底' },
     { t: 'kb', ok: (h.known_kbs || []).length > 0, d: (h.known_kbs || []).join(',') || '未声明' }
   ];
   const pillsEl = $('#pills');
   if (pillsEl) pillsEl.innerHTML = pills.map(p =>
-    `<span class="pill" title="${esc(p.d)}"><i class="dot ${p.ok ? 'ok' : 'bad'}"></i>${esc(p.t)}<span class="tiny">${esc(p.d)}</span></span>`
+    `<span class="pill" title="${esc(p.d)}"><i class="dot${p.ok === null ? '' : (p.ok ? ' ok' : ' bad')}"></i>${esc(p.t)}<span class="tiny">${esc(p.d)}</span></span>`
   ).join('');
   const sideEnv = $('#sideEnv');
   if (sideEnv) sideEnv.innerHTML = `data: ${esc(shortPath((h.data_dir || '') + ''))}<br>cfg: ${esc(shortPath((h.config_dir || '') + ''))}`;

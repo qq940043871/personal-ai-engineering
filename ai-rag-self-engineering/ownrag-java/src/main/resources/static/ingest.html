@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>入库 · ownrag</title>
 <link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body data-page="ingest">
 <div class="app">
@@ -69,6 +71,9 @@ function taskChip(status) {
   return [TASK_CHIP[status] || 'warn', TASK_LABEL[status] || status || '-'];
 }
 const needReviewTask = t => t && (t.status === 'pending_review' || /待人工复核/.test(String(t.error || '')));
+function openChunks(kb, docId) {
+  goto('kb', 'kb=' + encodeURIComponent(kb || '') + '&doc=' + encodeURIComponent(docId || ''));
+}
 
 const drop = $('#drop'), fileInput = $('#file');
 drop.onclick = () => fileInput.click();
@@ -138,6 +143,7 @@ function renderTask(d, docId) {
       <span class="sp"></span>
       ${reviewable ? `<button class="btn sm primary" onclick="openReviewById('${esc(t.doc_id)}')">去解析复核</button>` : ''}
       ${t.status === 'failed' ? `<button class="btn sm" onclick="retryTask('${esc(t.id)}')">重试（resume）</button>` : ''}
+      ${t.doc_id ? `<button class="btn sm ghost" onclick="openChunks('${esc(t.kb || '')}','${esc(t.doc_id)}')">看分块</button>` : ''}
       <button class="btn sm ghost" onclick="openTrace('${esc(t.trace_id || '')}')">查 trace</button>
     </div>
     ${t.error ? `<div class="hint" style="border-left-color:${cls === 'bad' ? '#7a2f2f' : '#6b5a22'};color:${cls === 'bad' ? '#ffb0b0' : '#f0dfa0'}">${esc(t.error)}</div>` : ''}

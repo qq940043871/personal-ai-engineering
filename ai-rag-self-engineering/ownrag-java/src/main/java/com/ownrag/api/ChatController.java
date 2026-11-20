@@ -84,9 +84,11 @@ public class ChatController {
         final int numCtx;
         final int maxNew;
         final String promptName;
+        final AppDef appCfg;                       // 修复验证要按同一套 post 闸门口径
 
         Context(List<Map<String, Object>> blocks, String text, int tokens,
-                List<Map<String, Object>> messages, int numCtx, int maxNew, String promptName) {
+                List<Map<String, Object>> messages, int numCtx, int maxNew, String promptName,
+                AppDef appCfg) {
             this.blocks = blocks;
             this.text = text;
             this.tokens = tokens;
@@ -94,6 +96,7 @@ public class ChatController {
             this.numCtx = numCtx;
             this.maxNew = maxNew;
             this.promptName = promptName;
+            this.appCfg = appCfg;
         }
     }
 
@@ -120,6 +123,25 @@ public class ChatController {
     private void stream(ChatReq req, AppDef appCfg, SseEmitter emitter) {
         try (java.sql.Connection conn = Db.connect(settings.getDbPath())) {
             String traceId = traceLog.newTraceId();
+
+            // ---- 提问前置红线闸门：问题本身含禁词（客户名等）直接拒答，不生成不流式 ----
+            List<String> qHits = com.ownrag.generate.RedlineGate.check(req.question, settings);
+            if (!qHits.isEmpty()) {
+                TraceLog.log(conn, traceId, "pre_redline", "ok", null, null,
+                        single("hits", qHits), null);
+                Map<String, Object> noEv = new LinkedHashMap<>();
+                noEv.put("reason", "问题涉及红线禁词，按红线口径拒答，不做任何生成。");
+                noEv.put("trace_id", traceId);
+                send(emitter, "no_evidence", noEv);
+                Map<String, Object> donePayload = new LinkedHashMap<>();
+                donePayload.put("citations", new ArrayList<>());
+                donePayload.put("source", "gate");
+                send(emitter, "done", donePayload);
+                logQa(conn, req.app, req.question, "（提问含红线禁词，拒答）", new ArrayList<>(), traceId);
+                emitter.complete();
+                return;
+            }
+
             List<String> kbs = appCfg.knowledgeBases.isEmpty()
                     ? java.util.Collections.singletonList("default") : appCfg.knowledgeBases;
             Map<String, Object> genCfg = new LinkedHashMap<>();
@@ -219,7 +241,7 @@ public class ChatController {
             List<Map<String, Object>> messages =
                     PromptRenderer.render(settings, plan.promptName, req.question, fitted.text);
             Context ctx = new Context(fitted.blocks, fitted.text, fitted.tokens,
-                    messages, numCtx, maxNew, plan.promptName);
+                    messages, numCtx, maxNew, plan.promptName, appCfg);
             candidates = ctx.blocks;  // 闸门二与引用只认模型真正看到的块
             send(emitter, "ctx", ctxEvent(candidates));
 
@@ -246,8 +268,10 @@ public class ChatController {
             }
             String answerText = answer.toString();
 
-            // ---- 闸门二（生成后）：引用真实性；违规带反馈重答一次 ----
-            Gates.GateResult post = Gates.citationCheck(answerText, candidates);
+            // ---- 闸门二（生成后）：post 闸门全跑（引用真实性 + 红线禁词），违规合并带反馈重答一次 ----
+            List<String> violations = collectViolations(answerText, candidates, appCfg);
+            Gates.GateResult post = new Gates.GateResult("post", violations.isEmpty(),
+                    violations.isEmpty() ? "闸门二通过" : "闸门二违规 " + violations.size() + " 项", violations);
             Map<String, Object> postGate = new LinkedHashMap<>();
             postGate.put("stage", "post");
             postGate.put("passed", post.passed);
@@ -286,7 +310,25 @@ public class ChatController {
         }
     }
 
-    /** 闸门二违规 → 带错误反馈重答一次；只有"通过"或"违规更少"才采纳重答。 */
+    /** 收集 post 闸门全部违规（引用真实性 + 红线禁词）。 */
+    private List<String> collectViolations(String answer, List<Map<String, Object>> candidates,
+                                          AppDef appCfg) {
+        List<String> violations = new ArrayList<>();
+        for (String gateName : appCfg.postGates) {
+            if ("citation_check".equals(gateName)) {
+                Gates.GateResult r = Gates.citationCheck(answer, candidates);
+                if (!r.passed) {
+                    violations.addAll(r.violations);
+                }
+            } else if ("redline_check".equals(gateName)) {
+                violations.addAll(com.ownrag.generate.RedlineGate.check(answer, settings));
+            }
+        }
+        return violations;
+    }
+
+    /** 闸门二违规 → 带错误反馈重答一次；只有"通过"或"违规更少"才采纳重答；
+     *  红线禁词不可修复时直接拒答——绝不把带禁词的答案交付给用户。 */
     private RepairOutcome repairAnswer(Context ctx, String answer, Gates.GateResult post,
                                        List<Map<String, Object>> candidates,
                                        Map<String, Object> genCfg, SseEmitter emitter) {
@@ -297,20 +339,30 @@ public class ChatController {
         repair.add(assistant);
         Map<String, Object> user = new LinkedHashMap<>();
         user.put("role", "user");
+        String redlineNote = post.violations.stream().anyMatch(v -> v.contains("禁词"))
+                ? "，红线禁词（客户名、内网信息等）任何形式都不得输出" : "";
         user.put("content", "你的上一版回答存在以下问题：" + String.join("；", post.violations)
-                + "。请重答：只保留能被候选块支持的结论，每个结论标注 [来源: 块N]。");
+                + redlineNote + "。请重答：只保留能被候选块支持的结论，每个结论标注 [来源: 块N]。");
         repair.add(user);
         try {
             String answer2 = chatClient.chat(settings, repair, null, ctx.numCtx, 0.2, ctx.maxNew);
-            Gates.GateResult post2 = Gates.citationCheck(answer2, candidates);
-            if (post2.passed || post2.violations.size() < post.violations.size()) {
+            List<String> v2 = collectViolations(answer2, candidates, appCfgOf(ctx));
+            Gates.GateResult post2 = new Gates.GateResult("post", v2.isEmpty(),
+                    v2.isEmpty() ? "闸门二通过" : "闸门二违规 " + v2.size() + " 项", v2);
+            if (post2.passed || v2.size() < post.violations.size()) {
                 Map<String, Object> token = new LinkedHashMap<>();
                 token.put("t", answer2);
                 token.put("repaired", true);
                 send(emitter, "token", token);
                 return new RepairOutcome(answer2, post2);
             }
-            return new RepairOutcome(answer, post);
+            // 修复后仍有违规（尤其红线禁词复述）：拒答，不交付带禁词的答案
+            Map<String, Object> gate = new LinkedHashMap<>();
+            gate.put("stage", "redline_refused");
+            gate.put("note", "修复后仍含红线违规，已按规则拒答");
+            send(emitter, "gate", gate);
+            return new RepairOutcome("该问题涉及红线范围（客户名、内网信息等），我不能作答。"
+                    + "如需方法论层面的信息，可以换一种不含具体名称的方式提问。", post2);
         } catch (ChatClient.ChatError e) {
             Map<String, Object> gate = new LinkedHashMap<>();
             gate.put("stage", "repair_failed");
@@ -318,6 +370,11 @@ public class ChatController {
             send(emitter, "gate", gate);
             return new RepairOutcome("（引用校验未通过，已按规则拒答原答案。请缩小问题范围重试。）", post);
         }
+    }
+
+    /** 当前请求的 app 定义（修复验证要按同一套 post 闸门口径）。 */
+    private AppDef appCfgOf(Context ctx) {
+        return ctx.appCfg;
     }
 
     private static class RepairOutcome {

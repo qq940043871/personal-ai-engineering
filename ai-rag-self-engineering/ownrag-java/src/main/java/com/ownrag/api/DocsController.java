@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.ownrag.config.KbWhitelist;
 import com.ownrag.config.Settings;
 import com.ownrag.core.Db;
 import com.ownrag.core.PipelineRunner;
@@ -111,7 +112,7 @@ public class DocsController {
                     + "新类型 = pipelines.yaml 加一段配置 + 步骤类型注册");
         }
         // kb 白名单：只收 apps.yaml 声明过的库，避免任意字符串落成孤立 collection
-        java.util.Set<String> knownKbs = settings.getKnownKbs();
+        java.util.Set<String> knownKbs = KbWhitelist.all(settings);
         if (!knownKbs.isEmpty() && !knownKbs.contains(kb)) {
             throw new ApiError(422, "未声明的知识库 '" + kb + "'（apps.yaml knowledge_bases：" + knownKbs + "）");
         }
@@ -179,6 +180,9 @@ public class DocsController {
         String taskId;
         try (java.sql.Connection conn = Db.connect(settings.getDbPath())) {
             taskId = TaskStore.createTask(conn, docId, pipeline, traceId, kb, state);
+            com.ownrag.core.DocumentStore.upsertOnUpload(conn, docId, kb,
+                    String.valueOf(sourceMeta.get("source_file")), pipeline, taskId, traceId,
+                    fileHash, size, sourceMeta);
         }
         runner.submit(taskId, false);  // 工作线程执行；执行器自带检查点与失败入待办
         Map<String, Object> out = new LinkedHashMap<>();
@@ -193,18 +197,19 @@ public class DocsController {
 
     /** doc → 最近一次任务（幂等返回时给客户端一个可跟踪的 task_id）。 */
     private static Map<String, Object> latestTask(java.sql.Connection conn, String docId) throws Exception {
+        Map<String, Object> out = new LinkedHashMap<>();
         try (java.sql.PreparedStatement ps = conn.prepareStatement(
                 "SELECT id, status FROM tasks WHERE doc_id=? ORDER BY created_at DESC LIMIT 1")) {
             ps.setString(1, docId);
             try (java.sql.ResultSet rs = ps.executeQuery()) {
-                Map<String, Object> out = new LinkedHashMap<>();
                 if (rs.next()) {
                     out.put("task_id", rs.getString("id"));
                     out.put("status", rs.getString("status"));
                 }
-                return out;
             }
         }
+        Db.endRead(conn);  // 调用方随后可能写（清旧指纹）
+        return out;
     }
 
     @GetMapping("/docs/{docId}/status")
@@ -247,6 +252,8 @@ public class DocsController {
             if (kbs.isEmpty()) {
                 throw new ApiError(404, "doc 不存在或无已索引块：" + docId);
             }
+            // 上面 SELECT 开了读事务，下面全是删：先收尾，否则并发删/写时撞 BUSY_SNAPSHOT
+            Db.endRead(conn);
             ChunkStore.keywordDeleteDoc(conn, docId);
             ChunkStore.vectorDeleteDoc(conn, docId);
             try (java.sql.PreparedStatement ps = conn.prepareStatement(
@@ -254,12 +261,16 @@ public class DocsController {
                 ps.setString(1, docId);
                 ps.executeUpdate();
             }
-            // 指纹一并释放：同内容文件之后可重新上传入新 doc
+            // 指纹与文档实体一并释放：同内容文件之后可重新上传入新 doc
             com.ownrag.index.FingerprintStore.deleteByDoc(conn, docId);
+            com.ownrag.core.DocumentStore.delete(conn, docId);
+            // Excel 链路的动态 staging 表是第六通道：不在这里清就会留孤儿表
+            List<String> stagingDropped = com.ownrag.ingest.StagingStore.dropByDoc(conn, docId);
             conn.commit();
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("doc_id", docId);
             out.put("chunks_removed", removed);
+            out.put("staging_tables_dropped", stagingDropped);
             out.put("vector", "ok");
             return out;
         }

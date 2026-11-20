@@ -46,11 +46,12 @@ public class ConfigLoader {
         // 优先级：env > models.yaml（与 Python 版一致）
         String chatProvider = env("OWNRAG_CHAT_PROVIDER", Yamls.str(chatEp, "provider", "ollama"));
         String chatBaseUrl = env("OWNRAG_CHAT_BASE_URL", Yamls.str(chatEp, "base_url", ""));
-        String chatModel = env("OWNRAG_CHAT_MODEL", Yamls.str(defaults, "chat", "qwen2.5:7b-instruct-q4_K_M"));
+        String chatModel = env("OWNRAG_CHAT_MODEL", Yamls.str(defaults, "chat", "agnes-3.0-flash"));
         String embedProvider = env("OWNRAG_EMBED_PROVIDER", Yamls.str(embedEp, "provider", "ollama"));
         String embedBaseUrl = env("OWNRAG_EMBED_BASE_URL", Yamls.str(embedEp, "base_url", ""));
-        String embedModel = env("OWNRAG_EMBED_MODEL", Yamls.str(defaults, "embed", "bge-m3"));
-        String embedVersion = env("OWNRAG_EMBED_VERSION", Yamls.str(defaults, "embed_version", "bge-m3@ollama"));
+        String embedModel = env("OWNRAG_EMBED_MODEL", Yamls.str(defaults, "embed", "BAAI/bge-large-zh-v1.5"));
+        String embedVersion = env("OWNRAG_EMBED_VERSION",
+                Yamls.str(defaults, "embed_version", "bge-large-zh-v1.5@siliconflow"));
         String rerankProvider = env("OWNRAG_RERANK_PROVIDER", Yamls.str(rerankEp, "provider", ""));
         String rerankBaseUrl = env("OWNRAG_RERANK_URL", Yamls.str(rerankEp, "base_url", ""));
         String rerankModel = env("OWNRAG_RERANK_MODEL", Yamls.str(rerankEp, "model", "BAAI/bge-reranker-v2-m3"));

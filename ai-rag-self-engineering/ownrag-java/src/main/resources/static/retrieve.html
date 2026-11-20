@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>检索调试 · ownrag</title>
 <link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="stylesheet" href="/ui/assets/katex/katex.min.css?v=20261117">
 </head>
 <body data-page="retrieve">
@@ -38,7 +40,7 @@
     <div id="retSummary" style="margin-top:14px"></div>
     <div class="grid g2" style="margin-top:14px">
       <div class="card"><h3>关键词通道（FTS5 / BM25）<span class="tag chip" id="retBm25N">–</span></h3><div id="retBm25"><div class="empty">未运行</div></div></div>
-      <div class="card"><h3>向量通道（Chroma）<span class="tag chip" id="retVecN">–</span></h3><div id="retVec"><div class="empty">未运行</div></div></div>
+      <div class="card"><h3>向量通道（SQLite BLOB · 暴力余弦）<span class="tag chip" id="retVecN">–</span></h3><div id="retVec"><div class="empty">未运行</div></div></div>
     </div>
     <div class="grid g32" style="margin-top:14px">
       <div class="card"><h3>融合结果（RRF）与预算</h3><div id="retFused"><div class="empty">未运行</div></div></div>

@@ -229,12 +229,30 @@ public final class ChunkStore {
     public static List<Map<String, Object>> vectorSearch(Connection conn, List<String> kbs,
                                                          float[] queryVec, int topK,
                                                          Map<String, Object> filter) throws SQLException {
+        return vectorSearch(conn, kbs, queryVec, topK, filter, null);
+    }
+
+    /**
+     * 带 embed_version 校验的向量召回（检索主路径必须走这个重载）。
+     *
+     * 为什么必须校验：换 embed 模型时新旧向量落在**同一个 chunk_vectors 表**，bge-m3 与
+     * bge-large-zh-v1.5 都是 1024 维——维度相同意味着不会报错，余弦照算，但两套向量空间
+     * 混算出来的分数毫无意义（静默脏召回）。这里按 embed_version 硬隔离：
+     * 版本不符的旧向量不参与召回，重建完成前该通道退化为空并在检索侧播报（降级可见）。
+     * embedVersion 为空 = 不校验（仅供单测/调试直接构造向量时使用）。
+     */
+    public static List<Map<String, Object>> vectorSearch(Connection conn, List<String> kbs,
+                                                         float[] queryVec, int topK,
+                                                         Map<String, Object> filter,
+                                                         String embedVersion) throws SQLException {
         double qNorm = norm(queryVec);
+        boolean versioned = embedVersion != null && !embedVersion.trim().isEmpty();
         // 大顶堆思路直接简化为：全量算分 → 排序取前 topK（个人规模下可接受）
         List<Map<String, Object>> all = new ArrayList<>();
         String sql = "SELECT chunk_vectors.chunk_id, chunk_vectors.doc_id, chunk_vectors.embedding "
                 + "FROM chunk_vectors LEFT JOIN chunks ON chunks.chunk_id = chunk_vectors.chunk_id "
-                + "WHERE 1=1 " + kbInSql(kbs, "chunk_vectors.kb") + filterSql(filter, "chunks.");
+                + "WHERE 1=1 " + kbInSql(kbs, "chunk_vectors.kb") + filterSql(filter, "chunks.")
+                + (versioned ? "AND chunks.embed_version = ? " : "");
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             int i = 1;
             if (kbs != null) {
@@ -243,6 +261,9 @@ public final class ChunkStore {
                 }
             }
             i = bindFilter(ps, i, filter);
+            if (versioned) {
+                ps.setString(i++, embedVersion.trim());
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     float[] vec = fromBlob(rs.getBytes("embedding"));

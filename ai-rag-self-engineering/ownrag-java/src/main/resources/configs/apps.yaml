@@ -18,11 +18,11 @@ apps:
       max_new_tokens: 512             # 环境变量 OWNRAG_NUM_CTX / OWNRAG_MAX_NEW_TOKENS 优先级高于本段
     gates:
       pre: [sufficiency_check]
-      post: [citation_check, schema_check]
+      post: [citation_check, redline_check, schema_check]
 
   # 以下两个为数字分身双模式（Python 版无对应物）：知识库白名单同时是上传收口
   interview_coach:
-    knowledge_bases: [kb_interview, kb_b2b]
+    knowledge_bases: [kb_interview]
     retrieval:
       vector_topk: 20
       bm25_topk: 20
@@ -39,10 +39,10 @@ apps:
       max_new_tokens: 512
     gates:
       pre: [sufficiency_check]
-      post: [citation_check, schema_check]
+      post: [citation_check, redline_check, schema_check]
 
   knowledge_advisor:
-    knowledge_bases: [kb_interview, kb_b2b, kb_ai_eng, kb_backend, kb_style]
+    knowledge_bases: [kb_interview]
     retrieval:
       vector_topk: 20
       bm25_topk: 20
@@ -59,4 +59,4 @@ apps:
       max_new_tokens: 512
     gates:
       pre: [sufficiency_check]
-      post: [citation_check, schema_check]
+      post: [citation_check, redline_check, schema_check]

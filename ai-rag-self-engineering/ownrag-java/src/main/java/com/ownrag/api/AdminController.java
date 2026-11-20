@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ownrag.config.KbWhitelist;
 import com.ownrag.config.Settings;
 import com.ownrag.core.Db;
 import com.ownrag.core.StepRegistry;
@@ -44,6 +45,17 @@ public class AdminController {
         this.settings = settings;
         this.registry = registry;
         this.http = http;
+    }
+
+    /**
+     * 启动期预热 chat 探活缓存：否则重启后打开的第一个页面还要等一次跨公网 /models（实测 0.3~1.2s）。
+     * 后台线程跑，不阻塞启动；探测失败也只是让首屏徽标显示"不可达"，不影响服务可用性。
+     */
+    @javax.annotation.PostConstruct
+    public void warmUpProbe() {
+        if ("openai".equals(settings.getChatProvider())) {
+            refreshChatProbeAsync();
+        }
     }
 
     @GetMapping("/admin/tasks")
@@ -141,19 +153,31 @@ public class AdminController {
     public Map<String, Object> health() throws Exception {
         try (Connection conn = Db.connect(settings.getDbPath())) {
             // DSL 已在启动期校验（StartupCheck）；此处回显注册状态
+            // ollama 只在真有 provider 用它时才探活：默认档位（chat/embed/rerank 全走远程 OpenAI 兼容端点）
+            // 下探一个没装的本地服务等于白等 connectTimeout。而每个页面 boot() 都先 await 这个接口、
+            // 前端还每 20s 轮询一次——2s 空等就是"打开页面明显停顿"的主因之一。
+            boolean ollamaUsed = "ollama".equals(settings.getChatProvider())
+                    || "ollama".equals(settings.getEmbedProvider())
+                    || "ollama".equals(settings.getRerankProvider());
             Map<String, Object> ollama = new LinkedHashMap<>();
-            try {
-                Response resp = http.newBuilder().connectTimeout(Duration.ofSeconds(2))
-                        .readTimeout(Duration.ofSeconds(2)).build().newCall(
-                                new Request.Builder().url(settings.getOllamaBaseUrl() + "/api/tags").build())
-                        .execute();
-                try (Response r = resp) {
-                    ollama.put("ok", r.isSuccessful());
-                    ollama.put("detail", r.isSuccessful() ? "" : "HTTP " + r.code());
+            ollama.put("used", ollamaUsed);
+            if (!ollamaUsed) {
+                ollama.put("ok", true);
+                ollama.put("detail", "未使用（provider 均为远程 OpenAI 兼容端点）");
+            } else {
+                try {
+                    Response resp = http.newBuilder().connectTimeout(Duration.ofMillis(800))
+                            .readTimeout(Duration.ofMillis(800)).build().newCall(
+                                    new Request.Builder().url(settings.getOllamaBaseUrl() + "/api/tags").build())
+                            .execute();
+                    try (Response r = resp) {
+                        ollama.put("ok", r.isSuccessful());
+                        ollama.put("detail", r.isSuccessful() ? "" : "HTTP " + r.code());
+                    }
+                } catch (Exception e) {
+                    ollama.put("ok", false);
+                    ollama.put("detail", truncate(e.getMessage(), 120));
                 }
-            } catch (Exception e) {
-                ollama.put("ok", false);
-                ollama.put("detail", truncate(e.getMessage(), 120));
             }
             // chat 后端按供应商探测：openai = 远程 /models（Bearer）；ollama = 上面的 /api/tags
             Map<String, Object> chatBackend = new LinkedHashMap<>();
@@ -162,21 +186,7 @@ public class AdminController {
             chatBackend.put("ok", false);
             chatBackend.put("detail", "");
             if ("openai".equals(settings.getChatProvider())) {
-                try {
-                    String base = settings.getChatBaseUrl() == null ? ""
-                            : settings.getChatBaseUrl().replaceAll("/+$", "");
-                    Response resp = http.newBuilder().connectTimeout(Duration.ofSeconds(5))
-                            .readTimeout(Duration.ofSeconds(5)).build().newCall(
-                                    new Request.Builder().url(base + "/models")
-                                            .header("Authorization", "Bearer " + settings.getChatApiKey())
-                                            .build()).execute();
-                    try (Response r = resp) {
-                        chatBackend.put("ok", r.isSuccessful());
-                        chatBackend.put("detail", r.isSuccessful() ? "" : "HTTP " + r.code());
-                    }
-                } catch (Exception e) {
-                    chatBackend.put("detail", truncate(e.getMessage(), 120));
-                }
+                probeChatBackend(chatBackend);
             } else {
                 chatBackend.put("ok", ollama.get("ok"));
                 chatBackend.put("detail", ollama.get("detail"));
@@ -197,7 +207,7 @@ public class AdminController {
             out.put("asr_engine", "openai");
             out.put("config_dir", settings.getConfigDir());
             out.put("data_dir", settings.getDataDir().toString());
-            out.put("known_kbs", new ArrayList<>(settings.getKnownKbs()));
+            out.put("known_kbs", new ArrayList<>(KbWhitelist.all(settings)));
             Map<String, Object> limits = new LinkedHashMap<>();
             limits.put("max_upload_mb", settings.getMaxUploadMb());
             limits.put("num_ctx", settings.getNumCtx());
@@ -205,6 +215,74 @@ public class AdminController {
             out.put("limits", limits);
             return out;
         }
+    }
+
+    /** 远端 chat 探活结果的短缓存：/admin/health 是每个页面 boot() 的第一个请求，前端还 20s 轮询一次。 */
+    private static final long CHAT_PROBE_TTL_MS = 15_000;
+    private static volatile long chatProbeAt = 0L;
+    private static volatile boolean chatProbeOk = false;
+    private static volatile String chatProbeDetail = "";
+    private static volatile boolean chatProbeRunning = false;
+
+    /**
+     * 探测远端 chat 后端（OpenAI 兼容 /models）。
+     *
+     * 为什么不能每次请求都探：每个页面 boot() 的第一个请求就是 /admin/health，前端还 20s 轮询一次；
+     * 跨公网一次 /models 实测 300ms~1.2s，直接拖慢首屏。策略：
+     *   ① 进程内首次调用同步探一次（别让首屏永远显示"不可达"）；
+     *   ② 之后只在超过 {@value #CHAT_PROBE_TTL_MS}ms 时**后台**刷新，请求永远拿缓存立即返回。
+     * 真实可用性由问答链路自己暴露（chat 报错会带 HTTP 码与端点）。
+     */
+    private void probeChatBackend(Map<String, Object> chatBackend) {
+        boolean never = chatProbeAt == 0L;
+        if (never) {
+            runChatProbe();
+        } else if (System.currentTimeMillis() - chatProbeAt > CHAT_PROBE_TTL_MS) {
+            refreshChatProbeAsync();
+        }
+        chatBackend.put("ok", chatProbeOk);
+        chatBackend.put("detail", chatProbeDetail);
+        chatBackend.put("cached", !never);
+    }
+
+    private void runChatProbe() {
+        boolean ok = false;
+        String detail = "";
+        try {
+            String base = settings.getChatBaseUrl() == null ? ""
+                    : settings.getChatBaseUrl().replaceAll("/+$", "");
+            Response resp = http.newBuilder().connectTimeout(Duration.ofSeconds(3))
+                    .readTimeout(Duration.ofSeconds(3)).build().newCall(
+                            new Request.Builder().url(base + "/models")
+                                    .header("Authorization", "Bearer " + settings.getChatApiKey())
+                                    .build()).execute();
+            try (Response r = resp) {
+                ok = r.isSuccessful();
+                detail = ok ? "" : "HTTP " + r.code();
+            }
+        } catch (Exception e) {
+            detail = truncate(e.getMessage(), 120);
+        }
+        chatProbeOk = ok;
+        chatProbeDetail = detail;
+        chatProbeAt = System.currentTimeMillis();
+    }
+
+    /** 单飞后台刷新：并发轮询不会堆出一串探测请求。 */
+    private void refreshChatProbeAsync() {
+        if (chatProbeRunning) {
+            return;
+        }
+        chatProbeRunning = true;
+        Thread t = new Thread(() -> {
+            try {
+                runChatProbe();
+            } finally {
+                chatProbeRunning = false;
+            }
+        }, "chat-probe");
+        t.setDaemon(true);
+        t.start();
     }
 
     // ---- 小工具 ----

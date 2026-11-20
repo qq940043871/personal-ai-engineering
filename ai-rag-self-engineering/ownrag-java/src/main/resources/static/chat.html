@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>问答 · ownrag</title>
 <link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <link rel="stylesheet" href="/ui/assets/katex/katex.min.css?v=20261117">
 </head>
 <body data-page="chat">
@@ -129,7 +131,8 @@ async function runChat() {
         $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#7a2f2f">
           <b>生成阶段不可达</b>（检索与闸门已跑完，见右侧上下文）。<br>
           <span class="mono tiny">${esc(d.message)}</span><br>
-          <span class="tiny">起 Ollama 后重试：<code>ollama serve</code> + <code>ollama pull qwen2.5:7b-instruct-q4_K_M</code></span></div>`;
+          <span class="tiny">检查生成后端：<code>configs/models.yaml → endpoints.chat</code>（provider / base_url / 模型名）
+            + <code>.env</code> 里的 <code>OWNRAG_CHAT_API_KEY</code>，改完 <code>restart.ps1</code> 重启</span></div>`;
         traceId = d.trace_id || traceId;
       } else if (ev === 'done') {
         citations = d.citations || [];

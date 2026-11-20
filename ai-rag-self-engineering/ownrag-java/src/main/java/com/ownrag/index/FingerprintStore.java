@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.ownrag.core.Db;
+
 /**
  * 指纹双表存取（个人知识库场景新增）：
  * doc_fingerprints = 文件级 SHA-256（重传幂等，同 hash 且索引在位 → 直接返回已有 doc）；
@@ -21,13 +23,19 @@ public final class FingerprintStore {
 
     /** hash → doc_id（无则 null）。 */
     public static String findDocByFileHash(Connection conn, String fileHash) throws SQLException {
+        String docId = null;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT doc_id FROM doc_fingerprints WHERE file_hash=?")) {
             ps.setString(1, fileHash);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? rs.getString("doc_id") : null;
+                if (rs.next()) {
+                    docId = rs.getString("doc_id");
+                }
             }
         }
+        // 上传/去重是"先查后写"：读事务不收尾，后面 registerFileHash 会撞 BUSY_SNAPSHOT
+        Db.endRead(conn);
+        return docId;
     }
 
     public static void registerFileHash(Connection conn, String fileHash, String docId,
@@ -44,26 +52,32 @@ public final class FingerprintStore {
 
     /** 已索引块数>0 = 指纹对应的索引仍在位。 */
     public static boolean hasIndexedChunks(Connection conn, String docId) throws SQLException {
+        boolean indexed;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT COUNT(*) FROM chunks WHERE doc_id=?")) {
             ps.setString(1, docId);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getLong(1) > 0;
+                indexed = rs.next() && rs.getLong(1) > 0;
             }
         }
+        Db.endRead(conn);
+        return indexed;
     }
 
     // ---- 块级 ----
 
     /** 块 hash 是否已入库（在库=内容重复，跳过）。 */
     public static boolean chunkHashExists(Connection conn, String hash) throws SQLException {
+        boolean exists;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT 1 FROM chunk_hashes WHERE hash=?")) {
             ps.setString(1, hash);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+                exists = rs.next();
             }
         }
+        Db.endRead(conn);
+        return exists;
     }
 
     public static void registerChunkHash(Connection conn, String hash, String chunkId,

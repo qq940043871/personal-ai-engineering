@@ -29,6 +29,7 @@ import com.ownrag.review.PrepareReviewStep;
 import com.ownrag.review.ReviewGateStep;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,14 +56,14 @@ class ConfigSmokeTest {
         assertNotNull(s.app("knowledge_advisor"), "knowledge_advisor 未定义");
         assertEquals("persona_v1", s.app("interview_coach").prompt);
         assertNotNull(s.prompt("persona_v1"), "persona_v1 未被装载");
-        assertEquals(2, s.app("interview_coach").knowledgeBases.size());
-        // 顾问模式挂的库会随知识面扩容（当前 5 个）；这里只锁"该有的都在"，不锁死数量
-        assertTrue(s.app("knowledge_advisor").knowledgeBases.containsAll(java.util.Arrays.asList(
-                "kb_interview", "kb_b2b", "kb_ai_eng", "kb_backend", "kb_style")),
+        assertEquals(1, s.app("interview_coach").knowledgeBases.size());
+        assertEquals("kb_interview", s.app("interview_coach").knowledgeBases.get(0));
+        // 当前只保留 kb_interview（其余库按用户口径已删）；这里锁"该有的在"，不锁死未来扩容
+        assertTrue(s.app("knowledge_advisor").knowledgeBases.contains("kb_interview"),
                 "knowledge_advisor 知识库装配缺失：" + s.app("knowledge_advisor").knowledgeBases);
-        // kb 白名单随之扩容（上传收口）
+        // kb 白名单随 app 装配（当前只保留 kb_interview）
         assertTrue(s.getKnownKbs().contains("kb_interview"));
-        assertTrue(s.getKnownKbs().contains("kb_backend"));
+        assertFalse(s.getKnownKbs().contains("kb_backend"), "kb_backend 已按用户口径删除，不应再出现在白名单");
 
         // DSL ↔ 注册表一致性：真实步骤类手工组册（等价启动期 validate）
         List<Step> steps = new ArrayList<>();

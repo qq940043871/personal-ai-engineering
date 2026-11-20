@@ -16,11 +16,17 @@ import java.sql.Statement;
  *   - 每次 connect() 开新连接（WAL + busy_timeout），pipeline 长跑持连接期间
  *     chat/admin 的短连接读写不互斥（WAL 读写并行）。
  *
- * 表清单：
+ * 表清单（13 张实体表 + FTS5）：
  *   tasks / todos / traces / chunks / chunks_fts / direct_hits / qa_log /
- *   staging_registry / parse_reviews / chunk_vectors(Java 新增)
+ *   staging_registry / parse_reviews                                  ← 与 Python 版同名同结构
+ *   chunk_vectors / doc_fingerprints / chunk_hashes / kb_registry / documents   ← Java 版新增
+ *
+ * 另有 Excel 链路的**动态表**：每个 sheet 一张 `staging_<docId前8位>_<sheet>`
+ * （全列 TEXT + _src_file/_sheet/_rownum），由 ExcelStageStep 建、StagingStore 在删文档/purge 时清。
  */
 public final class Db {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Db.class);
 
     private Db() {
     }
@@ -40,6 +46,13 @@ public final class Db {
             + "    created_at TEXT DEFAULT (datetime('now', 'localtime')),\n"
             + "    updated_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
             + ");\n"
+            // 回填/管理页按 doc_id 取最近任务：无此索引时相关子查询会全表扫描（1GB 库实测 67s）
+            + "CREATE INDEX IF NOT EXISTS idx_tasks_doc ON tasks(doc_id, created_at, id);\n"
+            // 任务列表 ORDER BY created_at DESC LIMIT n：无此索引时 SQLite 要把整行（含 state_json
+            // 检查点，全表可达数百 MB）塞进临时排序器，实测 12 行也要 9.5s
+            + "CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC, id DESC);\n"
+            // metrics 的 GROUP BY status：索引可做 index-only scan，避免再读 state_json 大列
+            + "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);\n"
             + "CREATE TABLE IF NOT EXISTS todos (\n"
             + "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
             + "    task_id TEXT,\n"
@@ -154,7 +167,37 @@ public final class Db {
             + "    doc_id TEXT NOT NULL,\n"
             + "    created_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
             + ");\n"
-            + "CREATE INDEX IF NOT EXISTS idx_chunk_hashes_doc ON chunk_hashes(doc_id);\n";
+            + "CREATE INDEX IF NOT EXISTS idx_chunk_hashes_doc ON chunk_hashes(doc_id);\n"
+            // 运行时登记的知识库：apps.yaml 声明之外，允许在控制台新建空库再上传
+            + "CREATE TABLE IF NOT EXISTS kb_registry (\n"
+            + "    kb TEXT PRIMARY KEY,\n"
+            + "    description TEXT DEFAULT '',\n"
+            + "    created_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
+            + ");\n"
+            // 文档实体：doc_id 不再是只在 chunks/tasks 上飘的隐式身份，管理面只读这一张表
+            + "CREATE TABLE IF NOT EXISTS documents (\n"
+            + "    doc_id TEXT PRIMARY KEY,\n"
+            + "    kb TEXT NOT NULL DEFAULT 'default',\n"
+            + "    source_file TEXT,\n"
+            + "    pipeline TEXT,\n"
+            + "    task_id TEXT,\n"
+            + "    trace_id TEXT,\n"
+            + "    file_hash TEXT,\n"
+            + "    size_bytes INTEGER DEFAULT 0,\n"
+            + "    sensitivity TEXT,\n"
+            + "    topic TEXT,\n"
+            + "    doc_date TEXT,\n"
+            + "    origin TEXT,\n"
+            + "    review_status TEXT,\n"
+            + "    task_status TEXT,\n"
+            + "    chunk_count INTEGER DEFAULT 0,\n"
+            + "    vector_count INTEGER DEFAULT 0,\n"
+            + "    chars INTEGER DEFAULT 0,\n"
+            + "    created_at TEXT DEFAULT (datetime('now', 'localtime')),\n"
+            + "    updated_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
+            + ");\n"
+            + "CREATE INDEX IF NOT EXISTS idx_documents_kb ON documents(kb);\n"
+            + "CREATE INDEX IF NOT EXISTS idx_documents_task ON documents(task_id);";
 
     public static Connection connect(Path dbPath) throws SQLException {
         Path parent = dbPath.toAbsolutePath().getParent();
@@ -173,13 +216,49 @@ public final class Db {
         return conn;
     }
 
-    /** 幂等建表 + 旧库迁移 + FTS5 探测：FTS5 不可用 = 关键词通道不可建，启动期直接失败。 */
+    /**
+     * 结束只读事务（"读到这里"）。**读后可能再写的路径必须调用**。
+     *
+     * 原因：autocommit=false 下一条 SELECT 就开启 deferred 读事务；同连接随后要写时，
+     * SQLite 必须把读快照升级成写锁。若这期间别的连接提交过，返回 SQLITE_BUSY_SNAPSHOT，
+     * 且**不走 busy handler**——busy_timeout 调多大都没用，表现为
+     * `[SQLITE_BUSY] The database file is locked` 立即失败（批量灌库时的 58 条失败任务即此）。
+     *
+     * 用 commit 而非 rollback：纯读事务提交无副作用；调用方若有未提交写也会随之落地，
+     * 与"写方法自带 commit"的既有约定一致。
+     */
+    public static void endRead(Connection conn) {
+        if (conn == null) {
+            return;
+        }
+        try {
+            if (!conn.getAutoCommit()) {
+                conn.commit();
+            }
+        } catch (SQLException e) {
+            try {
+                conn.rollback();
+            } catch (SQLException ignored) {
+                // 连接已坏：交给上层按"步骤失败"处理，别再抛第二个异常盖掉现场
+            }
+        }
+    }
+
+    /** 幂等建表 + 旧库迁移 + 历史文档回填 + FTS5 探测：FTS5 不可用则启动期直接失败。 */
     public static void initSchema(Path dbPath) throws SQLException {
         try (Connection conn = connect(dbPath)) {
             try (Statement st = conn.createStatement()) {
                 st.executeUpdate(DDL);
             }
             migrate(conn);
+            conn.commit();   // DDL 先落地：回填失败也不能让新表随事务回滚
+            try {
+                DocumentStore.backfill(conn);
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                log.error("[ownrag] 历史文档回填失败（表结构已就绪，可重启重试）", e);
+            }
             probeFts5(conn);
             conn.commit();
         }

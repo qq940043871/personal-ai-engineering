@@ -54,14 +54,38 @@ public class PipelineRunner {
         } catch (Exception e) {
             // 执行器崩溃级异常：任务标 failed + 入待办（与步骤失败同等待遇，绝不静默）
             log.error("[pipeline] task={} 执行器异常: {}", taskId, e.getMessage(), e);
+            markFailedWithTodo(taskId, "执行器异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 崩溃级失败回写：带 doc_id 记待办 + 短重试。
+     * 原实现 todo 的 doc_id 传 null，队列里全是"不知道哪份文档"的空条目；
+     * 而回写本身也可能撞 SQLITE_BUSY（正是异常来源），所以重试几次，别把失败静默掉。
+     */
+    private void markFailedWithTodo(String taskId, String message) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
             try (Connection conn = Db.connect(settings.getDbPath())) {
+                Map<String, Object> task = taskStore.getTask(conn, taskId);
+                String docId = task == null || task.get("doc_id") == null
+                        ? null : String.valueOf(task.get("doc_id"));
                 Map<String, Object> fields = new LinkedHashMap<>();
-                fields.put("status", "failed");
-                fields.put("error", truncate("执行器异常: " + e.getMessage()));
+                fields.put("status", TaskStore.STATUS_FAILED);
+                fields.put("error", truncate(message));
                 taskStore.updateTask(conn, taskId, fields);
-                taskStore.addTodo(conn, taskId, null, "执行器异常: " + e.getMessage(), null);
+                taskStore.addTodo(conn, taskId, docId, message, null);
+                return;
             } catch (Exception inner) {
-                log.error("[pipeline] task={} 失败状态回写也失败: {}", taskId, inner.getMessage(), inner);
+                if (attempt == 3) {
+                    log.error("[pipeline] task={} 失败状态回写也失败: {}", taskId, inner.getMessage(), inner);
+                    return;
+                }
+                try {
+                    Thread.sleep(200L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
             }
         }
     }

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>概览 · ownrag</title>
 <link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body data-page="overview">
 <div class="app">
@@ -49,9 +51,15 @@
 async function loadOverview() {
   const h = S.health || {};
   const ollama = h.ollama || {};
+  const cb = h.chat_backend || {};
+  const ollamaUsed = ollama.used !== false;
+  // 第一行按「生成后端」口径（本地 ollama 与远程 OpenAI 兼容端点都算 LLM）；
+  // 只有真在用本地 Ollama 时才多挂一行它的可达性，避免远程档位下出现"Ollama 未使用"的噪声
   $('#ovHealth').innerHTML = `
-    <div class="flex" style="margin-bottom:6px"><i class="dot ${ollama.ok ? 'ok' : 'bad'}"></i>
-      <b>Ollama</b><span class="tiny">${esc(ollama.ok ? '可达' : (ollama.detail || '不可达'))}</span></div>
+    <div class="flex" style="margin-bottom:6px"><i class="dot ${cb.ok ? 'ok' : 'bad'}"></i>
+      <b>LLM</b><span class="tiny">${esc(cb.provider || '')}${cb.model ? ' · ' + esc(cb.model) : ''} · ${esc(cb.ok ? '可用' : (cb.detail || '不可达'))}</span></div>
+    ${ollamaUsed ? `<div class="flex" style="margin-bottom:6px"><i class="dot ${ollama.ok ? 'ok' : 'bad'}"></i>
+      <b>Ollama</b><span class="tiny">${esc(ollama.ok ? '可达' : (ollama.detail || '不可达'))}</span></div>` : ''}
     <div class="flex" style="margin-bottom:6px"><i class="dot ${(h.pipeline_missing_steps || []).length ? 'bad' : 'ok'}"></i>
       <b>管道 DSL</b><span class="tiny">${(h.steps_registered || []).length} 个步骤类型 · 缺失 ${(h.pipeline_missing_steps || []).length}</span></div>
     <div class="flex"><i class="dot ${h.rerank_enabled ? 'ok' : 'warn'}"></i>

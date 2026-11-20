@@ -85,10 +85,13 @@ public class HybridSearch {
         String vectorSkippedReason = null;
         try {
             List<Double> qEmb = embedder.embedQuery(settings, query);
+            // 按当前 embed_version 隔离召回：换向量模型后旧向量（同维度、不同空间）不参与混算
             vecHits = ChunkStore.vectorSearch(conn, kbs, ChunkStore.toFloatArray(qEmb), vectorTopk,
-                    metadataFilter);
+                    metadataFilter, settings.getEmbedVersion());
             if (vecHits.isEmpty()) {
-                vectorSkippedReason = "向量通道为空（无已嵌入块），BM25 单路";
+                vectorSkippedReason = "向量通道为空（kb 内无 embed_version=" + settings.getEmbedVersion()
+                        + " 的向量），BM25 单路；换向量模型后需重建："
+                        + "POST /admin/kbs/{kb}/reembed";
             }
         } catch (Embedder.EmbedError e) {
             vectorSkippedReason = "向量召回跳过：" + e.getMessage();

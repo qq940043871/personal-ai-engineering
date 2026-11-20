@@ -1,25 +1,30 @@
 # 模型端点注册表 —— 与 Python 版 models.yaml 同构；模型中立：换模型/换远程 = 改这里
-# 优先级：环境变量 > 本文件（api_key 一律只走环境变量，不落配置文件）
+# 优先级：环境变量 > 本文件 > .env（api_key 一律只走环境变量/.env，不落配置文件）
+#
+# 当前档位（2026-11-20）：生成 = agnes-3.0-flash（OpenAI 兼容），向量 + 重排 + ASR = SiliconFlow。
+# 换 embed 模型必须同步改 defaults.embed_version，并对存量库跑一次向量重建：
+#   curl -X POST "http://127.0.0.1:8420/admin/kbs/kb_interview/reembed?batch=16"
+# （向量通道按 embed_version 校验：版本不符的旧向量不参与召回，避免两套空间静默混算）
 endpoints:
   ollama:
     base_url: http://127.0.0.1:11434
   rerank:
-    base_url: ""            # 自建 bge-reranker 服务地址，或 SiliconFlow 基地址 https://api.siliconflow.cn/v1
-    provider: ""            # "" 未启用（RRF 兜底）| service 自建 /rerank 协议 | siliconflow 云 API
-    model: BAAI/bge-reranker-v2-m3
+    base_url: https://api.siliconflow.cn/v1   # provider=siliconflow 时即 SiliconFlow 云 API（/rerank）
+    provider: siliconflow                     # "" 未启用（RRF 兜底）| service 自建 /rerank 协议 | siliconflow 云 API
+    model: BAAI/bge-reranker-v2-m3            # api_key 走 OWNRAG_RERANK_API_KEY
   chat:
-    provider: ollama        # ollama | openai（OpenAI 兼容远程 /chat/completions）
-    base_url: ""            # openai 模式基地址：如 https://apihub.agnes-ai.com/v1（api_key 走 OWNRAG_CHAT_API_KEY）
+    provider: openai        # ollama | openai（OpenAI 兼容远程 /chat/completions）
+    base_url: https://apihub.agnes-ai.com/v1  # 代码只拼 /chat/completions，故 /v1 必须自带；api_key 走 OWNRAG_CHAT_API_KEY
   embed:
-    provider: ollama        # ollama | openai（OpenAI 兼容 /embeddings：SiliconFlow / DashScope 等）
-    base_url: ""            # openai 模式基地址：如 https://api.siliconflow.cn/v1（api_key 走 OWNRAG_EMBED_API_KEY）
+    provider: openai        # ollama | openai（OpenAI 兼容 /embeddings：SiliconFlow / DashScope 等）
+    base_url: https://api.siliconflow.cn/v1   # 拼成 /v1/embeddings；api_key 走 OWNRAG_EMBED_API_KEY
 
 defaults:
-  chat: qwen2.5:7b-instruct-q4_K_M
-  embed: bge-m3
-  embed_version: bge-m3@ollama        # 与向量兼容性绑定：换值 = 全量重建索引
-  num_ctx: 6144
-  max_new_tokens: 512
+  chat: agnes-3.0-flash               # 上游口径：maxInputTokens 512000 / maxOutputTokens 65536
+  embed: BAAI/bge-large-zh-v1.5       # 1024 维（与 bge-m3 同维：换模型不会报错，必须看 embed_version）
+  embed_version: bge-large-zh-v1.5@siliconflow   # 与向量兼容性绑定：换值 = 全量重建索引
+  num_ctx: 6144                       # 预算侧装箱口径（openai 分支不上送）；上游窗口更大可按需调大
+  max_new_tokens: 512                 # → max_tokens（上游上限 65536）
   max_upload_mb: 200                  # 0 = 不限制（仅测试用）
 
 mineru:
@@ -33,6 +38,6 @@ mineru:
 #   → 该端点只回纯文本无时间戳，Java 端按句切分+字符占比估算时间，并以 ts_approximated=true 显式标注）
 asr:
   engine: openai            # openai 兼容 /audio/transcriptions（verbose_json 携带段时间戳）
-  base_url: ""              # api_key 走环境变量 OWNRAG_ASR_API_KEY；为空时 av_v1 解析步骤失败入待办
+  base_url: https://api.siliconflow.cn/v1   # api_key 走环境变量 OWNRAG_ASR_API_KEY；为空时 av_v1 解析步骤失败入待办
   model: FunAudioLLM/SenseVoiceSmall
   language: zh
