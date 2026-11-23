@@ -53,9 +53,11 @@ function renderPlan() {
       </div>
     </div>`).join('');
   const done = PLAN.filter(p => st[p.d]).length;
-  $('#planN').textContent = done + '/14';
-  $('#planBar').style.width = (done / 14 * 100) + '%';
-  $('#planTip').textContent = done + '/14 已完成';
+  // 侧边栏的 #planN / #planBar 由 boot() 渲染，这里只写存在时更新——顺序反了也不会中断 boot()
+  const n = $('#planN'), bar = $('#planBar'), tip = $('#planTip');
+  if (n) n.textContent = done + '/14';
+  if (bar) bar.style.width = (done / 14 * 100) + '%';
+  if (tip) tip.textContent = done + '/14 已完成';
 }
 $('#planList').addEventListener('click', e => {
   const jump = e.target.closest('[data-jump]');
@@ -83,7 +85,8 @@ $('#planReset').onclick = () => {
   localStorage.removeItem(PLAN_KEY); renderPlan(); toast('已重置');
 };
 
-renderPlan();
+// 与其他页面同一口径：先 boot()（渲染侧边栏/状态灯），再由 boot 回调 pageInit
+window.pageInit = renderPlan;
 boot();
 </script>
 </body>
