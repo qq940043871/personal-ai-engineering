@@ -11,8 +11,8 @@
 ```
 PDF / 扫描件
    │
-   │ ⓿ MinerU 解析为 md  (00_pdf_to_md_mineru.py)
-   │    调 MinerU CLI 或 HTTP 服务，并做结构归一化（补齐 # / ## / ###）
+   │ ⓿ MinerU 解析为 md  (00_pdf_to_md_mineru.py / 00b_mineru_pdf_parse.py)
+   │    调 MinerU CLI / HTTP / 云端，并做结构归一化（补齐 # / ## / ###）
    ▼
 原始 Markdown
    │
@@ -86,6 +86,29 @@ python 00_pdf_to_md_mineru.py 结算细则.pdf --base-url http://127.0.0.1:8888
 - 图片：`create-by-file` 上传时 md 里的相对图片路径不会带走图片，需要留图就改用 `create-by-text` 并在正文里拼图片地址，或接受图片丢失。
 - 需本机装 MinerU（`pip install -U "mineru[core]"`），或使用 `--base-url` 指向已部署服务。
 
+### 增强版：`00b_mineru_pdf_parse.py`（三通路 + 降级 + 产物统计）
+
+参考 `ai-rag-self-engineering/ownrag/ownrag/ingest/pdf_mineru.py` 与 `mineru_openapi.py` 补了 00_ 缺的几块，**产物路径与归一化规则与 00_ 完全一致**，下游 `01_`/`02_`/`09_` 不用改：
+
+| 能力 | 说明 |
+|------|------|
+| 三通路同接口 | `--mode auto\|cli\|http\|open`；auto 优先级 = 本地 CLI → `--base-url` 自建服务 → 环境变量 `MINERU_OPEN_TOKEN` 走 mineru.net 云端 |
+| 页级路由 | 用 pymupdf 抽样（默认 3 页）判版式：平均每页 <50 字符判扫描件走 `vlm`，否则 `pipeline`；无 pymupdf 时不拦路 |
+| 云端开放平台 | mineru.net `/api/v4` 三步流（申请预签名 URL → 裸 PUT 上传 → 轮询 `full_zip_url` 并安全解压），零 GPU、吃每日页额度，单文件上限 200 页 / ≤200MB |
+| 失败兜底 | MinerU 全挂（无 CLI / 无服务 / 无 token / 解析报错）时用 pymupdf 抽纯文本，逐页带 `<!--page:N-->` 锚点并标 `degraded`，绝不静默丢文档 |
+| 产物统计 | 从 `*_content_list.json` 汇总页覆盖 / 表格 / 公式 / 图片数，直接对上 `09_quality_gate.py` 的 A 层指标 |
+| 解析报告 | 额外写 `<pdf名>_parse_report.json`（通路、探测结果、归一化前后 H1/H2/H3 统计、耗时、降级原因） |
+
+```bash
+python 00b_mineru_pdf_parse.py 结算细则.pdf -o ./mineru_out          # 自动选通路（推荐）
+python 00b_mineru_pdf_parse.py x.pdf --mode open                     # 云端解析，需 MINERU_OPEN_TOKEN
+python 00b_mineru_pdf_parse.py x.pdf --mode cli -b vlm               # 本地 CLI，强制 VLM
+python 00b_mineru_pdf_parse.py 大书.pdf -s 0 -e 199                  # 大书分批（仅 cli 生效）
+python 00b_mineru_pdf_parse.py x.pdf --fallback none                 # 关掉兜底，MinerU 失败即报错
+```
+
+与 00_ 的取舍：只要一条本地/服务化通路、产物最简，用 `00_pdf_to_md_mineru.py`；需要**自动判扫描件、无 GPU 走云端、失败仍能出 md、要解析质量数据**，用 `00b_mineru_pdf_parse.py`。
+
 ---
 
 ## 三、文件清单与作用
@@ -95,6 +118,7 @@ python 00_pdf_to_md_mineru.py 结算细则.pdf --base-url http://127.0.0.1:8888
 | 文件 | 作用 |
 |------|------|
 | `00_pdf_to_md_mineru.py` | 调 MinerU（CLI 或 HTTP）把 PDF/扫描件解析成 md，并做结构归一化（补 H1/H2/H3、去重复页眉页脚、保护行首编号），保证下游 `01_`/`02_` 能跑通。详见上节。 |
+| `00b_mineru_pdf_parse.py` | 增强版单文件：cli / http / mineru.net 云端三通路、页级路由自动选 pipeline 或 vlm、pymupdf 降级兜底、content_list 产物统计、`_parse_report.json`。输出路径与归一化规则同 `00_`。 |
 
 ### 文本预处理（在本地切分 Markdown）
 
@@ -186,7 +210,9 @@ python 08_create_by_file.py
 ```bash
 # 0. PDF → 结构化 md（MinerU）+ 结构归一化
 python 00_pdf_to_md_mineru.py 结算细则.pdf -o ./mineru_out
-#    产物：./mineru_out/结算细则/结算细则_norm.md
+#    换成增强版（自动判扫描件 / 云端解析 / 失败兜底 / 出产物统计）：
+#    python 00b_mineru_pdf_parse.py 结算细则.pdf -o ./mineru_out
+#    产物：./mineru_out/结算细则/结算细则_norm.md（+ 结算细则_parse_report.json）
 
 # 1. 预埋 @@ 子分段标记
 python 02_add_split_to_periods.py ./mineru_out/结算细则/结算细则_norm.md 1_1_new_process.md
@@ -202,11 +228,13 @@ python knowledge_base_uploader.py
 
 - **必须替换占位符**：所有脚本中的 `dataset-REPLACE_WITH_YOUR_KEY` / `ragflow-REPLACE_WITH_YOUR_KEY` 与硬编码的 `dataset_id` / `document_id` / 文件路径（如 `D:\郑大乾坤鉴\1.md`）都需改成自己的值。
 - **服务地址**：默认指向内网 Dify，如 `http://10.17.1.134:30001`。
-- **依赖**：`requests`；GUI 工具额外用到标准库 `tkinter`（Windows 自带）；打包需 `pyinstaller`；`00_pdf_to_md_mineru.py` 需要 MinerU 本体（`pip install -U "mineru[core]"`）或一个已部署的 MinerU 服务地址。
+- **依赖**：`requests`；GUI 工具额外用到标准库 `tkinter`（Windows 自带）；打包需 `pyinstaller`；`00_pdf_to_md_mineru.py` / `00b_mineru_pdf_parse.py` 需要 MinerU 本体（`pip install -U "mineru[core]"`）或一个已部署的 MinerU 服务地址。
   ```bash
   pip install requests
-  pip install -U "mineru[core]"    # 仅第 0 步（PDF 解析）需要
+  pip install -U "mineru[core]"    # 仅第 0 步（PDF 解析）需要；走云端可只装 requests
+  pip install pymupdf              # 可选：页级路由、降级兜底、09_ 的字符保真度都要它
   ```
+- **云端解析（可选）**：`00b_mineru_pdf_parse.py --mode open` 走 mineru.net 开放平台，需先在 mineru.net → API 管理创建 Token 并写入环境变量 `MINERU_OPEN_TOKEN`；受每日页额度（超限 code=-60018）与单文件 ≤200 页 / ≤200MB 限制。
 - **`05_post_segments.py`、`06_post_child_chunks.py`** 中的 URL 仍是 `{dataset_id}` 占位符，属未填好的示例，实际用 GUI 工具或有完整参数的 `process_segments.py` 更省事。
 
 ---

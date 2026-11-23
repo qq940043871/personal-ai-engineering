@@ -37,7 +37,19 @@ _H3_RE = re.compile(r"^(\d+\.\d+)[.、)]?\s+\S")
 
 
 # --------------------------------------------------------------------- MinerU 调用
-def _via_cli(pdf: Path, out_dir: Path, backend: str, lang: str, cmd_name: str) -> Path:
+# MinerU 2.5+ 把 backend 名改成了 vlm-auto-engine / hybrid-auto-engine 等，
+# 老简写 vlm 已不被识别，这里做别名兼容；None 表示不传 -b（交给 MinerU 默认）。
+_BACKEND_ALIAS = {"vlm": "vlm-auto-engine", "auto": None}
+
+
+def _resolve_backend(backend: str):
+    if not backend:
+        return None
+    return _BACKEND_ALIAS.get(backend, backend)
+
+
+def _via_cli(pdf: Path, out_dir: Path, backend: str, lang: str, cmd_name: str,
+             timeout: int = 21600, start: int = None, end: int = None) -> Path:
     """拉起 MinerU CLI，返回产出 md 路径。"""
     if not shutil.which(cmd_name):
         raise RuntimeError(
@@ -45,11 +57,16 @@ def _via_cli(pdf: Path, out_dir: Path, backend: str, lang: str, cmd_name: str) -
             "或改用 --base-url 走服务化部署。"
         )
     cmd = [cmd_name, "-p", str(pdf), "-o", str(out_dir)]
-    if backend and backend != "auto":
-        cmd += ["-b", backend]
+    b = _resolve_backend(backend)
+    if b:
+        cmd += ["-b", b]
     if lang:
         cmd += ["-l", lang]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    if start is not None:
+        cmd += ["-s", str(start)]
+    if end is not None:
+        cmd += ["-e", str(end)]
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if proc.returncode != 0:
         raise RuntimeError(f"MinerU CLI 失败（rc={proc.returncode}）：{proc.stderr[-500:]}")
     mds = sorted(out_dir.rglob("*.md"))
@@ -205,7 +222,8 @@ def process_one(pdf: Path, args) -> Path:
     if args.base_url:
         md_path = _via_http(pdf, out_dir, args.base_url, args.backend, args.lang)
     else:
-        md_path = _via_cli(pdf, out_dir, args.backend, args.lang, args.mineru)
+        md_path = _via_cli(pdf, out_dir, args.backend, args.lang, args.mineru,
+                           args.timeout, args.start, args.end)
 
     raw = md_path.read_text(encoding="utf-8")
     if not raw.strip():
@@ -243,8 +261,14 @@ def main():
     ap.add_argument("input", help="PDF 文件或含 PDF 的目录")
     ap.add_argument("-o", "--out", default="./mineru_out", help="输出根目录（默认 ./mineru_out）")
     ap.add_argument("-b", "--backend", default="pipeline",
-                    choices=["pipeline", "vlm", "auto"],
-                    help="pipeline=电子版快 / vlm=扫描件准（默认 pipeline）")
+                    help="pipeline=电子版快（默认）/ vlm=扫描件准（自动映射为 vlm-auto-engine）/ "
+                         "auto=用 MinerU 默认；也可直接传原生名，如 hybrid-auto-engine")
+    ap.add_argument("--timeout", type=int, default=21600,
+                    help="MinerU CLI 超时秒数（默认 21600=6 小时，纯 CPU 解析大书很慢）")
+    ap.add_argument("-s", "--start", type=int, default=None,
+                    help="只解析从第几页开始（0 起，含），用于大文件分批；仅 CLI 模式生效")
+    ap.add_argument("-e", "--end", type=int, default=None,
+                    help="只解析到第几页（含），用于大文件分批；仅 CLI 模式生效")
     ap.add_argument("-l", "--lang", default="ch", help="文档语言（默认 ch）")
     ap.add_argument("--mineru", default="mineru", help="MinerU 可执行名或路径（默认 mineru）")
     ap.add_argument("--base-url", default=None,
