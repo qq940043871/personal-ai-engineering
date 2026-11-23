@@ -23,12 +23,11 @@
 | `02_bibidown/` | B 站下载 |
 | `03_import_wset/` | Excel 数据 → SQL 映射导入（含样本 xlsx、sql、生成的 SQL） |
 | `04_currency_list/` | 币种 JSON 样本与读取示例 |
-| `10_*`–`13_*` | mock 用户 / 商品名称数据生成，`13_products_sample.csv` 为样本 |
-| `20_*`–`21_*` | 地图可视化（NaturalEarth 世界地图、东盟十国 Plotly） |
-| `30_*`–`31_*` | 目录大文件扫描（两版，目标目录需自填） |
+| `13_products_sample.csv` | 商品数据生成脚本的产物样本（10–12 号生成脚本已清理） |
+| `21_map_asean_plotly.py` | 地图可视化：东盟十国 Plotly（NaturalEarth 版已清理） |
 | `32_*`–`34_*` | 长文件名批量重命名：工具、示例、说明 |
-| `35_*` / `36_*` | MD5 签名、Gitee 批量删仓库（token 需自填） |
-| `40_*`–`43_*` | 币种 / 表格 JSON 解析，`41_*`、`43_*` 分别是输出与样本 |
+| `36_gitee_batch_delete_repos.py` | Gitee 批量删仓库（token 需自填，破坏性操作，谨慎使用） |
+| `40_*`–`41_*` | 币种 JSON 解析：`40_*` 脚本、`41_*` 输出 |
 | `50_jvm_diag_collect.sh` | JVM 诊断采集（jstack / top） |
 
 ### 独立子项目
@@ -36,8 +35,8 @@
 | 目录 | 用途 | 说明文档 / 测试 |
 |---|---|---|
 | `disk_cleaner/` | Windows 磁盘占用分析与安全清理（零第三方依赖） | `README.md`、`test_disk_cleaner.py` |
-| `doubao/` | 方舟图片 / 视频生成、PDF 合同差异比对 | `test_imports.py` |
-| `doubao_multi_login/` | 多账号登录 | `multi_login_app/test_process_isolation.py` |
+| `doubao/` | 方舟图片 / 视频生成、PDF 合同差异比对 | `pdf_diff/README.md` |
+| `doubao_multi_login/` | 多账号登录（cli / gui / web 三入口） | — |
 | `meeting_minutes/` | 录音 → Whisper 转写 → 会议纪要 | `README.md`、`test_basic.py` |
 | `opencode-go-proxy/` | OpenCode Go 接入 WorkBuddy 的本地协议代理 | `配置完成-README.md` + 6 个 `test_*.py` |
 | `opengauss/` | 从 HTML 提取 openGauss 保留关键字 | — |
@@ -61,7 +60,7 @@
 
 ## 测试
 
-12 个独立 `test_*.py`，没有统一 runner，按各自 README 准备环境后单独跑，例如：
+10 个独立 `test_*.py`，没有统一 runner，按各自 README 准备环境后单独跑，例如：
 
 ```bash
 python -m pytest disk_cleaner/test_disk_cleaner.py -q
@@ -87,7 +86,7 @@ python test_basic.py                 # meeting_minutes/
 | 扫描目标目录本来就要填 | `30_scan_folder_big_files.py`、`31_scan_folder_big_files_v2.py` |
 | 输入 PDF / 模型权重路径 | `doubao/pdf_diff/contract_comparison.py`、`ai-study-labs/20_learn/ffmpeg_opencv/opencv_video.py`、`20_learn/paddlex/object_detection.py` |
 | 学习示例里的数据路径 | `20_learn/langchain/*/generate_video_from_json.py`、`book_video_agent.py`、`ai-study-note/exam/scripts/push_to_tdoc.py` |
-| 与本机安装强绑定的探测脚本 | `opencode-go-proxy/dump_*.py`、`find_*.py`、`scan_modelconfig_log.py`、`start_proxy.*`、`配置完成-README.md` |
+| 与本机安装强绑定的启动与文档 | `opencode-go-proxy/start_proxy.*`、`配置完成-README.md` |
 | 启动器写死解释器路径 | `personal-wechat-jobs/run.bat`、`tools/refresh_cookie.py` |
 | 文档链接 / 本机工作区配置 | `ai-agent-harness/docs/AI_POWERED_ACHIEVEMENTS.md` 的 `file:///d:/...`、`config/workspaces.json` |
 
