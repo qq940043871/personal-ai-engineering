@@ -72,6 +72,8 @@ secrets_backup.txt
 # ========== ai-rag-dify 质量门禁与解析产物 ==========
 quality_report*.md
 mineru_out/
+# dify_batch_upload.py 的灌库报告（含库内容清单与 document_id）
+upload_report*.json
 
 # ========== ai-tools 运行产物与凭证（2026-11 由 ai-study-labs/50_tools 迁入） ==========
 # 抖音下载器配置：内嵌登录态 cookie，仅保留脱敏模板
@@ -100,3 +102,12 @@ ai-tools/doubao/pdf_diff/合同差异比对报告*.md
 ai-tools/doubao/pdf_diff/token消耗统计.json
 # 豆包 API 原始应答转储
 ai-tools/doubao/应答结果.js
+
+# ========== 大体积原始资料 / 个人证件 ==========
+# 原始 PDF 书籍（数百 MB，只在本机做解析素材，不入库）
+ai-rag-dify/00_doc/pdf/
+# 照片合并工具的输入与产物（身份证件照，含个人隐私）
+ai-tools/05-photo-merge/*.jpg
+# PyTorch 练习数据集与训练权重（原 ai-study-labs/.gitignore 随该子目录清理一并移除）
+ai-study-labs/20_learn/pytorch/data/
+ai-study-labs/20_learn/pytorch/**/weights/
