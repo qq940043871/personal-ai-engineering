@@ -142,7 +142,18 @@ public final class Budget {
     public static ContextPlan planContext(List<Map<String, Object>> candidates, String question,
                                           String promptName, int numCtx, int maxNewTokens,
                                           com.ownrag.config.Settings settings) {
-        List<Map<String, Object>> probe = PromptRenderer.render(settings, promptName, question, "");
+        return planContext(candidates, question, promptName, numCtx, maxNewTokens, settings, "");
+    }
+
+    /**
+     * 带【对话历史】的预算计划（多轮对话用）：history 注入文本与资料同场计价——
+     * 探针渲染必须带上它，否则 prompt 开销被低估、超窗时又是问题先被截。
+     */
+    public static ContextPlan planContext(List<Map<String, Object>> candidates, String question,
+                                          String promptName, int numCtx, int maxNewTokens,
+                                          com.ownrag.config.Settings settings, String historyText) {
+        List<Map<String, Object>> probe = PromptRenderer.render(settings, promptName, question, "",
+                "history", historyText == null ? "" : historyText);
         int overhead = 0;
         for (Map<String, Object> m : probe) {
             overhead += EstTokens.est(String.valueOf(m.get("content")));

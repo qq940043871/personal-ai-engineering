@@ -16,10 +16,16 @@ import java.sql.Statement;
  *   - 每次 connect() 开新连接（WAL + busy_timeout），pipeline 长跑持连接期间
  *     chat/admin 的短连接读写不互斥（WAL 读写并行）。
  *
- * 表清单（13 张实体表 + FTS5）：
+ * 表清单（18 张实体表 + FTS5）：
  *   tasks / todos / traces / chunks / chunks_fts / direct_hits / qa_log /
  *   staging_registry / parse_reviews                                  ← 与 Python 版同名同结构
- *   chunk_vectors / doc_fingerprints / chunk_hashes / kb_registry / documents   ← Java 版新增
+ *   chunk_vectors / doc_fingerprints / chunk_hashes / kb_registry / documents /
+ *   eval_cases / sql_failures / users / user_sessions                 ← Java 版新增
+ *
+ * 访问控制：documents.access_level（public | protected）是**文档级权限的唯一事实源**，
+ * 检索与原件读取都按它过滤（未登录只看 public）。chunks 不冗余这一列——一篇文档的权限
+ * 只该有一个可改的地方，改 documents 一行即对全链路生效（见 ChunkStore.filterSql）。
+ * 用户与登录会话落库（users / user_sessions）而不是内存：重启不掉登录态，多实例不必共享内存。
  *
  * 另有 Excel 链路的**动态表**：每个 sheet 一张 `staging_<docId前8位>_<sheet>`
  * （全列 TEXT + _src_file/_sheet/_rownum），由 ExcelStageStep 建、StagingStore 在删文档/purge 时清。
@@ -101,6 +107,8 @@ public final class Db {
             + "    aliases_json TEXT DEFAULT '[]',\n"
             + "    answer TEXT NOT NULL,\n"
             + "    enabled INTEGER NOT NULL DEFAULT 1,\n"
+            // 直击库答案绕开检索直达用户：它不挂在 documents 上，权限必须自己带一列
+            + "    access_level TEXT NOT NULL DEFAULT 'public',\n"      // public | protected
             + "    created_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
             + ");\n"
             + "CREATE TABLE IF NOT EXISTS qa_log (\n"
@@ -137,6 +145,13 @@ public final class Db {
             + "    warn_json TEXT,\n"
             + "    pages_json TEXT,\n"
             + "    report_path TEXT,\n"
+            // 文档统计（格式/图片/公式/存疑数）：列表页要按这些列直接排序筛选，
+            // 完整统计（含存疑明细）另存 doc_stats_json，避免每次都读 report.json
+            + "    format TEXT,\n"
+            + "    images INTEGER DEFAULT 0,\n"
+            + "    formulas INTEGER DEFAULT 0,\n"
+            + "    suspects INTEGER DEFAULT 0,\n"
+            + "    doc_stats_json TEXT,\n"
             + "    note TEXT,\n"
             + "    reviewed_at TEXT,\n"
             + "    created_at TEXT DEFAULT (datetime('now', 'localtime')),\n"
@@ -190,6 +205,8 @@ public final class Db {
             + "    origin TEXT,\n"
             + "    review_status TEXT,\n"
             + "    task_status TEXT,\n"
+            + "    enabled INTEGER NOT NULL DEFAULT 1,\n"   // 文档启停：0 = 暂时退出检索（不删块与向量）
+            + "    access_level TEXT NOT NULL DEFAULT 'public',\n"  // public = 公开；protected = 需登录
             + "    chunk_count INTEGER DEFAULT 0,\n"
             + "    vector_count INTEGER DEFAULT 0,\n"
             + "    chars INTEGER DEFAULT 0,\n"
@@ -197,7 +214,68 @@ public final class Db {
             + "    updated_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
             + ");\n"
             + "CREATE INDEX IF NOT EXISTS idx_documents_kb ON documents(kb);\n"
-            + "CREATE INDEX IF NOT EXISTS idx_documents_task ON documents(task_id);";
+            + "CREATE INDEX IF NOT EXISTS idx_documents_task ON documents(task_id);\n"
+            // 评测集：一行 = 一道题（来源 + 期望 + 上次判定），判定结果由"跑评测"写回，
+            // 也可以人工改判——好/坏不是人拍的，是检索链路按口径跑出来的，跑不动就显式 pending。
+            + "CREATE TABLE IF NOT EXISTS eval_cases (\n"
+            + "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+            + "    kb TEXT NOT NULL DEFAULT 'default',\n"
+            + "    question TEXT NOT NULL,\n"
+            + "    source TEXT NOT NULL DEFAULT 'manual',\n"     // manual | qa_log | direct_hit
+            + "    source_ref TEXT,\n"                            // qa_log.id / direct_hits.id
+            + "    expect_all TEXT DEFAULT '[]',\n"               // JSON：命中即好的关键词（全部要出现）
+            + "    expect_empty INTEGER NOT NULL DEFAULT 0,\n"    // 1 = 该拒答的题（语料里没有答案）
+            + "    category TEXT DEFAULT 'concept',\n"            // fact|concept|compare|troubleshoot|multi|cross|reject|direct
+            + "    difficulty TEXT DEFAULT 'medium',\n"           // easy|medium|hard
+            + "    note TEXT,\n"
+            + "    verdict TEXT NOT NULL DEFAULT 'pending',\n"    // pass | fail | pending
+            + "    last_score REAL,\n"                            // 0~1 判定分（关键词命中率 / 拒答正确 1|0）
+            + "    last_detail TEXT,\n"                            // JSON：闸门结论 + 命中/缺失关键词 + Top 候选
+            + "    last_run_at TEXT,\n"
+            // 期望通道与实跑通道：路由也要有回归口径——路由错但答案对，同样算坏
+            + "    expect_route TEXT,\n"                           // rag | sql | multi（空=不判路由）
+            + "    route_actual TEXT,\n"                           // 上次跑出来的通道
+            + "    created_at TEXT DEFAULT (datetime('now', 'localtime'))\n"
+            + ");\n"
+            // 同一库内同一问题只留一条：问答日志回流与手工补录都可能重复提交
+            + "CREATE UNIQUE INDEX IF NOT EXISTS idx_eval_cases_kb_q ON eval_cases(kb, question);\n"
+            + "CREATE INDEX IF NOT EXISTS idx_eval_cases_verdict ON eval_cases(verdict);\n"
+            // SQL 通道连续失败计数：跨请求、跨重启都要能累计，所以落库而不是放内存。
+            // key 用 (app, question_norm)：同一句问反复失败才值得进待办，偶发一次不打扰人。
+            + "CREATE TABLE IF NOT EXISTS sql_failures (\n"
+            + "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+            + "    app TEXT NOT NULL DEFAULT 'default',\n"
+            + "    question_norm TEXT NOT NULL,\n"
+            + "    question TEXT,\n"
+            + "    count INTEGER NOT NULL DEFAULT 0,\n"
+            + "    last_note TEXT,\n"
+            + "    todo_id INTEGER,\n"                             // 已开的待办：成功一次就关掉它
+            + "    first_at TEXT DEFAULT (datetime('now','localtime')),\n"
+            + "    last_at TEXT DEFAULT (datetime('now','localtime'))\n"
+            + ");\n"
+            + "CREATE UNIQUE INDEX IF NOT EXISTS idx_sql_failures_key "
+            + "ON sql_failures(app, question_norm);"
+            // 用户表：口令只存 PBKDF2 派生值与盐（不存明文、不存可逆加密），校验在 PasswordHasher 里
+            + "CREATE TABLE IF NOT EXISTS users (\n"
+            + "    username TEXT PRIMARY KEY,\n"
+            + "    password_hash TEXT NOT NULL,\n"
+            + "    salt TEXT NOT NULL,\n"
+            + "    display_name TEXT,\n"
+            + "    role TEXT NOT NULL DEFAULT 'user',\n"          // admin | user（当前只用于展示与账号管理）
+            + "    created_at TEXT DEFAULT (datetime('now', 'localtime')),\n"
+            + "    last_login_at TEXT\n"
+            + ");\n"
+            // 登录会话：token（随机 32 字节 hex）= 主键，落库而不是放内存，重启后登录态不丢。
+            // expires_at 用本地时间字符串（与全库时间列同口径），过期判定就是字符串比较。
+            + "CREATE TABLE IF NOT EXISTS user_sessions (\n"
+            + "    token TEXT PRIMARY KEY,\n"
+            + "    username TEXT NOT NULL,\n"
+            + "    expires_at TEXT NOT NULL,\n"
+            + "    created_at TEXT DEFAULT (datetime('now', 'localtime')),\n"
+            + "    last_seen_at TEXT\n"
+            + ");\n"
+            + "CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(username);"
+            + "CREATE INDEX IF NOT EXISTS idx_user_sessions_exp ON user_sessions(expires_at);";
 
     public static Connection connect(Path dbPath) throws SQLException {
         Path parent = dbPath.toAbsolutePath().getParent();
@@ -266,8 +344,8 @@ public final class Db {
 
     /**
      * 旧库幂等迁移：CREATE TABLE IF NOT EXISTS 不会给已存在的表补列，
-     * 个人维度过滤列（sensitivity/topic/doc_date/origin）按列名探测后 ALTER TABLE 补齐。
-     * 每次启动都会跑，列已存在即跳过。
+     * 个人维度过滤列（sensitivity/topic/doc_date/origin）与 documents.enabled
+     * 按列名探测后 ALTER TABLE 补齐。每次启动都会跑，列已存在即跳过。
      */
     public static void migrate(Connection conn) throws SQLException {
         java.util.Set<String> cols = new java.util.LinkedHashSet<>();
@@ -288,6 +366,85 @@ public final class Db {
             for (String[] col : additions) {
                 if (!cols.isEmpty() && !cols.contains(col[0])) {
                     st.executeUpdate("ALTER TABLE chunks ADD COLUMN " + col[0] + " " + col[1]);
+                }
+            }
+        }
+        // documents.enabled（文档启停）：老库补列；默认 1 = 全部参与检索，存量行为不变
+        java.util.Set<String> docCols = new java.util.LinkedHashSet<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(documents)")) {
+            while (rs.next()) {
+                docCols.add(rs.getString("name"));
+            }
+        }
+        if (!docCols.isEmpty() && !docCols.contains("enabled")) {
+            try (Statement st = conn.createStatement()) {
+                st.executeUpdate("ALTER TABLE documents ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1");
+            }
+        }
+        // documents.access_level（文档级权限）：老库补列后存量文档一律 public——行为不变，
+        // 要收口的文档由管理员逐篇改成 protected（不按"猜"的方式自动授权）
+        if (!docCols.isEmpty() && !docCols.contains("access_level")) {
+            try (Statement st = conn.createStatement()) {
+                st.executeUpdate("ALTER TABLE documents ADD COLUMN access_level TEXT NOT NULL DEFAULT 'public'");
+            }
+        }
+        // direct_hits.access_level（直击库权限）：老库补列后一律 public = 存量行为不变
+        java.util.Set<String> hitCols = new java.util.LinkedHashSet<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(direct_hits)")) {
+            while (rs.next()) {
+                hitCols.add(rs.getString("name"));
+            }
+        }
+        if (!hitCols.isEmpty() && !hitCols.contains("access_level")) {
+            try (Statement st = conn.createStatement()) {
+                st.executeUpdate(
+                        "ALTER TABLE direct_hits ADD COLUMN access_level TEXT NOT NULL DEFAULT 'public'");
+            }
+        }
+        // parse_reviews 的文档统计列（format/images/formulas/suspects/doc_stats_json）：
+        // 老库补列后历史行为 NULL，复核页按"未统计"处理（不拿 0 冒充"没有图片/公式"）
+        java.util.Set<String> reviewCols = new java.util.LinkedHashSet<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(parse_reviews)")) {
+            while (rs.next()) {
+                reviewCols.add(rs.getString("name"));
+            }
+        }
+        String[][] reviewAdditions = {
+                {"format", "TEXT"},
+                {"images", "INTEGER DEFAULT 0"},
+                {"formulas", "INTEGER DEFAULT 0"},
+                {"suspects", "INTEGER DEFAULT 0"},
+                {"doc_stats_json", "TEXT"},
+        };
+        try (Statement st = conn.createStatement()) {
+            for (String[] col : reviewAdditions) {
+                if (!reviewCols.isEmpty() && !reviewCols.contains(col[0])) {
+                    st.executeUpdate("ALTER TABLE parse_reviews ADD COLUMN " + col[0] + " " + col[1]);
+                }
+            }
+        }
+        // eval_cases 的题型/难度（分桶统计用）：2026-11-22 之前建的库没有这两列
+        java.util.Set<String> evalCols = new java.util.LinkedHashSet<>();
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(eval_cases)")) {
+            while (rs.next()) {
+                evalCols.add(rs.getString("name"));
+            }
+        }
+        String[][] evalAdditions = {
+                {"category", "TEXT DEFAULT 'concept'"},
+                {"difficulty", "TEXT DEFAULT 'medium'"},
+                // 路由回归：老库补列后历史题 expect_route 为 NULL = 不判路由，判定口径不变
+                {"expect_route", "TEXT"},
+                {"route_actual", "TEXT"},
+        };
+        try (Statement st = conn.createStatement()) {
+            for (String[] col : evalAdditions) {
+                if (!evalCols.isEmpty() && !evalCols.contains(col[0])) {
+                    st.executeUpdate("ALTER TABLE eval_cases ADD COLUMN " + col[0] + " " + col[1]);
                 }
             }
         }

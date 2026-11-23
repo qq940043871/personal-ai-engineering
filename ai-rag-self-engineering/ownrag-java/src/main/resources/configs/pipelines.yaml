@@ -12,6 +12,8 @@ pipelines:
           - { type: parse_pdfbox }    # 纯文本兜底：结构丢了内容也要在（Python 版为 parse_pymupdf）
       - type: validate_parsed         # 独立校验闸：空/过短/页缺失 = 与解析失败同待遇
         params: { min_chars_per_page: 20 }
+      - type: clean_markdown          # 解析后 → 清洗后：页标记/页码行/空行归一，逐条计数进 trace
+        params: { page_markers: drop, page_numbers: true }
       - type: chunk_markdown          # 结构感知切分：表格永不跨块
         params: { max_tokens: 512, overlap: 64 }
       - type: dedupe_chunks           # 块级去重（只查不写；hash 登记在 index_upsert，reject 不占坑）
@@ -36,6 +38,8 @@ pipelines:
         params: { max_sec: 60, gap_sec: 1.5 }
       - type: ocr_keyframes           # 可选：Java 版暂无进程内 OCR，未配置时显式 skipped（降级可见）
         params: {}
+      - type: clean_markdown          # ASR 正文没有分页：页码行规则关掉（裸数字行可能是内容）
+        params: { page_numbers: false }
       - type: chunk_markdown          # 三链路同一收敛点：parse → chunk → embed → index
         params: { max_tokens: 512, overlap: 64 }
       - type: dedupe_chunks
@@ -48,20 +52,22 @@ pipelines:
   excel_v1:
     source: { type: upload, accept: [.xlsx, .xlsm, .csv] }
     steps:
-      - type: excel_stage             # 全 TEXT 保真落 SQLite staging 临时表
+      - type: excel_stage             # 表头探测 + 列名去重 + 合并单元格 → staging 影子表（全 TEXT 保真）
         params: {}
-      - type: schema_infer            # 列名/非空率/样本/类型推断
+      - type: schema_infer            # 列名/非空率/样本/类型 + sql_expr（聚合口径）/ 主键候选
         params: { sample_n: 5 }
       - type: column_mapping          # 恒等映射起步（HITL 属 M2）
         params: { suggest_by_llm: false }
-      - type: textualize              # row_card 行级卡片；aggregate 属 M2（SQL 路径）
-        params: { strategy: row_card, max_rows: 5000 }
-      - type: chunk_markdown
+      - type: textualize              # catalog：一 sheet 一块目录。行不文本化、不嵌入——数值走查询期 SQL
+        params: { strategy: catalog, sample_rows: 3 }
+      - type: clean_markdown          # 目录无分页：页码行规则关闭，只做空白/不可见字符归一
+        params: { page_numbers: false }
+      - type: chunk_markdown          # overlap=0：目录块之间没有连续性可言
         params: { max_tokens: 512, overlap: 0 }
       - type: dedupe_chunks
         params: {}
-      - type: embed
-        params: { batch: 32, allow_skip: true }
+      # 刻意没有 embed：目录只进 FTS（可被检索到"有哪些表/哪些列"），不进向量。
+      # 无 embed = embeddings 为空 = index_upsert 把 embed_version 留 NULL，检索侧天然不召回。
       - type: index_upsert
         params: { replace_by_doc: true }
 
@@ -74,12 +80,15 @@ pipelines:
         params: {}
       - type: validate_parsed
         params: { min_chars_per_page: 20 }
+      - type: clean_markdown          # 原生 md 无分页：只归一空白/不可见字符，不删行
+        params: { page_numbers: false }
       - type: chunk_markdown          # 标题树/表格/代码围栏由 Chunker 结构感知承接
         params: { max_tokens: 512, overlap: 64 }
       - type: dedupe_chunks
         params: {}
       - type: prepare_review
-        params: { auto_approve: false, min_chars_per_page: 20 }
+        # 原生 md 无解析歧义（0 页 0 表可复核），人工复核是纯仪式感：自动过闸，异常仍靠 validate 拦
+        params: { auto_approve: true, min_chars_per_page: 20 }
       - type: review_gate             # 入库闸门：人工复核后 resume 从此步续跑
         params: {}
       - type: embed
@@ -94,12 +103,15 @@ pipelines:
         params: { format: txt }
       - type: validate_parsed
         params: { min_chars_per_page: 20 }
+      - type: clean_markdown          # 纯文本没有分页：页码行规则关闭（裸数字可能就是正文）
+        params: { page_numbers: false }
       - type: chunk_markdown
         params: { max_tokens: 512, overlap: 64 }
       - type: dedupe_chunks
         params: {}
       - type: prepare_review
-        params: { auto_approve: false, min_chars_per_page: 20 }
+        # 同 md_v1：纯文本解析没有歧义，自动过闸
+        params: { auto_approve: true, min_chars_per_page: 20 }
       - type: review_gate
         params: {}
       - type: embed
@@ -114,6 +126,8 @@ pipelines:
         params: { max_table_rows: 500 }
       - type: validate_parsed
         params: { min_chars_per_page: 20 }
+      - type: clean_markdown          # Word 页脚常带页码：页码行规则开启
+        params: { page_numbers: true }
       - type: chunk_markdown
         params: { max_tokens: 512, overlap: 64 }
       - type: dedupe_chunks

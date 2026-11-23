@@ -16,7 +16,8 @@
   <main>
     <div class="top"><h1>解析复核</h1><div class="pills" id="pills"></div></div>
 
-    <div class="hint">入库前的第三道闸：把<b>解析产物</b>和<b>切分结果</b>摊开给你看，点「通过并入库」才真正写索引。
+    <div class="hint">入库前的第三道闸：把<b>原文档</b>、<b>解析后</b>、<b>清洗后</b>三栏并排摊开，再加上<b>切分结果</b>，点「通过并入库」才真正写索引。
+      三栏是一条因果链——原文档长什么样、解析器还原成了什么、清洗又删了什么（清洗后的正文才是切分与入库的输入）。
       自动检查只报事实（阻断项 / 提示项），放不放行由人决定——解析错了，后面检索与生成全错，而这件事在问答阶段查不出来。</div>
     <div class="grid g32">
       <div class="card">
@@ -41,22 +42,43 @@
     </div>
 
     <div class="card" style="margin-top:14px">
-      <h3>解析过程 <span class="tag tiny">detect_pages → parse → validate_parsed → chunk_markdown → prepare_review</span></h3>
+      <h3>文档统计 <span class="tag tiny">格式决定哪些数字有意义：docx/xlsx/md/txt 没有固定分页，不按字符数估页数</span></h3>
+      <div id="rvStats"><div class="empty">选左边一条记录</div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>解析过程 <span class="tag tiny">detect_pages → parse → validate_parsed → clean_markdown → chunk_markdown → prepare_review</span></h3>
       <div id="rvSteps"><div class="empty">—</div></div>
       <div class="sep"></div>
       <h3>页级明细 <span class="tag tiny">只有带 page 标记的 Markdown 才算得出来，算不出来就不编</span></h3>
       <div id="rvPages"><div class="empty">—</div></div>
     </div>
 
-    <div class="grid g32" style="margin-top:14px">
-      <div class="card">
-        <h3>解析产物（Markdown 中间态）</h3>
-        <div id="rvMd" class="log" style="max-height:520px"><div class="empty">—</div></div>
+    <div class="card" style="margin-top:14px">
+      <h3>三栏对照 <span class="tag tiny">原文档 → 解析后（parsed.md）→ 清洗后（cleaned.md，即切分与入库的正文）</span>
+        <label class="pane-sync tiny"><input type="checkbox" id="rvSync" checked> 同步滚动</label></h3>
+      <div id="rvCleanStat" class="tiny mono" style="margin-bottom:10px">—</div>
+      <div class="cmp3">
+        <div>
+          <div class="pane-h">① 原文档 <span class="chip" id="rvOrigChip">–</span></div>
+          <div id="rvOrig" class="log" style="max-height:640px"><div class="empty">选左边一条记录</div></div>
+        </div>
+        <div>
+          <div class="pane-h">② 解析后 <span class="chip" id="rvParsedChip">–</span></div>
+          <div id="rvMd" class="log md-body" style="max-height:640px"><div class="empty">—</div></div>
+        </div>
+        <div>
+          <div class="pane-h">③ 清洗后 <span class="chip" id="rvCleanChip">–</span></div>
+          <div id="rvCleaned" class="log md-body" style="max-height:640px"><div class="empty">—</div></div>
+        </div>
       </div>
-      <div class="card">
-        <h3>切分预览 <span class="tag chip" id="rvChunkN">–</span></h3>
-        <div id="rvChunks" style="max-height:520px;overflow:auto"><div class="empty">—</div></div>
-      </div>
+      <div class="tiny" style="margin-top:9px">清洗只做不改语义的归一化：页标记、成行的页码、NBSP / 零宽字符、行尾空白、连续空行；代码围栏内一律不动。
+        每条规则命中几次写在上面那行统计里——删得太多会进「质量检查」的提示项，先看两栏再决定放不放行。</div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>切分预览 <span class="tag chip" id="rvChunkN">–</span></h3>
+      <div id="rvChunks" style="max-height:520px;overflow:auto"><div class="empty">—</div></div>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -94,7 +116,12 @@ async function loadReviews() {
               <div class="tiny mono">${esc(it.doc_id)} · ${esc(it.backend || '-')}</div></td>
           <td><span class="chip ${RV_VERDICT_CHIP[it.verdict] || ''}">${esc(it.verdict || '-')}</span>
               <div class="tiny">阻断 ${it.blocking.length} · 提示 ${it.warn.length}</div></td>
-          <td class="tiny mono">${fmt(it.pages)} 页<br>${fmt(it.chars)} 字<br>${fmt(it.tables)} 表</td>
+          <td class="tiny mono">${it.stats_ready
+              ? `${esc(String(it.format || '-').toUpperCase())} · ${fmt(it.pages)} 页<br>
+                 ${fmt(it.chars)} 字 · ${fmt(it.images)} 图<br>
+                 ${fmt(it.formulas)} 公式 · ${fmt(it.tables)} 表<br>
+                 <span class="${it.suspects ? 'warn' : ''}">存疑 ${fmt(it.suspects)}</span>`
+              : `${fmt(it.chars)} 字 · ${fmt(it.tables)} 表<br><span class="tiny">文档统计未生成</span>`}</td>
           <td><span class="chip ${RV_STATUS_CHIP[it.status] || ''}">${esc(it.status)}</span>
               <div class="tiny">${esc((it.reviewed_at || '').slice(0, 16))}</div></td>
           <td><button class="btn sm" data-rv="${esc(it.doc_id)}">查看</button></td></tr>`).join('')
@@ -147,17 +174,15 @@ function renderReview(d) {
       + '</tbody></table>'
     : `<div class="empty">解析未提供页级标记（MinerU 产物通常无页标记）；声明页数 ${fmt(d.pages)}</div>`;
 
-  const md = $('#rvMd');
-  if (typeof d.markdown === 'string') {
-    let mdText = d.markdown || '';
-    if (d.markdown_total_chars > mdText.length) {
-      mdText += `\n\n…（仅显示前 ${fmt(mdText.length)} / ${fmt(d.markdown_total_chars)} 字符，用 /admin/reviews/${d.doc_id}?offset= 续读）`;
-    }
-    // 图片相对引用按 docId 解析到 /media/{docId}/...；公式走 KaTeX
-    md.className = 'log md-body';
-    md.innerHTML = Md.render(mdText, { docId: d.doc_id }) || '<div class="empty">（空）</div>';
-    Md.typeset(md);
-  } else { md.innerHTML = '<div class="empty">未加载产物</div>'; }
+  renderOriginal(d);
+  renderDocStats(d);
+  // ② 解析后：图片相对引用按 docId 解析到 /media/{docId}/...；公式走 KaTeX
+  renderMdPane($('#rvMd'), $('#rvParsedChip'), d.markdown, d.markdown_total_chars, d.doc_id,
+    '未加载产物（该记录没有 parsed.md）');
+  // ③ 清洗后：与实际切分同源（同一纯函数 + 同一参数），删了什么在这里能直接看出来
+  renderMdPane($('#rvCleaned'), $('#rvCleanChip'), d.cleaned, d.cleaned_total_chars, d.doc_id,
+    '未生成 cleaned.md：该文档按旧管道处理（没有 clean_markdown 步骤），重新上传即可对照清洗前后');
+  renderCleanStat(d);
 
   const chunks = d.chunks || [];
   $('#rvChunkN').textContent = chunks.length + ' 块';
@@ -175,6 +200,149 @@ function renderReview(d) {
   Md.typeset($('#rvChunks'));
 
   $('#rvNote').value = d.note || '';
+}
+
+/* ---------------- 三栏对照：原文档 / 解析后 / 清洗后 ---------------- */
+
+/** Markdown 栏：接口已按 offset/maxChars 截窗，超出时给续读提示；渲染与公式排版同 review 口径。 */
+function renderMdPane(el, chip, text, total, docId, emptyText) {
+  if (typeof text !== 'string') {
+    el.className = 'log';
+    el.innerHTML = `<div class="empty">${esc(emptyText)}</div>`;
+    chip.textContent = '—'; chip.className = 'chip';
+    return;
+  }
+  let mdText = text || '';
+  if (total > mdText.length) {
+    mdText += `\n\n…（仅显示前 ${fmt(mdText.length)} / ${fmt(total)} 字符，用 ?offset= 续读）`;
+  }
+  el.className = 'log md-body';
+  el.innerHTML = Md.render(mdText, { docId }) || '<div class="empty">（空）</div>';
+  Md.typeset(el);
+  chip.textContent = fmt(total) + ' 字';
+  chip.className = 'chip';
+}
+
+/** ① 原文档：按 kind 选渲染形态；docx/xlsx 浏览器渲染不了就如实给下载，不假装能看。 */
+function renderOriginal(d) {
+  const o = d.original || {}, box = $('#rvOrig'), chip = $('#rvOrigChip');
+  box.className = 'log';
+  if (!o.available) {
+    box.innerHTML = `<div class="empty">${esc(o.reason || '原件不存在')}</div>`;
+    chip.textContent = '无原件'; chip.className = 'chip warn';
+    return;
+  }
+  chip.textContent = `${esc(String(o.ext || '').toUpperCase())} · ${fmt(o.size_bytes)} B`;
+  chip.className = 'chip info';
+  const url = esc(o.url), name = esc(o.name || '');
+  if (o.kind === 'pdf') {
+    box.innerHTML = `<iframe src="${url}#view=FitH" title="${name}"
+      style="display:block;width:100%;height:640px;border:0;border-radius:8px;background:#fff"></iframe>`;
+  } else if (o.kind === 'image') {
+    box.innerHTML = `<img src="${url}" alt="${name}"
+      style="display:block;max-width:100%;border-radius:8px;background:#fff">`;
+  } else if (o.kind === 'video') {
+    box.innerHTML = `<video controls preload="metadata" src="${url}"
+      style="display:block;width:100%;border-radius:8px;background:#000"></video>`;
+  } else if (o.kind === 'audio') {
+    box.innerHTML = `<div style="padding:16px 0"><audio controls preload="metadata" src="${url}" style="width:100%"></audio>
+      <div class="tiny" style="margin-top:8px">③ 栏正文来自 ASR；时间锚点见下方切分预览的播放按钮</div></div>`;
+  } else if (o.kind === 'text') {
+    box.textContent = '读取中…';
+    fetch(url).then(r => r.text()).then(t => { box.textContent = t; })
+      .catch(e => { box.textContent = '读取原件失败：' + e.message; });
+  } else {
+    box.innerHTML = `<div class="empty">浏览器不能直接渲染 .${esc(o.ext || '?')}（解析与清洗见右侧两栏）<br>
+      <a class="btn sm" href="${url}" download="${name}" style="margin-top:10px">下载原文件对照</a></div>`;
+  }
+}
+
+/** 清洗统计：删了多少、每条规则命中几次——"这条内容为什么没了"必须能当场回答。 */
+function renderCleanStat(d) {
+  const c = d.report && d.report.clean;
+  const el = $('#rvCleanStat');
+  if (!c) {
+    el.innerHTML = '清洗统计缺失（该文档按旧管道处理，无 cleaned.md）；重新上传即可生成三栏对照';
+    return;
+  }
+  const pct = (Number(c.removed_ratio || 0) * 100).toFixed(2);
+  const items = [
+    `原文 ${fmt(c.chars_in)} 字 → 清洗后 ${fmt(c.chars_out)} 字（-${pct}%）`,
+    `页标记 ${fmt(c.page_markers || 0)}`, `页码行 ${fmt(c.page_numbers || 0)}`,
+    `注释 ${fmt(c.comments || 0)}`, `空行折叠 ${fmt(c.blank_lines || 0)}`,
+    `行尾空白 ${fmt(c.trailing_ws || 0)}`, `NBSP ${fmt(c.nbsp || 0)}`, `零宽 ${fmt(c.zero_width || 0)}`
+  ];
+  el.innerHTML = items.join(' · ')
+    + (c.fallback ? ` · <span class="chip warn">${esc(c.fallback)}</span>` : '');
+}
+
+/* ---------------- 文档统计 + 存疑清单 ---------------- */
+
+const RV_LEVEL_CHIP = { bad: 'bad', warn: 'warn', info: 'info' };
+const RV_LEVEL_LABEL = { bad: '问题', warn: '存疑', info: '说明' };
+
+/** 格式决定哪些数字有意义：PDF 才有真页数；docx/xlsx/md/txt 明写"不适用"，不拿 0 冒充。 */
+function renderDocStats(d) {
+  const el = $('#rvStats');
+  const ds = d.doc_stats;
+  if (!ds) {
+    el.innerHTML = '<div class="empty">该记录没有文档统计（旧管道产物）；重新上传同一份文件即可生成'
+      + '：格式 / 页数 / 字数 / 图片 / 公式 / 表格 / 存疑清单</div>';
+    return;
+  }
+  const pages = ds.pages_supported === false ? '不适用' : (ds.pages == null ? '未知' : fmt(ds.pages));
+  const cells = [
+    ['格式', esc(ds.format_label || ds.format || '-')],
+    ['页数', pages],
+    ['文字', fmt(ds.text_chars)],
+    ['图片', fmt(ds.images)],
+    ['公式', fmt(ds.formulas)],
+    ['表格', fmt(ds.tables)],
+    ['切块', fmt(ds.chunks)]
+  ];
+  const detail = [
+    `Markdown ${fmt(ds.chars)} 字符` + (ds.chars_clean == null ? '' : ` → 清洗后 ${fmt(ds.chars_clean)}`),
+    `图片：正文引用 ${fmt(ds.image_refs)} / 结构 ${fmt(ds.image_structures)} / 产物 ${fmt(ds.image_assets)}`,
+    `公式：行内 ${fmt(ds.formula_inline)} / 行间 ${fmt(ds.formula_block)} / 结构 ${fmt(ds.formula_structures)}`,
+    `表格：管道表 ${fmt(ds.table_pipe_blocks)} / 结构 ${fmt(ds.table_structures)}`,
+    `标题 ${fmt(ds.headings)}`
+  ];
+  const extra = ds.extra || {};
+  const extraKeys = Object.keys(extra);
+  if (extraKeys.length) {
+    detail.push(extraKeys.map(k => `${esc(k)} ${fmt(extra[k])}`).join(' / '));
+  }
+  const sus = ds.suspects || [];
+  const susHtml = sus.length ? sus.map(s => `<div class="log" style="max-height:none;margin-bottom:8px">
+      <span class="${RV_LEVEL_CHIP[s.level] || 'info'}">${RV_LEVEL_LABEL[s.level] || '疑似'} · ${esc(s.code)}</span>
+      ${s.pages && s.pages.length ? `<span class="tiny mono">第 ${s.pages.join(', ')} 页</span>` : ''}
+      \n${esc(s.detail)}</div>`).join('')
+    : '<div class="chip ok">没有发现结构性存疑项</div>';
+  const notes = (ds.notes || []).map(n => `<div class="tiny">· ${esc(n)}</div>`).join('');
+  el.innerHTML = `<table><thead><tr>${cells.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead>
+      <tbody><tr>${cells.map(c => `<td class="mono">${c[1]}</td>`).join('')}</tr></tbody></table>
+    <div class="tiny mono" style="margin:9px 0 12px">${detail.map(esc).join(' · ')}</div>
+    <h3 style="margin-top:0">存疑部分 <span class="tag tiny">启发式判断，不参与放行结论——但每一条都值得对着下面的三栏看一眼</span></h3>
+    ${susHtml}
+    ${notes ? `<div class="sep"></div>${notes}` : ''}`;
+}
+
+/* 同步滚动按比例映射：三栏字符数不同，按像素对齐没有意义；PDF 内嵌查看器自身不参与同步 */
+let rvSyncing = false;
+function bindSyncScroll() {
+  const panes = [$('#rvOrig'), $('#rvMd'), $('#rvCleaned')];
+  panes.forEach(p => {
+    if (!p) return;
+    p.addEventListener('scroll', () => {
+      if (rvSyncing || !$('#rvSync').checked) return;
+      rvSyncing = true;
+      const ratio = p.scrollTop / Math.max(1, p.scrollHeight - p.clientHeight);
+      panes.forEach(q => {
+        if (q && q !== p) q.scrollTop = ratio * Math.max(0, q.scrollHeight - q.clientHeight);
+      });
+      rvSyncing = false;
+    });
+  });
 }
 
 $('#rvReload').onclick = loadReviews;
@@ -207,6 +375,7 @@ $('#rvReject').onclick = async () => {
 };
 
 window.pageInit = () => {
+  bindSyncScroll();
   loadReviews();
   const doc = new URLSearchParams(location.search).get('doc');
   if (doc) openReview(doc);

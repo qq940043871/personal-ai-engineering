@@ -12,9 +12,9 @@ import org.springframework.web.servlet.view.RedirectView;
 @Controller
 public class UiController {
 
-    /** 与 Python 版 PAGES 一致：路径段 → 页面文件（{seg}.html）。 */
+    /** 与 Python 版 PAGES 一致：路径段 → 页面文件（{seg}.html）；login 为 Java 侧新增的登录页。 */
     static final String[] PAGES = {"overview", "ingest", "review", "chat",
-            "retrieve", "kb", "observe", "plan"};
+            "retrieve", "kb", "observe", "plan", "login"};
 
     @GetMapping("/")
     public RedirectView root() {

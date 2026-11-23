@@ -34,6 +34,14 @@ public class EmbedStep implements Step {
     @SuppressWarnings("unchecked")
     @Override
     public StepResult run(StepContext ctx, Map<String, Object> params) {
+        // 上传时选择"暂不向量化"（embed=deferred）：整段跳过嵌入，块照常入索引（embed_version 留空），
+        // 由用户在「资源」页对单篇/批量手动触发向量化——资源管理口径：先入库，向量化是显式动作
+        if (Boolean.TRUE.equals(ctx.data.get("embed_deferred"))) {
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("embedded", 0);
+            metrics.put("vector", "deferred（资源已入库，向量化待手动触发）");
+            return StepResult.ok(new LinkedHashMap<>(), metrics);
+        }
         List<Map<String, Object>> chunks =
                 (List<Map<String, Object>>) ctx.data.getOrDefault("chunks", new ArrayList<>());
         if (chunks.isEmpty()) {

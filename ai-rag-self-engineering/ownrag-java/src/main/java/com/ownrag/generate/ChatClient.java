@@ -23,10 +23,11 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
- * chat 客户端分派（Python 版 generate/client.py + openai_client.py + ollama_client.py 的平移）：
- * 按 settings.chatProvider 分派 ollama / openai 兼容端点，同接口同异常。
+ * chat 客户端（Python 版 generate/client.py + openai_client.py 的平移）：
+ * 只打 OpenAI 兼容 `/chat/completions`（本地 vLLM / llama.cpp-server / 云端 agnes 都一样），
+ * 不再保留 Ollama 原生 `/api/chat` 分支。
  *
- * 参数映射：num_ctx 无 openai 对应项不上送——它只是预算侧的装箱口径；num_predict → max_tokens。
+ * 参数映射：num_ctx 不下送（OpenAI 协议无对应项）——它只是预算侧的装箱口径；num_predict → max_tokens。
  * 思维链不进正文：delta.reasoning_content 直接跳过。
  */
 @Component
@@ -49,16 +50,12 @@ public class ChatClient {
 
     /**
      * 流式生成：逐 token 回调；连接/模型异常抛 ChatError（调用方转 SSE error，快速失败不吊死）。
-     * numCtx / numPredict 可为 null。
+     * numCtx / numPredict 可为 null（numCtx 仅保留在签名里作为预算口径，不进请求体）。
      */
     public void chatStream(Settings settings, List<Map<String, Object>> messages, String model,
                            Integer numCtx, double temperature, Integer numPredict,
                            Consumer<String> onToken) {
-        if ("openai".equals(settings.getChatProvider())) {
-            streamOpenai(settings, messages, model, temperature, numPredict, onToken);
-        } else {
-            streamOllama(settings, messages, model, numCtx, temperature, numPredict, onToken);
-        }
+        streamOpenai(settings, messages, model, temperature, numPredict, onToken);
     }
 
     /** 聚合版：闸门重答、列映射建议等非流式场景用。 */
@@ -130,64 +127,6 @@ public class ChatClient {
             throw e;
         } catch (IOException e) {
             throw new ChatError("生成端点不可达（" + baseUrl + "，模型 " + usedModel + "）：" + e.getMessage());
-        }
-    }
-
-    // ---- Ollama 原生：/api/chat stream ----
-    private void streamOllama(Settings settings, List<Map<String, Object>> messages, String model,
-                              Integer numCtx, double temperature, Integer numPredict, Consumer<String> onToken) {
-        String baseUrl = settings.getOllamaBaseUrl() == null ? "" : settings.getOllamaBaseUrl().replaceAll("/+$", "");
-        String usedModel = model == null ? settings.getChatModel() : model;
-        Map<String, Object> options = new LinkedHashMap<>();
-        options.put("temperature", temperature);
-        if (numCtx != null) {
-            options.put("num_ctx", numCtx);
-        }
-        if (numPredict != null && numPredict > 0) {
-            options.put("num_predict", numPredict);
-        }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("model", usedModel);
-        payload.put("messages", messages);
-        payload.put("stream", true);
-        payload.put("options", options);
-        Request request = new Request.Builder()
-                .url(baseUrl + "/api/chat")
-                .post(RequestBody.create(Json.write(payload), JSON_TYPE))
-                .build();
-        try (Response resp = http.newCall(request).execute()) {
-            if (!resp.isSuccessful()) {
-                throw new ChatError("Ollama 返回 HTTP " + resp.code() + "（" + baseUrl + "，模型 " + usedModel + "）");
-            }
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(resp.body().byteStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.trim().isEmpty()) {
-                        continue;
-                    }
-                    JsonNode chunk;
-                    try {
-                        chunk = Json.MAPPER.readTree(line);
-                    } catch (IOException e) {
-                        throw new ChatError("Ollama 响应无法解析：" + truncate(line, 120) + "（" + e.getMessage() + "）");
-                    }
-                    if (chunk.hasNonNull("error")) {
-                        throw new ChatError("Ollama 返回错误：" + chunk.path("error").asText());
-                    }
-                    String piece = chunk.path("message").path("content").asText("");
-                    if (!piece.isEmpty()) {
-                        onToken.accept(piece);
-                    }
-                    if (chunk.path("done").asBoolean(false)) {
-                        return;
-                    }
-                }
-            }
-        } catch (ChatError e) {
-            throw e;
-        } catch (IOException e) {
-            throw new ChatError("Ollama 不可达（" + baseUrl + "，模型 " + usedModel + "）：" + e.getMessage());
         }
     }
 

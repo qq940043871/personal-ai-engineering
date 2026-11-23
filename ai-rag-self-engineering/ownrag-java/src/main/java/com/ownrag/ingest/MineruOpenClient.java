@@ -333,6 +333,16 @@ public class MineruOpenClient {
                 } else if ("table".equals(type)) {
                     String body = item.path("table_body").isMissingNode() ? null : item.path("table_body").asText();
                     structures.add(ParsedDoc.structure("table", "page:" + pageIdx, null, body));
+                } else if ("equation".equals(type) || "interline_equation".equals(type)) {
+                    // 行间/行内公式：content_list 里带 latex，个别版本只有 text。
+                    // 登记进 structures 才能让复核页统计"多少公式"，否则公式数永远为 0。
+                    String latex = item.path("latex").asText("");
+                    if (latex.isEmpty()) {
+                        latex = item.path("text").asText("");
+                    }
+                    String img = item.path("img_path").asText("");
+                    structures.add(ParsedDoc.structure("formula", "page:" + pageIdx,
+                            img.isEmpty() ? null : img, latex));
                 }
             }
             pagesOut[0] = Math.max(pagesOut[0], pages);

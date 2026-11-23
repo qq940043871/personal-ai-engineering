@@ -22,17 +22,14 @@ import okhttp3.Response;
  * Rerank 适配（Python 版 retrieve/rerank.py 的平移，可选组件）：
  * 无服务时 RRF 顺序兜底；配置了重排后端则重排候选。
  *
- * 三种 provider 同接口（失败降级可见，不拖垮问答）：
+ * 两种 provider 同接口（失败降级可见，不拖垮问答）：
  *   service      自建 bge-reranker 服务（/rerank，pairs 协议）
  *   siliconflow  SiliconFlow 云 API（/v1/rerank，BAAI/bge-reranker-v2-m3 免费）——平铺 documents + index 回映
- *   ollama       本地 Ollama：reranker GGUF 经 /api/embed 输出 1 维标量相关性分数，
- *                pair 拼接沿用 bge-reranker 官方约定 `query</s></s>doc`
+ * （Ollama 本地 rerank 分支已下线：需要本地重排就起一个 bge-reranker HTTP 服务走 service）
  */
 @Component
 public class RerankClient {
 
-    private static final String BGE_PAIR_SEP = "</s></s>";
-    private static final String OLLAMA_RERANK_MODEL_DEFAULT = "qllama/bge-reranker-v2-m3";
     private static final MediaType JSON_TYPE = MediaType.parse("application/json; charset=utf-8");
 
     private final OkHttpClient http;
@@ -62,9 +59,6 @@ public class RerankClient {
         }
         if ("siliconflow".equals(provider)) {
             return rerankSiliconflow(settings, query, candidates, topN);
-        }
-        if ("ollama".equals(provider)) {
-            return rerankOllama(settings, query, candidates, topN);
         }
         return rerankService(settings, query, candidates, topN);
     }
@@ -150,51 +144,6 @@ public class RerankClient {
             return new RerankResult(head(sortByRerankScore(candidates), topN), "rerank ok");
         } catch (Exception e) {
             // rerank 服务挂了不应拖垮问答——降级可见
-            return new RerankResult(head(candidates, topN), "rerank 服务失败已降级：" + e.getMessage());
-        }
-    }
-
-    // ---- Ollama 本地：/api/embed 标量分数 ----
-    RerankResult rerankOllama(Settings settings, String query,
-                              List<Map<String, Object>> candidates, int topN) {
-        String base = settings.getOllamaBaseUrl() == null ? "" : settings.getOllamaBaseUrl().replaceAll("/+$", "");
-        if (base.isEmpty()) {
-            return new RerankResult(head(candidates, topN), "rerank 未启用（OLLAMA_BASE_URL 未配置）");
-        }
-        String model = settings.getRerankModel() == null || settings.getRerankModel().isEmpty()
-                ? OLLAMA_RERANK_MODEL_DEFAULT : settings.getRerankModel();
-        List<String> inputs = new ArrayList<>();
-        for (Map<String, Object> c : candidates) {
-            String doc = c.get("text") == null ? "" : String.valueOf(c.get("text"));
-            inputs.add(query + BGE_PAIR_SEP + doc);
-        }
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", model);
-        body.put("input", inputs);
-        try {
-            JsonNode root = postJson(base + "/api/embed", body, null, 120_000);
-            JsonNode embs = root.path("embeddings");
-            if (!embs.isArray() || embs.size() != candidates.size()) {
-                return new RerankResult(head(candidates, topN),
-                        "rerank 返回条数不符（" + (embs.isArray() ? embs.size() : 0) + "/" + candidates.size() + "），已降级");
-            }
-            int bad = -1;
-            for (JsonNode e : embs) {
-                if (e.isArray() && e.size() != 1) {
-                    bad = e.size();
-                    break;
-                }
-            }
-            if (bad >= 0) {
-                return new RerankResult(head(candidates, topN),
-                        "rerank 模型输出 " + bad + " 维（期望 1 维标量分数）——该 GGUF 未按 rank pooling 封装，"
-                                + "已降级；换 " + model + " 这类 rerank 封装或改用 service/siliconflow 分派");
-            }
-            for (int i = 0; i < candidates.size(); i++) {
-                candidates.get(i).put("rerank_score", embs.get(i).get(0).asDouble());
-            }
-            return new RerankResult(head(sortByRerankScore(candidates), topN), "rerank ok");
-        } catch (Exception e) {
             return new RerankResult(head(candidates, topN), "rerank 服务失败已降级：" + e.getMessage());
         }
     }

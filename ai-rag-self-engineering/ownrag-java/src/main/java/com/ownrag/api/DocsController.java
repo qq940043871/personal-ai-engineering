@@ -68,11 +68,14 @@ public class DocsController {
     private final Settings settings;
     private final PipelineRunner runner;
     private final TraceLog traceLog;
+    private final com.ownrag.auth.AuthService authService;
 
-    public DocsController(Settings settings, PipelineRunner runner, TraceLog traceLog) {
+    public DocsController(Settings settings, PipelineRunner runner, TraceLog traceLog,
+                          com.ownrag.auth.AuthService authService) {
         this.settings = settings;
         this.runner = runner;
         this.traceLog = traceLog;
+        this.authService = authService;
     }
 
     /** 分块落盘并计数、顺带算 SHA-256：超限即中止并清理，不留半截文件。 */
@@ -102,8 +105,26 @@ public class DocsController {
                                       @RequestParam(value = "topic", required = false) String topic,
                                       @RequestParam(value = "sensitivity", required = false) String sensitivity,
                                       @RequestParam(value = "doc_date", required = false) String docDate,
-                                      @RequestParam(value = "origin", required = false) String origin)
+                                      @RequestParam(value = "origin", required = false) String origin,
+                                      @RequestParam(value = "access_level", required = false) String accessLevel,
+                                      @RequestParam(value = "embed", defaultValue = "immediate") String embedMode,
+                                      javax.servlet.http.HttpServletRequest request)
             throws Exception {
+        // embed=deferred：只解析切分入库（资源），向量留空，由「资源」页手动/批量向量化
+        boolean embedDeferred = "deferred".equalsIgnoreCase(embedMode);
+        boolean loggedIn = authService.currentUser(request) != null;
+        // 访问权限白名单：只收 public/protected，未知值直接拒（不猜成 public 蒙混过关）
+        String level = com.ownrag.auth.AccessLevel.normalize(accessLevel);
+        if (accessLevel != null && !accessLevel.trim().isEmpty()
+                && !com.ownrag.auth.AccessLevel.LEVELS.contains(accessLevel.trim().toLowerCase())) {
+            throw new ApiError(422, "非法 access_level '" + accessLevel + "'（允许："
+                    + com.ownrag.auth.AccessLevel.LEVELS + "）");
+        }
+        if (com.ownrag.auth.AccessLevel.isProtected(level) && !loggedIn) {
+            // 未登录不建"自己都看不到"的文档：否则上传者以为成功，实际检索不到还不知道为什么
+            throw new ApiError(403, "未登录不能上传「需登录」级别的文档：请先登录 "
+                    + AuthController.loginHint("/ui/ingest") + " ，或改选「公开」");
+        }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
         String suffix = suffixOf(filename);
         String pipeline = EXT_PIPELINE.get(suffix);
@@ -147,12 +168,30 @@ public class DocsController {
             String existing = com.ownrag.index.FingerprintStore.findDocByFileHash(conn, fileHash);
             if (existing != null && com.ownrag.index.FingerprintStore.hasIndexedChunks(conn, existing)) {
                 Map<String, Object> prev = latestTask(conn, existing);
+                // 权限沿用已有文档。已登录时按本次选择对齐（重传即改权限，符合直觉）；
+                // 未登录时**绝不**改已有权限——否则匿名者重传一份受限文件就能把它拉回公开
+                String existingLevel = authService.accessLevelOf(existing);
+                String finalLevel = existingLevel;
+                boolean levelAligned = false;
+                if (loggedIn && !level.equals(existingLevel)) {
+                    levelAligned = authService.setAccessLevel(existing, level);
+                    if (levelAligned) {
+                        finalLevel = level;
+                    }
+                }
                 Map<String, Object> out = new LinkedHashMap<>();
                 out.put("doc_id", existing);
                 out.put("task_id", prev.get("task_id"));
                 out.put("pipeline", pipeline);
                 out.put("status", "deduplicated");
-                out.put("note", "同内容文件已入库（file_hash 命中），返回已有 doc_id，未产生新索引");
+                out.put("access_level", finalLevel);
+                out.put("note", levelAligned
+                        ? "同内容文件已入库（file_hash 命中），返回已有 doc_id；访问权限已按本次选择更新为「"
+                          + com.ownrag.auth.AccessLevel.label(finalLevel) + "」"
+                        : "同内容文件已入库（file_hash 命中），返回已有 doc_id，未产生新索引；"
+                          + "访问权限沿用「" + com.ownrag.auth.AccessLevel.label(finalLevel) + "」"
+                          + (com.ownrag.auth.AccessLevel.PROTECTED.equals(finalLevel) && !loggedIn
+                          ? "（受限文档需登录后才能改权限）" : ""));
                 out.put("size_bytes", size);
                 return out;
             }
@@ -167,6 +206,9 @@ public class DocsController {
 
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("source_path", srcPath.toString());
+        if (embedDeferred) {
+            state.put("embed_deferred", Boolean.TRUE);
+        }
         Map<String, Object> sourceMeta = new LinkedHashMap<>();
         sourceMeta.put("source_file", filename.isEmpty() ? srcPath.getFileName().toString() : filename);
         sourceMeta.put("size_bytes", size);
@@ -175,6 +217,8 @@ public class DocsController {
         putIfPresent(sourceMeta, "sensitivity", sensitivity);
         putIfPresent(sourceMeta, "doc_date", docDate);
         putIfPresent(sourceMeta, "origin", origin);
+        // 访问权限（public | protected）：落 documents.access_level，检索与原件读取都按它过滤
+        sourceMeta.put("access_level", level);
         state.put("source_meta", sourceMeta);
 
         String taskId;
@@ -192,6 +236,11 @@ public class DocsController {
         out.put("pipeline", pipeline);
         out.put("size_bytes", size);
         out.put("status", "pending");
+        out.put("embed", embedDeferred ? "deferred" : "immediate");
+        out.put("access_level", level);
+        if (embedDeferred) {
+            out.put("note", "资源已入库（仅解析切分，不入向量库）；到「资源」页手动向量化后才会进入检索");
+        }
         return out;
     }
 
@@ -213,7 +262,12 @@ public class DocsController {
     }
 
     @GetMapping("/docs/{docId}/status")
-    public Map<String, Object> status(@PathVariable String docId) throws Exception {
+    public Map<String, Object> status(@PathVariable String docId,
+                                      javax.servlet.http.HttpServletRequest request) throws Exception {
+        // 任务详情里有文件名与步骤产物：受限文档未登录不给看（明确说"登录后可访问"）
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
         try (java.sql.Connection conn = Db.connect(settings.getDbPath())) {
             Map<String, Object> row;
             try (java.sql.PreparedStatement ps = conn.prepareStatement(
@@ -236,17 +290,25 @@ public class DocsController {
     }
 
     @DeleteMapping("/docs/{docId}")
-    public Map<String, Object> deleteDoc(@PathVariable String docId) throws Exception {
+    public Map<String, Object> deleteDoc(@PathVariable String docId,
+                                         javax.servlet.http.HttpServletRequest request) throws Exception {
+        // 删除是不可逆的：受限文档未登录一律拒绝，不因为"猜到了 doc_id"就放行
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
         // 删除文档 = 派生内容全部退出可检索状态（chunks/FTS/向量三通道一次清）
         try (java.sql.Connection conn = Db.connect(settings.getDbPath())) {
             List<String> kbs = new ArrayList<>();
             int removed = 0;
             try (java.sql.PreparedStatement ps = conn.prepareStatement(
-                    "SELECT kb, COUNT(*) AS n FROM chunks WHERE doc_id=? GROUP BY kb");
-                 java.sql.ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    kbs.add(rs.getString("kb"));
-                    removed += rs.getInt("n");
+                    "SELECT kb, COUNT(*) AS n FROM chunks WHERE doc_id=? GROUP BY kb")) {
+                // 参数必须先绑定再执行：此处曾漏绑，doc_id=? 恒为 NULL → 删除接口永远 404（2026-11-21 发现）
+                ps.setString(1, docId);
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        kbs.add(rs.getString("kb"));
+                        removed += rs.getInt("n");
+                    }
                 }
             }
             if (kbs.isEmpty()) {
@@ -274,6 +336,72 @@ public class DocsController {
             out.put("vector", "ok");
             return out;
         }
+    }
+
+    /**
+     * 文档启停（与删除相对的"临时下架"）：enabled=0 退出双通道检索（chunks/向量/FTS 全保留），
+     * 再置 1 即恢复。用于"这篇先别让分身引用"而不必走不可逆删除。
+     */
+    @PostMapping("/docs/{docId}/enabled")
+    public Map<String, Object> setEnabled(@PathVariable String docId,
+                                          @org.springframework.web.bind.annotation.RequestBody
+                                                  Map<String, Object> body,
+                                          javax.servlet.http.HttpServletRequest request) throws Exception {
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
+        boolean enabled = !Boolean.FALSE.equals(body.get("enabled"));
+        try (java.sql.Connection conn = Db.connect(settings.getDbPath())) {
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE documents SET enabled=?, updated_at=datetime('now','localtime') "
+                            + "WHERE doc_id=?")) {
+                ps.setInt(1, enabled ? 1 : 0);
+                ps.setString(2, docId);
+                int n = ps.executeUpdate();
+                if (n == 0) {
+                    throw new ApiError(404, "doc 不存在：" + docId);
+                }
+            }
+            conn.commit();
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("doc_id", docId);
+            out.put("enabled", enabled);
+            out.put("note", enabled ? "已恢复检索" : "已停用：退出检索，块与向量保留，随时可再启用");
+            return out;
+        }
+    }
+
+    /**
+     * 改文档访问权限（public ↔ protected）：落 documents.access_level 一行，
+     * 检索双通道 / 原件 / 分块 / 复核四处立即按新权限生效（都按 documents 子查询过滤，无冗余副本）。
+     * 需要登录：否则任何人都能把受限文档改成公开，权限形同虚设。
+     */
+    @PostMapping("/docs/{docId}/access")
+    public Map<String, Object> setAccess(@PathVariable String docId,
+                                        @org.springframework.web.bind.annotation.RequestBody
+                                                Map<String, Object> body,
+                                        javax.servlet.http.HttpServletRequest request) throws Exception {
+        if (authService.currentUser(request) == null) {
+            throw new ApiError(403, "改文档权限需要登录：请先到 "
+                    + AuthController.loginHint("/ui/resources") + " 登录");
+        }
+        Object raw = body == null ? null : body.get("access_level");
+        String level = raw == null ? "" : String.valueOf(raw).trim().toLowerCase();
+        if (!com.ownrag.auth.AccessLevel.LEVELS.contains(level)) {
+            throw new ApiError(422, "非法 access_level '" + raw + "'（允许："
+                    + com.ownrag.auth.AccessLevel.LEVELS + "）");
+        }
+        if (!authService.setAccessLevel(docId, level)) {
+            throw new ApiError(404, "doc 不存在或未建档：" + docId);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("doc_id", docId);
+        out.put("access_level", level);
+        out.put("label", com.ownrag.auth.AccessLevel.label(level));
+        out.put("note", com.ownrag.auth.AccessLevel.isProtected(level)
+                ? "已设为「需登录」：未登录用户检索不到这篇文档，也不能读它的分块与原件"
+                : "已设为「公开」：未登录用户也能检索与访问这篇文档");
+        return out;
     }
 
     @PostMapping("/docs/tasks/{taskId}/retry")

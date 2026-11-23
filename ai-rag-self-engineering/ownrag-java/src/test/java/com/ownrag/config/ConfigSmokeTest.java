@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import com.ownrag.core.Step;
 import com.ownrag.core.StepRegistry;
 import com.ownrag.index.ChunkMarkdownStep;
+import com.ownrag.index.CleanMarkdownStep;
 import com.ownrag.index.DedupeChunksStep;
 import com.ownrag.index.EmbedStep;
 import com.ownrag.index.IndexUpsertStep;
@@ -51,6 +52,24 @@ class ConfigSmokeTest {
         assertNotNull(s.pipeline("txt_v1"));
         assertNotNull(s.pipeline("docx_v1"));
 
+        // 每条链路都必须显式有 clean_markdown，且排在 chunk_markdown 之前：
+        // 复核页的"清洗后"那一栏 = 实际切分输入，缺这步就只能看到解析原样，对比失去意义
+        for (String name : new String[]{"pdf_v1", "av_v1", "excel_v1", "md_v1", "txt_v1", "docx_v1"}) {
+            int clean = -1;
+            int chunk = -1;
+            List<StepDef> steps = s.pipeline(name).steps;
+            for (int i = 0; i < steps.size(); i++) {
+                if ("clean_markdown".equals(steps.get(i).type)) {
+                    clean = i;
+                }
+                if ("chunk_markdown".equals(steps.get(i).type) && chunk < 0) {
+                    chunk = i;
+                }
+            }
+            assertTrue(clean >= 0, name + " 缺少 clean_markdown 步骤");
+            assertTrue(chunk > clean, name + " 的 clean_markdown 必须排在 chunk_markdown 之前");
+        }
+
         // 双模式 app + 引用的 prompt 装载成功
         assertNotNull(s.app("interview_coach"), "interview_coach 未定义");
         assertNotNull(s.app("knowledge_advisor"), "knowledge_advisor 未定义");
@@ -65,6 +84,14 @@ class ConfigSmokeTest {
         assertTrue(s.getKnownKbs().contains("kb_interview"));
         assertFalse(s.getKnownKbs().contains("kb_backend"), "kb_backend 已按用户口径删除，不应再出现在白名单");
 
+        // 查询期路由配置在位（docs 11）：allow 决定通道白名单，SQL 护栏参数缺省值也要锁
+        AppDef coach = s.app("interview_coach");
+        assertTrue(coach.routingEnabled, "routing 段未装载");
+        assertTrue(coach.routingAllow.contains("sql"), "allow 里没有 sql：" + coach.routingAllow);
+        assertFalse(coach.routingAllow.contains("web"), "本期不实现联网，allow 不该声明 web");
+        assertEquals(200, coach.sqlMaxRows);
+        assertEquals("rag", coach.routingDefault);
+
         // DSL ↔ 注册表一致性：真实步骤类手工组册（等价启动期 validate）
         List<Step> steps = new ArrayList<>();
         steps.add(new DetectPages());
@@ -73,6 +100,7 @@ class ConfigSmokeTest {
         steps.add(new ParseTextFile());
         steps.add(new ParseDocx());
         steps.add(new ValidateParsedStep());
+        steps.add(new CleanMarkdownStep());
         steps.add(new ChunkMarkdownStep());
         steps.add(new DedupeChunksStep());
         steps.add(new PrepareReviewStep());

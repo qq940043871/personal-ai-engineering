@@ -9,6 +9,9 @@ import java.util.Map;
 /**
  * 运行时设置（Python 版 config.py Settings 的对应物）。
  * 优先级：环境变量 > models.yaml；api_key 一律只走环境变量，不落配置文件。
+ *
+ * 模型接入只有一种形态：**OpenAI 兼容 HTTP 端点**（chat / embeddings / audio transcriptions），
+ * 本地或云端皆可，但不再保留 Ollama 原生协议（已整体下线）。
  */
 public class Settings {
 
@@ -17,12 +20,9 @@ public class Settings {
     private final String configDir;
 
     // ---- 模型端点（models.yaml endpoints + defaults，env 覆盖）----
-    private final String ollamaBaseUrl;
-    private final String chatProvider;      // ollama | openai
     private final String chatBaseUrl;
     private final String chatApiKey;        // env OWNRAG_CHAT_API_KEY
     private final String chatModel;
-    private final String embedProvider;     // ollama | openai
     private final String embedBaseUrl;
     private final String embedApiKey;       // env OWNRAG_EMBED_API_KEY
     private final String embedModel;
@@ -50,8 +50,8 @@ public class Settings {
     private final Map<String, PromptDef> prompts = new LinkedHashMap<>();
 
     public Settings(Path dataDir, String configDir,
-                    String ollamaBaseUrl, String chatProvider, String chatBaseUrl, String chatApiKey,
-                    String chatModel, String embedProvider, String embedBaseUrl, String embedApiKey,
+                    String chatBaseUrl, String chatApiKey, String chatModel,
+                    String embedBaseUrl, String embedApiKey,
                     String embedModel, String embedVersion, String embedQueryInstruct,
                     String rerankProvider, String rerankBaseUrl, String rerankModel, String rerankApiKey,
                     String mineruMode, String mineruBaseUrl, String mineruOpenBaseUrl, String mineruOpenToken,
@@ -60,12 +60,9 @@ public class Settings {
                     Map<String, PipelineDef> pipelines, Map<String, AppDef> apps, Map<String, PromptDef> prompts) {
         this.dataDir = dataDir;
         this.configDir = configDir;
-        this.ollamaBaseUrl = ollamaBaseUrl;
-        this.chatProvider = chatProvider;
         this.chatBaseUrl = chatBaseUrl;
         this.chatApiKey = chatApiKey;
         this.chatModel = chatModel;
-        this.embedProvider = embedProvider;
         this.embedBaseUrl = embedBaseUrl;
         this.embedApiKey = embedApiKey;
         this.embedModel = embedModel;
@@ -155,14 +152,6 @@ public class Settings {
         return prompts;
     }
 
-    public String getOllamaBaseUrl() {
-        return ollamaBaseUrl;
-    }
-
-    public String getChatProvider() {
-        return chatProvider;
-    }
-
     public String getChatBaseUrl() {
         return chatBaseUrl;
     }
@@ -173,10 +162,6 @@ public class Settings {
 
     public String getChatModel() {
         return chatModel;
-    }
-
-    public String getEmbedProvider() {
-        return embedProvider;
     }
 
     public String getEmbedBaseUrl() {

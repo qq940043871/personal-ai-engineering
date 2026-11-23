@@ -34,6 +34,8 @@ public class StartupCheck implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         Db.initSchema(settings.getDbPath());
+        // 登录功能的首启引导：必须在建表之后（users/user_sessions 才存在），所以放这里而不是 @PostConstruct
+        com.ownrag.auth.AuthService.ensureDefaultAdmin(settings);
         registry.validate(settings);
         normalizeLegacyTaskStates();
         log.info("[ownrag] 启动完成: db={} steps_registered={} pipelines={} apps={}",

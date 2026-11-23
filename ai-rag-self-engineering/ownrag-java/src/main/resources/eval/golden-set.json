@@ -1,0 +1,483 @@
+{
+  "kb": "kb_interview",
+  "version": "2026-11-22",
+  "size": 42,
+  "positioning": "黄金评测集：题目全部来自真实语料、期望词已逐条校验存在于 chunks，跑评测只走检索侧（检索→重排→闸门一），不调生成模型。",
+  "judge_rule": {
+    "keyword": "TopN 候选正文必须包含 expect 中全部关键词，且闸门一通过",
+    "reject": "expect_empty=true 时，闸门一必须拦下（放行即判坏）",
+    "direct": "source=direct_hit 时必须命中直击库，掉到检索链路即判坏",
+    "no_expect": "未设期望词的题只观察不判定（pending），不给假结论"
+  },
+  "categories": {
+    "fact": "精确事实/数字",
+    "concept": "概念与机制解释",
+    "compare": "选型对比",
+    "troubleshoot": "排障路径",
+    "multi": "多要件（要找全）",
+    "cross": "跨文档综合",
+    "reject": "应拒答（语料无答案）",
+    "direct": "直击库回归（另由 ensureSeed 自动导入 8 条）"
+  },
+  "cases": [
+    {
+      "question": "InnoDB 默认的页大小是多少？",
+      "category": "fact",
+      "difficulty": "easy",
+      "expect_all": [
+        "innodb_page_size",
+        "16384"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§1.2 一次搬 16KB"
+    },
+    {
+      "question": "为什么 InnoDB 选择 B+ 树而不是红黑树？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "27 层",
+        "随机 IO"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§1.5 为什么不能又高又瘦"
+    },
+    {
+      "question": "一个索引页内部是怎么定位到具体记录的？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "Page Directory",
+        "二分"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§2.2 页内查找"
+    },
+    {
+      "question": "什么是回表？它的代价为什么高？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "回表",
+        "二级索引"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§2.5 回表算成 IO"
+    },
+    {
+      "question": "以通配符开头的模糊匹配为什么用不上索引？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "%abc",
+        "下界"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§5.2 %abc 不能二分"
+    },
+    {
+      "question": "IN 列表太长时，优化器为什么会放弃 index dive？",
+      "category": "fact",
+      "difficulty": "hard",
+      "expect_all": [
+        "index dive",
+        "200"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§6.2 eq_range_index_dive_limit 默认 200"
+    },
+    {
+      "question": "NOT IN 子查询遇到 NULL 会发生什么？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "三值逻辑",
+        "NULL"
+      ],
+      "expect_empty": false,
+      "note": "《15-MySQL又矮又胖》§6.5 NOT IN 的 NULL 陷阱"
+    },
+    {
+      "question": "HyperLogLog 统计 UV 占多少内存、误差多大？",
+      "category": "fact",
+      "difficulty": "medium",
+      "expect_all": [
+        "12KB",
+        "0.81%"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§1.5 高级类型"
+    },
+    {
+      "question": "Redis 的 dict 渐进式 rehash 期间，新增和查询分别怎么处理？",
+      "category": "concept",
+      "difficulty": "hard",
+      "expect_all": [
+        "rehashidx",
+        "ht[1]"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§2.2 dict 渐进式 rehash"
+    },
+    {
+      "question": "ZSet 为什么用跳表而不用红黑树？",
+      "category": "compare",
+      "difficulty": "medium",
+      "expect_all": [
+        "范围查询",
+        "实现简单"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§2.5 跳表"
+    },
+    {
+      "question": "缓存穿透怎么解决？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "布隆过滤器",
+        "缓存空值"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§8.1"
+    },
+    {
+      "question": "分布式锁误删了别人的锁，怎么避免？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "Lua",
+        "校验"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§10.2 误删锁与安全解锁"
+    },
+    {
+      "question": "热 key 怎么发现、怎么处理？",
+      "category": "troubleshoot",
+      "difficulty": "medium",
+      "expect_all": [
+        "--hotkeys",
+        "本地缓存"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§12.3 热 Key"
+    },
+    {
+      "question": "哨兵故障转移时怎么挑新主？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "replica-priority",
+        "quorum"
+      ],
+      "expect_empty": false,
+      "note": "《05-Redis面试题深度整理》§6.3 failover"
+    },
+    {
+      "question": "G1 的内存布局和可预测停顿靠什么实现？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "Region",
+        "可预测停顿"
+      ],
+      "expect_empty": false,
+      "note": "《Java核心复习综合手册》§2.4 G1 详解"
+    },
+    {
+      "question": "生产环境堆内存参数怎么配？",
+      "category": "fact",
+      "difficulty": "easy",
+      "expect_all": [
+        "-Xms",
+        "-Xmx"
+      ],
+      "expect_empty": false,
+      "note": "《Java核心复习综合手册》§2.5 常用 JVM 参数"
+    },
+    {
+      "question": "synchronized 锁升级会经过哪些状态？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "偏向锁",
+        "轻量级锁",
+        "重量级锁"
+      ],
+      "expect_empty": false,
+      "note": "《Java核心复习综合手册》§5.1 锁升级"
+    },
+    {
+      "question": "线程池构造时的关键参数有哪些？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "corePoolSize",
+        "maximumPoolSize",
+        "workQueue"
+      ],
+      "expect_empty": false,
+      "note": "《Java核心复习综合手册》§5.5 ThreadPoolExecutor"
+    },
+    {
+      "question": "元空间上限建议用什么参数、设成多少？",
+      "category": "fact",
+      "difficulty": "medium",
+      "expect_all": [
+        "MaxMetaspaceSize",
+        "512M"
+      ],
+      "expect_empty": false,
+      "note": "《Java核心复习综合手册》§2.5 常用 JVM 参数"
+    },
+    {
+      "question": "线上 CPU 飙高，Java 侧怎么定位到具体线程？",
+      "category": "cross",
+      "difficulty": "hard",
+      "expect_all": [
+        "top -Hp",
+        "jstack"
+      ],
+      "expect_empty": false,
+      "note": "《10-Linux面试题深度整理》§5.2 +《07-JVM与线上排查》§4.1"
+    },
+    {
+      "question": "Kafka 高吞吐靠哪几招？",
+      "category": "concept",
+      "difficulty": "easy",
+      "expect_all": [
+        "顺序写",
+        "零拷贝",
+        "Page Cache"
+      ],
+      "expect_empty": false,
+      "note": "《09-KafkaZookeeper深度八股文》§1.3 核心六板斧"
+    },
+    {
+      "question": "acks 设为 -1/all 意味着什么？",
+      "category": "fact",
+      "difficulty": "medium",
+      "expect_all": [
+        "ISR",
+        "min.insync.replicas"
+      ],
+      "expect_empty": false,
+      "note": "《09-KafkaZookeeper深度八股文》§2.3"
+    },
+    {
+      "question": "HW 和 LEO 是什么关系？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "LEO",
+        "最小"
+      ],
+      "expect_empty": false,
+      "note": "《09-KafkaZookeeper深度八股文》§5.2"
+    },
+    {
+      "question": "Tomcat 的 maxThreads、maxConnections、acceptCount 分别管什么？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "工作线程",
+        "accept 队列"
+      ],
+      "expect_empty": false,
+      "note": "《11-Tomcat面试题深度整理》§3.3"
+    },
+    {
+      "question": "Tomcat NIO 的 Acceptor、Poller、Worker 各自做什么？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "Acceptor",
+        "Poller",
+        "Worker"
+      ],
+      "expect_empty": false,
+      "note": "《11-Tomcat面试题深度整理》§3.2"
+    },
+    {
+      "question": "WEB-INF/classes 和 WEB-INF/lib 谁优先加载？",
+      "category": "fact",
+      "difficulty": "medium",
+      "expect_all": [
+        "WEB-INF/classes",
+        "WEB-INF/lib"
+      ],
+      "expect_empty": false,
+      "note": "《11-Tomcat面试题深度整理》§8.3"
+    },
+    {
+      "question": "大量 TIME_WAIT 怎么优化？",
+      "category": "troubleshoot",
+      "difficulty": "medium",
+      "expect_all": [
+        "tcp_tw_reuse",
+        "tcp_fin_timeout"
+      ],
+      "expect_empty": false,
+      "note": "《10-Linux面试题深度整理》§14.4"
+    },
+    {
+      "question": "Linux 五种 IO 模型分别是哪些？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "IO 多路复用",
+        "异步 IO"
+      ],
+      "expect_empty": false,
+      "note": "《10-Linux面试题深度整理》§10.1"
+    },
+    {
+      "question": "MinIO 为什么用纠删码而不是多副本？",
+      "category": "compare",
+      "difficulty": "medium",
+      "expect_all": [
+        "纠删码",
+        "冗余"
+      ],
+      "expect_empty": false,
+      "note": "《16-五大中间件》§6.3"
+    },
+    {
+      "question": "ES 为什么采用倒排索引加不可变段？",
+      "category": "compare",
+      "difficulty": "medium",
+      "expect_all": [
+        "倒排",
+        "不可变段"
+      ],
+      "expect_empty": false,
+      "note": "《16-五大中间件》§4.3"
+    },
+    {
+      "question": "MongoDB 为什么用 B 树而不是 B+ 树？",
+      "category": "compare",
+      "difficulty": "hard",
+      "expect_all": [
+        "B 树",
+        "COW"
+      ],
+      "expect_empty": false,
+      "note": "《16-五大中间件》§5.3"
+    },
+    {
+      "question": "B2B 交易平台的网关十道关包括哪些？",
+      "category": "multi",
+      "difficulty": "medium",
+      "expect_all": [
+        "十道关",
+        "协议号",
+        "脱敏"
+      ],
+      "expect_empty": false,
+      "note": "《02-项目叙事-B2B》§3.1 一次下单"
+    },
+    {
+      "question": "撮合引擎为什么没有用 Java 重写？",
+      "category": "concept",
+      "difficulty": "hard",
+      "expect_all": [
+        "GC 停顿",
+        "内存订单簿"
+      ],
+      "expect_empty": false,
+      "note": "《02-项目叙事-B2B》§4 技术选型"
+    },
+    {
+      "question": "RAG 答非所问，按链路怎么归因？",
+      "category": "troubleshoot",
+      "difficulty": "medium",
+      "expect_all": [
+        "查检索",
+        "查生成"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q35"
+    },
+    {
+      "question": "RRF 为什么比分数加权更适合生产？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "归一化",
+        "名次"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q40"
+    },
+    {
+      "question": "双塔和交叉编码器在编码方式上有什么区别？",
+      "category": "compare",
+      "difficulty": "medium",
+      "expect_all": [
+        "各自独立",
+        "拼接"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q41"
+    },
+    {
+      "question": "资料里没有答案时，怎么让 RAG 不硬编？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "Rerank 分数阈值",
+        "未找到"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q59"
+    },
+    {
+      "question": "为什么不能让模型自己标引用？",
+      "category": "concept",
+      "difficulty": "medium",
+      "expect_all": [
+        "张冠李戴",
+        "编造出处"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q60"
+    },
+    {
+      "question": "RAG 评测集必须标注哪三样东西？",
+      "category": "multi",
+      "difficulty": "medium",
+      "expect_all": [
+        "标准答案",
+        "chunk 级",
+        "证据"
+      ],
+      "expect_empty": false,
+      "note": "《08-AI开发工程师面试真题》Q62"
+    },
+    {
+      "question": "员工食堂的菜单多久更新一次？",
+      "category": "reject",
+      "difficulty": "easy",
+      "expect_all": [],
+      "expect_empty": true,
+      "note": "应拒答：语料无行政制度"
+    },
+    {
+      "question": "办公室宠物政策是怎么规定的？",
+      "category": "reject",
+      "difficulty": "easy",
+      "expect_all": [],
+      "expect_empty": true,
+      "note": "应拒答：语料无行政制度"
+    },
+    {
+      "question": "园区停车场的收费标准是多少？",
+      "category": "reject",
+      "difficulty": "easy",
+      "expect_all": [],
+      "expect_empty": true,
+      "note": "应拒答：语料无行政制度"
+    }
+  ]
+}

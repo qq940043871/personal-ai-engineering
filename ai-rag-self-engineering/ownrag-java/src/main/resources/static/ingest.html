@@ -24,6 +24,13 @@
               <label class="f">知识库（kb）</label>
               <select id="upKb"></select>
             </div>
+            <div class="fix" style="width:210px;flex:0 0 210px">
+              <label class="f">访问权限</label>
+              <select id="upAccess">
+                <option value="public">公开（未登录也可检索）</option>
+                <option value="protected">需登录（登录后才能检索）</option>
+              </select>
+            </div>
             <div class="fix" style="flex:1">
               <label class="f">支持：pdf / xlsx / csv / mp4 / mp3 / wav …（按扩展名路由管道）</label>
               <div class="tiny mono" id="upPipeHint">—</div>
@@ -34,6 +41,10 @@
             <div class="tiny">上传即入任务表 → 后台跑管道 → 每步落 trace；失败进待办，不静默丢</div>
             <input type="file" id="file" hidden>
           </div>
+          <label class="flex" style="margin-top:10px;cursor:pointer">
+            <input type="checkbox" id="upDefer" style="width:auto">
+            <span class="tiny">暂不向量化：只解析切分入库为「资源」，到「资源」页再手动向量化（默认上传后立即向量化）</span>
+          </label>
           <div id="upResult" style="margin-top:12px"></div>
         </div>
 
@@ -48,7 +59,8 @@
           <div id="taskList"><div class="empty">暂无任务</div></div>
         </div>
         <div class="card" style="margin-top:14px">
-          <h3>待办（人工队列）<span class="tag chip" id="todoN">0</span></h3>
+          <h3>待办（人工队列）<span class="tag chip" id="todoN">0</span>
+            <button class="btn sm ghost" id="todoClear" style="margin-left:auto">清空全部待办</button></h3>
           <div id="todoList"><div class="empty">没有待办</div></div>
         </div>
       </div>
@@ -71,6 +83,15 @@ function taskChip(status) {
   return [TASK_CHIP[status] || 'warn', TASK_LABEL[status] || status || '-'];
 }
 const needReviewTask = t => t && (t.status === 'pending_review' || /待人工复核/.test(String(t.error || '')));
+/** 任务时间：今天显示 HH:MM:SS，历史显示 MM-DD HH:MM——历史任务别冒充"刚跑完"。 */
+function taskTime(ts) {
+  const s = String(ts || '');
+  if (s.length < 16) return s || '-';
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+  return s.slice(0, 10) === todayStr ? s.slice(11, 19) : s.slice(5, 16);
+}
 function openChunks(kb, docId) {
   goto('kb', 'kb=' + encodeURIComponent(kb || '') + '&doc=' + encodeURIComponent(docId || ''));
 }
@@ -86,17 +107,26 @@ async function upload(file) {
   const kb = $('#upKb').value;
   const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
   const pipe = PIPE_BY_EXT[ext];
-  $('#upRoute').textContent = pipe ? ('→ ' + pipe) : '不支持的扩展名';
+  const defer = $('#upDefer') && $('#upDefer').checked;
+  $('#upRoute').textContent = pipe ? ('→ ' + pipe + (defer ? ' · 暂不向量化' : '')) : '不支持的扩展名';
   $('#upResult').innerHTML = `<div class="muted">上传中：${esc(file.name)}（${fmt(file.size)} 字节）…</div>`;
+  const access = ($('#upAccess') || {}).value || 'public';
   const fd = new FormData(); fd.append('file', file); fd.append('kb', kb);
+  if (defer) fd.append('embed', 'deferred');
+  // 访问权限随上传入库（documents.access_level）：未登录时选"需登录"会被后端 403 明确拒绝
+  fd.append('access_level', access);
   try {
     const r = await api('/docs/upload', { method: 'POST', body: fd });
     $('#upResult').innerHTML = `<div class="flex"><span class="chip ok">已入队</span>
-      <span class="tiny mono">doc ${esc(r.doc_id)} · task ${esc(r.task_id)} · ${fmt(r.size_bytes || 0)}B</span></div>`
+      <span class="tiny mono">doc ${esc(r.doc_id)} · task ${esc(r.task_id)} · ${fmt(r.size_bytes || 0)}B</span>
+      ${accessChip(r.access_level || access)}</div>`
       + (pipe === 'pdf_v1'
         ? '<div class="tiny" style="margin-top:6px">PDF 会在解析+切分后停在「解析复核」：看过产物点通过才写索引</div>'
+        : '')
+      + (defer
+        ? '<div class="tiny" style="margin-top:6px">已选「暂不向量化」：入库为资源后，到 <a href="/ui/resources">「资源」页</a> 手动向量化</div>'
         : '');
-    toast('已入队，正在跑管道', 'ok');
+    toast(defer ? '已入队（暂不向量化）' : '已入队，正在跑管道', 'ok');
     watchTask(r.task_id, r.doc_id);
     loadTasks(); loadTodos();
   } catch (e) {
@@ -162,8 +192,8 @@ async function loadTasks() {
     const rows = (d.tasks || []).map(t => {
       const [cls, label] = taskChip(t.status);
       return `
-      <div class="step" style="cursor:pointer" onclick="watchTask('${esc(t.id)}','${esc(t.doc_id)}')">
-        <span class="n">${esc((t.created_at || '').slice(11, 19))}</span>
+      <div class="step" style="cursor:pointer;grid-template-columns:54px 1fr" onclick="watchTask('${esc(t.id)}','${esc(t.doc_id)}')">
+        <span class="n" style="white-space:nowrap">${esc(taskTime(t.created_at))}</span>
         <span><span class="chip ${cls}">${esc(label)}</span>
           <span class="tiny mono"> ${esc(t.pipeline)} · ${esc(shortId(t.doc_id))}</span>
           ${t.error ? `<div class="err">${esc(String(t.error).slice(0, 90))}</div>` : ''}
@@ -195,6 +225,16 @@ async function resolveTodo(id) {
 }
 
 $('#reloadTasks').onclick = () => { loadTasks(); loadTodos(); };
+$('#todoClear').onclick = async () => {
+  const n = +($('#todoN').textContent || '0') || 0;
+  if (!n) return toast('没有待办');
+  if (!(await uiConfirm('一次性关闭 ' + n + ' 条 open 待办。记录保留（变为已处理），仅退出人工队列。批量灌库的同因残留用这个清；个别仍需处理的请先处理再清。', '清空全部待办？'))) return;
+  try {
+    const r = await postJSON('/admin/todos/resolve_all', {});
+    toast('已关闭 ' + fmt(r.resolved) + ' 条待办', 'ok');
+    loadTodos();
+  } catch (e) { toast(e.message, 'bad'); }
+};
 window.pageInit = () => { loadTasks(); loadTodos(); };
 boot();
 </script>

@@ -20,6 +20,263 @@
       <div class="card"><h3>知识库规模</h3><div id="ovChunks" class="kpi">–</div><div class="tiny" id="ovChunksSub"></div></div>
       <div class="card"><h3>待办队列</h3><div id="ovTodos" class="kpi">–</div><div class="tiny">失败不会消失，全部进人工队列</div></div>
     </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>全链路流程图<span class="tag chip info">登录 → 解析 → 索引 → 检索 → 生成 → 校验</span></h3>
+      <div class="flex tiny" style="margin-bottom:11px">
+        <span class="chip">灰 = 处理步骤</span>
+        <span class="chip info">蓝框 = 校验闸门（编号对应下两表）</span>
+        <span class="chip sec">紫框 = 权限 / 安全（登录态 · 文档权限 · 越权二次校验）</span>
+        <span class="chip bad">红框 = 拒答出口</span>
+        <span class="sp"></span>
+        <span>配置源：<code class="mono">pipelines.yaml</code> / <code class="mono">apps.yaml</code>；闸门是纯代码，规则进 Git 随评测集回归</span>
+      </div>
+      <div class="flow-wrap">
+
+        <div class="flow-row hl">
+          <div class="lane"><b>⓪ 登录 / 会话</b><span>每个请求先解出身份，再决定「能看多少文档」</span></div>
+          <div class="flow">
+            <div class="fn sec"><div class="t"><span class="badge">S0</span>登录 <code>/auth/login</code></div>
+              <div class="d">PBKDF2（12 万次 + 每账号随机盐）校验口令 → 随机 token 落 <code>user_sessions</code>；
+                HttpOnly Cookie <code>ownrag_session</code>，页面跳转 / SSE / curl 共用同一个会话</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t">身份快照</div>
+              <div class="d">请求线程里解析一次（HttpServletRequest 不跨线程），整轮问答用同一权限快照；
+                中途登出不会改掉本轮口径 · <code>/auth/me</code> 只说状态，未登录也返回 200</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t">登录态 → 可见范围</div>
+              <div class="d">未登录 = <code>public_only</code>（只看公开文档）；登录 = 全部文档。
+                这个取值贯穿后面 ①②③ 的每一次查询，是"能看多少"的唯一开关</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">退出 <code>/auth/logout</code></div>
+              <div class="d">删服务端会话行 + 清 Cookie：不是"让浏览器忘掉"，是真正的会话失效</div></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="lane"><b>① 接入</b><span>选管道 · 去重 · 建任务</span></div>
+          <div class="flow">
+            <div class="fn"><div class="t">上传 <code>/docs/upload</code></div>
+              <div class="d">按扩展名选六条管道之一：pdf / av / excel / md / txt / docx</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">A0</span>接入前置校验</div>
+              <div class="d">扩展名白名单 · kb 白名单 · sensitivity 取值域 · 文件 SHA-256 指纹 ·
+                <code>access_level</code> ∈ {public, protected}（未登录不允许传 protected）</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">建任务 + 文档权限建档</div>
+              <div class="d">tasks + state_json 检查点 + trace_id；同事务写
+                <code>documents.access_level</code>——权限只存在这一行，检索/原件/分块都靠它</div></div>
+          </div>
+        </div>
+
+        <div class="flow-row hl">
+          <div class="lane"><b>② 解析 → 索引</b><span>三链收敛 ParsedDoc，五道校验后才进库</span></div>
+          <div class="flow">
+            <div class="fn"><div class="t">路由 / 抽取</div>
+              <div class="d">PDF：detect_pages 页级路由（pipeline / vlm）；音视频：抽音轨 + ASR + 按时间切；Excel：staging + schema 推断 + 行卡片</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">parse_* 解析</div>
+              <div class="d">产物 = markdown + structures + assets + stats（同一中间态契约）</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">fallback 降级链</div>
+              <div class="d">mineru(vlm) → mineru(pipeline) → pdfbox，穷尽才入待办；走了哪条写进报告</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">A1</span>validate_parsed</div>
+              <div class="d">空 Markdown / 正文过短 → 与解析失败同待遇</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">clean_markdown</div>
+              <div class="d">页标记 · 页码行 · NBSP/零宽 · 空行归一，逐条计数；洗空则回退</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">chunk_markdown</div>
+              <div class="d">结构感知切分：块头注入、表格不跨块、整段重叠</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">dedupe_chunks</div>
+              <div class="d">块级内容指纹去重（批内 + 跨文档），重复块不花嵌入钱</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">A2</span>prepare_review</div>
+              <div class="d">质量检查 blocking / warn / stats + 落盘 parsed.md · cleaned.md · chunks.json · report.json</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">A3</span>review_gate</div>
+              <div class="d">pending → 挂起等人；rejected / verdict=fail → 不许写索引</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">embed</div>
+              <div class="d">allow_skip=显式降级 BM25 单路；deferred=先入库后手动向量化</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">index_upsert</div>
+              <div class="d">chunks + FTS5 + chunk_vectors 三通道，同 doc 先删后插（幂等）</div></div>
+          </div>
+        </div>
+
+        <div class="flow-row hl">
+          <div class="lane"><b>③ 检索</b><span>直击库优先；两路召回<b>先按权限过滤</b>，再 RRF + 重排 + 越权复核</span></div>
+          <div class="flow">
+            <div class="fn gate"><div class="t"><span class="badge">B0</span>提问前置红线</div>
+              <div class="d">问题含禁区词 → 不查库不调模型，直接拒答</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t"><span class="badge">S1</span>直击库 L0/L1/L2</div>
+              <div class="d">高频题精确命中即返回（零检索零生成）；它不挂在 documents 上，所以自带
+                <code>access_level</code>，未登录只命中公开条目——否则就是绕开文档权限的后门</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">QueryRewriter</div>
+              <div class="d">规则闸门：含指代 + 有历史才调模型消解；套话纯规则剥离；失败降级拼接</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t"><span class="badge">S2</span>双路召回（先过滤后召回）</div>
+              <div class="d">BM25（FTS5 逐字切分）+ 向量（按 embed_version 精确匹配，不匹配即空并播报）；
+                <b>过滤写在 SQL 里</b>：<code>COALESCE(documents.access_level,'public')</code> 未登录只留公开文档，
+                没权限的块根本不进候选池 · SQL 通道路由同样只把公开文档的 Excel 表放进表目录</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">RRF 融合</div>
+              <div class="d">k=60 名次融合，两路原始命中回填正文</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">rerank</div>
+              <div class="d">top_n 偶数化后重排；失败降级为 RRF 顺序并在 note 写明</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t"><span class="badge">S3</span>越权二次校验①<br>（进模型前）</div>
+              <div class="d">候选池每个 <code>doc_id</code> 拿去 <code>documents</code> 再问一遍"现在能不能读"：
+                读不到的直接<b>剔除</b>（不信任上游过滤，fail-closed），并播报"剔除 N 块需登录内容"</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">B1</span>闸门一（生成前）</div>
+              <div class="d"><code>sufficiency_check</code>：候选不足就不进模型</div></div>
+            <i class="ar">→</i>
+            <div class="fn stop"><div class="t"><span class="badge">拒</span>no_evidence</div>
+              <div class="d">「未找到有效依据」= 合法答案，不是故障</div></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="lane"><b>④ 生成</b><span>预算裁剪 → 渲染 → 流式</span></div>
+          <div class="flow">
+            <div class="fn"><div class="t">Budget 预算裁剪</div>
+              <div class="d">ctx 预算定 num_ctx / 输出预留；丢块与截断随 gate 事件回传</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">prompt 渲染</div>
+              <div class="d">模板版本化；占位符只校验模板本身（正文里的 {1}{2} 不误判）</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">流式生成</div>
+              <div class="d">SSE token 增量；首答留档 raw_answer（debug）。<b>token 一旦下发就收不回</b>——
+                所以越权必须在 ③ 的 S3 拦住，不能指望这一步之后补</div></div>
+          </div>
+        </div>
+
+        <div class="flow-row hl">
+          <div class="lane"><b>⑤ 生成后校验</b><span>闸门二 + 重答 + 越权撤回 + 拒答</span></div>
+          <div class="flow">
+            <div class="fn gate"><div class="t"><span class="badge">B2</span>citation_check</div>
+              <div class="d">引用块须在候选池 · 数字/日期须能在块原文找到 · 长答案零引用 = 违规</div></div>
+            <i class="ar">→</i>
+            <div class="fn gate"><div class="t"><span class="badge">B3</span>redline_check</div>
+              <div class="d">答案命中禁词表（客户名 / 内网信息），禁词可能来自检索块或提问复述</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">修复重答（一次）</div>
+              <div class="d">带违规清单重答；只有「通过」或「违规更少」才采纳（token.repaired）</div></div>
+            <i class="ar">→</i>
+            <div class="fn stop"><div class="t"><span class="badge">拒</span>红线 / 修复失败</div>
+              <div class="d">重答仍含禁词 → redline_refused；重答调用失败 → repair_failed，绝不交付原答案</div></div>
+            <i class="ar">→</i>
+            <div class="fn sec"><div class="t"><span class="badge">S4</span>越权二次校验②<br>（生成后撤回）</div>
+              <div class="d">答案点名了"当前会话读不到的文档"（比对受限文档文件名）→ <code>retracted</code>：
+                <code>citations</code> 清空、答案换撤回话术、首答不进 trace/qa_log，前端把已显示的正文整段盖掉</div></div>
+            <i class="ar">→</i>
+            <div class="fn"><div class="t">done</div>
+              <div class="d">answer + citations（块号/锚点）+ trace_id，落 qa_log；撤回时带 <code>retracted:true</code> 且引用为空</div></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="hint" style="margin-bottom:0">读法：<b>谁进来都先过 ⓪</b>——身份决定「能看多少文档」，这个取值贯穿后面每一跳；
+        一条文档走 ①②，一个问题走 ③④⑤。② 的校验决定「库里有没有脏数据」，
+        ③ 的 <b>S2 过滤 + S3 复核</b>决定「越权内容会不会进模型」，⑤ 的 <b>S4</b> 决定「万一答出来了能不能交付」，
+        ⑤ 的 B2/B3 决定「这次答得对不对」——四处都不靠模型自律，靠可回归的规则。</div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>解析阶段校验了什么<span class="tag chip info">A0-A3 · 入库前</span></h3>
+      <div class="tiny">做的是「宁可拦住、也不让脏正文进索引」：阻断项（blocking）直接判失败，提示项（warn）交给人对着三栏看一眼。
+        代码：<code class="mono">index/ValidateParsedStep</code> · <code class="mono">index/CleanMarkdown</code> ·
+        <code class="mono">review/ReviewStore.qualityChecks</code> · <code class="mono">review/ReviewGateStep</code></div>
+      <table class="chk" style="margin-top:10px">
+        <thead><tr><th>闸</th><th>校验项</th><th>具体判据</th><th>不通过会怎样</th></tr></thead>
+        <tbody>
+          <tr><td>A0 接入</td><td>准入 + 幂等</td>
+            <td>扩展名在 <code>EXT_PIPELINE</code> 内 · <code>kb</code> ∈ apps.yaml 白名单（∪ 运行时登记） ·
+              <code>sensitivity</code> ∈ {public, internal, restricted} ·
+              <code>access_level</code> ∈ {public, protected}（文档级权限，落 <code>documents</code> 一行） ·
+              文件 SHA-256 是否已入库</td>
+            <td>415 不支持扩展名 / 422 非法库、非法敏感级或非法权限（前端过滤条件永远匹配不上，故必须在入口收敛）；
+              未登录却传 <code>protected</code> → 403（权限不能自助升级）；
+              指纹命中 → <code>deduplicated</code>，复用已有 doc_id，不产生新索引（已登录时按本次选择对齐权限，
+              匿名重传则沿用原权限——否则重传一份受限文件就能把它拉回公开）</td></tr>
+          <tr><td>A1</td><td><code>validate_parsed</code><br>产物可用性</td>
+            <td>markdown 非空，且 trim 后长度 ≥ <code>min_chars_per_page</code>（默认 20）</td>
+            <td>步骤 fail → 任务 failed 并入 todos（与「解析失败」同待遇：解析成功但产出不可用不算成功）</td></tr>
+          <tr><td>—</td><td><code>clean_markdown</code><br>清洗安全阀</td>
+            <td>① 清洗后正文是否被洗空 ② 移除比例是否 &gt; 25%</td>
+            <td>不阻断：洗空 → 回退未清洗正文并写 <code>stats.fallback</code>；移除过量 → 追加提示项
+              <code>clean_removed_lots</code>，提醒对照「解析后 / 清洗后」两栏确认不是规则误伤</td></tr>
+          <tr><td>A2 blocking</td><td>硬缺陷（不可放行）</td>
+            <td><code>empty_markdown</code> 空产物 · <code>too_few_chars</code> 字符/页 &lt; 20（疑扫描件未 OCR 或文本层缺失）</td>
+            <td><code>verdict=fail</code> → 复核记录置 fail，A3 直接拒绝入库；换解析后端或修正参数重传才可能好</td></tr>
+          <tr><td>A2 warn</td><td>可疑（人看一眼）</td>
+            <td><code>page_marker_mismatch</code> 页标记数 ≠ 声明页数（引用页码可能错位）·
+              <code>empty_pages</code> 有页无可提取文本 · <code>mojibake</code> 乱码/控制字符占比 &gt; 0.5% ·
+              <code>no_headings</code> 正文 &gt; 200 字符却无标题行（结构丢失→只能硬切）·
+              <code>table_flattened</code> 有表格行文但 structures 里 0 张表 ·
+              <code>oversized_chunk</code> 块 &gt; 1.5×max_tokens · <code>degraded_path</code> 走了降级链 ·
+              <code>clean_removed_lots</code> 清洗移除 &gt; 25%</td>
+            <td><code>verdict=warn</code> → 仍可放行，但复核页必须人工确认（auto_approve 只对「无阻断项」生效，
+              md/txt 两条无歧义管道才默认自动过闸）</td></tr>
+          <tr><td>A3</td><td><code>review_gate</code><br>入库闸</td>
+            <td>复核记录存在 · <code>status=approved</code></td>
+            <td>无记录 / <code>rejected</code>（带驳回原因）/ <code>verdict=fail</code> → 拒绝写索引；
+              <code>pending</code> → 任务挂起（awaitReview），人工通过后从本步续跑</td></tr>
+          <tr><td>—</td><td>去重与写入一致性</td>
+            <td>块内容 hash（批内 + 跨文档，<code>chunk_hashes</code>）· 向量数必须 = 块数</td>
+            <td>重复块既不嵌入也不入库；两数不符 → 步骤 fail（避免「有版本号没向量」的静默残废）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>大模型回答后校验了什么<span class="tag chip info">B0-B3 + S4 · 生成前后</span></h3>
+      <div class="tiny">口径：闸门只做「可校验的错」（引用不实、数字无据、越红线、越权），不承诺零幻觉。
+        代码：<code class="mono">generate/Gates.citationCheck</code> · <code class="mono">generate/RedlineGate</code> ·
+        <code class="mono">auth/AccessPostCheck</code> · <code class="mono">api/ChatController.repairAnswer</code></div>
+      <table class="chk" style="margin-top:10px">
+        <thead><tr><th>闸</th><th>校验项</th><th>具体判据</th><th>不通过会怎样</th></tr></thead>
+        <tbody>
+          <tr><td>B0 前置</td><td>提问原件</td>
+            <td><code>redline_terms.txt</code> 是否命中问题文本（客户名 / 内网信息）</td>
+            <td>不检索、不生成，直接 <code>no_evidence</code> + <code>done(source=gate)</code>，qa_log 记「提问含红线禁词」</td></tr>
+          <tr><td>B1 闸门一</td><td>有没有依据<br><code>sufficiency_check</code></td>
+            <td>候选池非空；有重排分时 top-rerank ≥ 0.05（bge-reranker 校准：相关块 ~0.9、语义邻近无关块 ~0.0）；
+              无重排分时 top-RRF &gt; 0</td>
+            <td><code>no_evidence</code>：交付「未找到有效依据」——这是合法答案，不调模型、不产生幻觉</td></tr>
+          <tr><td>B2 闸门二</td><td>引用是否真实<br><code>citation_check</code></td>
+            <td>① 引用的「块N」必须在候选池内（候选池 = 预算裁剪后真正进模型的块）
+              ② 该行出现的数字/日期必须能在被引块原文找到（剔除引用标注与行首列表序号后再比）
+              ③ 有数字却无任何引用 = 违规 ④ 答案 &gt; 100 字符却零引用 = 违规</td>
+            <td>违规清单随 <code>gate.post</code> 下发（页面标红），触发重答</td></tr>
+          <tr><td>B3 闸门二</td><td>有没有越红线<br><code>redline_check</code></td>
+            <td>答案文本是否命中禁词表——禁词可能来自检索块（restricted 放行口径），也可能是对提问的复述</td>
+            <td>同 B2 触发重答；重答后仍未通过（尤其仍含禁词）→ <code>redline_refused</code>：
+              交付固定拒答话术，绝不把带禁词的答案交出去</td></tr>
+          <tr><td>S4 越权<br>(+ S3 前置)</td><td>来源是否有权<br><code>AccessPostCheck</code></td>
+            <td>① 进模型前（S3）：候选池每个 <code>doc_id</code> 独立回查 <code>documents.access_level</code>，
+              读不到的块剔除 ② 生成后（S4）：答案是否点名了"当前会话读不到"的文档
+              （比对受限文档文件名：去扩展名、≥4 字、排除已在候选里的） ③ 引用集合必须是可读文档的子集</td>
+            <td>S3 → <code>gate:access_precheck</code> 播报剔除块数，再走闸门一（全剔光则按"无依据"拒答）；
+              S4 → <code>gate:access_blocked</code> + <code>done.retracted=true</code>：citations 清空、
+              答案换撤回话术（含登录入口）、首答不进 trace/qa_log，前端把流式期间显示的正文整段盖掉</td></tr>
+          <tr><td>—</td><td><code>schema_check</code><br>输出结构</td>
+            <td>JSON 模式下 <code>readTree</code> 语法合法性</td>
+            <td>apps.yaml 已声明该闸，但 <code>ChatController</code> 目前只接了 B2/B3——这一项还是骨架，状态如实标「未接线」</td></tr>
+          <tr><td>修复</td><td>重答采纳策略</td>
+            <td>把「违规清单 + 只保留有候选块支持的结论 + 每个结论标 [来源: 块N]」作为新一轮 user 消息重答一次</td>
+            <td>新答「通过」或「违规数更少」→ 采纳并标 <code>repaired</code>；
+              重答调用异常 → <code>repair_failed</code>，交付「引用校验未通过，已按规则拒答原答案」</td></tr>
+        </tbody>
+      </table>
+    </div>
     <div class="grid g32" style="margin-top:14px">
       <div class="card">
         <h3>三步验证（每次改动后跑一遍）</h3>
@@ -50,16 +307,11 @@
 <script>
 async function loadOverview() {
   const h = S.health || {};
-  const ollama = h.ollama || {};
   const cb = h.chat_backend || {};
-  const ollamaUsed = ollama.used !== false;
-  // 第一行按「生成后端」口径（本地 ollama 与远程 OpenAI 兼容端点都算 LLM）；
-  // 只有真在用本地 Ollama 时才多挂一行它的可达性，避免远程档位下出现"Ollama 未使用"的噪声
+  // 生成后端只有 OpenAI 兼容一种形态（本地/云端皆可），不再单列 Ollama 可达性
   $('#ovHealth').innerHTML = `
     <div class="flex" style="margin-bottom:6px"><i class="dot ${cb.ok ? 'ok' : 'bad'}"></i>
       <b>LLM</b><span class="tiny">${esc(cb.provider || '')}${cb.model ? ' · ' + esc(cb.model) : ''} · ${esc(cb.ok ? '可用' : (cb.detail || '不可达'))}</span></div>
-    ${ollamaUsed ? `<div class="flex" style="margin-bottom:6px"><i class="dot ${ollama.ok ? 'ok' : 'bad'}"></i>
-      <b>Ollama</b><span class="tiny">${esc(ollama.ok ? '可达' : (ollama.detail || '不可达'))}</span></div>` : ''}
     <div class="flex" style="margin-bottom:6px"><i class="dot ${(h.pipeline_missing_steps || []).length ? 'bad' : 'ok'}"></i>
       <b>管道 DSL</b><span class="tiny">${(h.steps_registered || []).length} 个步骤类型 · 缺失 ${(h.pipeline_missing_steps || []).length}</span></div>
     <div class="flex"><i class="dot ${h.rerank_enabled ? 'ok' : 'warn'}"></i>

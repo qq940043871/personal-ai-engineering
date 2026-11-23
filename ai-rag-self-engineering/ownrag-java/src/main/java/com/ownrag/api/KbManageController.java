@@ -47,10 +47,18 @@ public class KbManageController {
 
     private final Settings settings;
     private final com.ownrag.index.Embedder embedder;
+    private final com.ownrag.auth.AuthService authService;
 
-    public KbManageController(Settings settings, com.ownrag.index.Embedder embedder) {
+    public KbManageController(Settings settings, com.ownrag.index.Embedder embedder,
+                              com.ownrag.auth.AuthService authService) {
         this.settings = settings;
         this.embedder = embedder;
+        this.authService = authService;
+    }
+
+    /** 未登录时的文档可见性条件（列表类查询共用一句话，避免某条接口漏过滤）。 */
+    private static String publicOnlyClause(boolean loggedIn) {
+        return loggedIn ? "" : " AND COALESCE(access_level,'public')='public'";
     }
 
     // ---------------------------------------------------------------- 知识库
@@ -190,7 +198,13 @@ public class KbManageController {
      * （2026-11-20 审查发现：漏清的孤儿 hash 会让重灌的块全部被判重复丢弃）。
      */
     @PostMapping("/admin/kbs/{kb}/purge")
-    public Map<String, Object> purgeKb(@PathVariable String kb) throws Exception {
+    public Map<String, Object> purgeKb(@PathVariable String kb,
+                                       javax.servlet.http.HttpServletRequest request) throws Exception {
+        // 库级清空不可逆（含受限文档）：不允许匿名执行
+        if (authService.currentUser(request) == null) {
+            throw new ApiError(403, "库级清空不可逆，需要登录后执行：请先到 "
+                    + AuthController.loginHint("/ui/kb") + " 登录");
+        }
         List<String> docIds = new ArrayList<>();
         long chunkCount = 0;
         try (Connection conn = Db.connect(settings.getDbPath())) {
@@ -243,6 +257,212 @@ public class KbManageController {
     }
 
     // ---------------------------------------------------------------- 文档
+
+    /**
+     * 资源管理清单：**全部已上传文档**（跨库），供「资源」页使用——资源口径是文档维度，
+     * 向量化是文档上的显式动作（vectorize），与 kb 维度的 reembed 互补。
+     * state 筛选：pending（待向量化）/ done（已向量化）/ disabled（已停用），空 = 全部。
+     */
+    @GetMapping("/admin/documents")
+    public Map<String, Object> listAllDocuments(
+            @RequestParam(defaultValue = "") String kb,
+            @RequestParam(defaultValue = "") String q,
+            @RequestParam(defaultValue = "") String state,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            javax.servlet.http.HttpServletRequest request)
+            throws Exception {
+        limit = Math.max(1, Math.min(limit, 200));
+        offset = Math.max(0, offset);
+        boolean loggedIn = authService.currentUser(request) != null;
+        StringBuilder where = new StringBuilder(" WHERE 1=1");
+        where.append(publicOnlyClause(loggedIn));
+        List<Object> args = new ArrayList<>();
+        if (!kb.trim().isEmpty()) {
+            where.append(" AND kb=?");
+            args.add(kb.trim());
+        }
+        String qv = q.trim();
+        if (!qv.isEmpty()) {
+            where.append(" AND (instr(lower(COALESCE(source_file,'')), lower(?)) > 0"
+                    + " OR instr(lower(doc_id), lower(?)) > 0)");
+            args.add(qv);
+            args.add(qv);
+        }
+        if ("pending".equals(state)) {
+            where.append(" AND COALESCE(vector_count,0) = 0 AND COALESCE(enabled,1)=1");
+        } else if ("done".equals(state)) {
+            where.append(" AND COALESCE(vector_count,0) > 0 AND COALESCE(enabled,1)=1");
+        } else if ("disabled".equals(state)) {
+            where.append(" AND COALESCE(enabled,0) = 0");
+        }
+
+        long total = 0;
+        List<Map<String, Object>> docs = new ArrayList<>();
+        try (Connection conn = Db.connect(settings.getDbPath())) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT COUNT(*) n FROM documents" + where)) {
+                for (int i = 0; i < args.size(); i++) {
+                    ps.setObject(i + 1, args.get(i));
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    total = rs.next() ? rs.getLong("n") : 0;
+                }
+            }
+            String sql = "SELECT doc_id, kb, COALESCE(source_file, doc_id) source_file,"
+                    + " chunk_count, COALESCE(vector_count,0) vector_count, chars,"
+                    + " created_at first_at, updated_at last_at, task_status, pipeline,"
+                    + " review_status, size_bytes, COALESCE(enabled,1) enabled,"
+                    + " COALESCE(access_level,'public') access_level"
+                    + " FROM documents" + where
+                    + " ORDER BY last_at DESC, doc_id LIMIT ? OFFSET ?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                int i = 1;
+                for (Object a : args) {
+                    ps.setObject(i++, a);
+                }
+                ps.setInt(i++, limit);
+                ps.setInt(i, offset);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("doc_id", rs.getString("doc_id"));
+                        row.put("kb", rs.getString("kb"));
+                        row.put("source_file", rs.getString("source_file"));
+                        row.put("chunk_count", rs.getLong("chunk_count"));
+                        row.put("vector_count", rs.getLong("vector_count"));
+                        row.put("chars", rs.getLong("chars"));
+                        row.put("first_at", rs.getString("first_at"));
+                        row.put("last_at", rs.getString("last_at"));
+                        row.put("task_status", rs.getString("task_status"));
+                        row.put("pipeline", rs.getString("pipeline"));
+                        row.put("review_status", rs.getString("review_status"));
+                        row.put("size_bytes", rs.getLong("size_bytes"));
+                        row.put("enabled", rs.getInt("enabled"));
+                        row.put("access_level", rs.getString("access_level"));
+                        docs.add(row);
+                    }
+                }
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", total);
+        out.put("limit", limit);
+        out.put("offset", offset);
+        // 明确告诉页面当前口径：未登录只列公开文档（列表里出现"需登录"标志的只有已登录时）
+        out.put("logged_in", loggedIn);
+        out.put("public_only", !loggedIn);
+        out.put("documents", docs);
+        return out;
+    }
+
+    /**
+     * 单篇文档向量化（资源管理的显式动作）：对本 doc 全部缺向量 / 版本不符的块按当前
+     * embed 模型重算并写向量，同步 chunks.embed_version 与 documents.vector_count。
+     * 分批提交、可重复调用续跑（幂等）。与库级 reembed 的区别：只动这一篇，不影响其他资源。
+     */
+    @PostMapping("/admin/documents/{docId}/vectorize")
+    public Map<String, Object> vectorizeDoc(@PathVariable String docId,
+                                            @RequestParam(value = "batch", defaultValue = "16") int batch,
+                                            javax.servlet.http.HttpServletRequest request)
+            throws Exception {
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
+        final String version = settings.getEmbedVersion();
+        batch = Math.max(1, Math.min(batch, 32));
+        String kb;
+        List<Map<String, Object>> pending = new ArrayList<>();
+        try (Connection conn = Db.connect(settings.getDbPath())) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT kb FROM documents WHERE doc_id=?")) {
+                ps.setString(1, docId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new ApiError(404, "doc 不存在：" + docId);
+                    }
+                    kb = rs.getString("kb");
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT chunk_id, doc_id, ordinal, text FROM chunks"
+                            + " WHERE doc_id=? AND (embed_version IS NULL OR embed_version<>?)"
+                            + " ORDER BY ordinal, chunk_id")) {
+                ps.setString(1, docId);
+                ps.setString(2, version);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("chunk_id", rs.getString(1));
+                        row.put("doc_id", rs.getString(2));
+                        row.put("ordinal", rs.getInt(3));
+                        String text = rs.getString(4);
+                        row.put("text", text == null ? "" : text);
+                        pending.add(row);
+                    }
+                }
+            }
+            Db.endRead(conn);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("doc_id", docId);
+        out.put("kb", kb);
+        out.put("embed_model", settings.getEmbedModel());
+        out.put("embed_version", version);
+        if (pending.isEmpty()) {
+            out.put("status", "noop");
+            out.put("pending", 0);
+            out.put("note", "该文档已全部向量化，无需重建");
+            return out;
+        }
+
+        long t0 = System.nanoTime();
+        int done = 0;
+        int dim = 0;
+        try (Connection conn = Db.connect(settings.getDbPath())) {
+            for (int i = 0; i < pending.size(); i += batch) {
+                List<Map<String, Object>> part = new ArrayList<>(
+                        pending.subList(i, Math.min(i + batch, pending.size())));
+                List<String> texts = new ArrayList<>();
+                for (Map<String, Object> r : part) {
+                    texts.add(String.valueOf(r.get("text")));
+                }
+                List<List<Double>> embs;
+                try {
+                    embs = embedder.embedTexts(settings, texts, batch, null);
+                } catch (com.ownrag.index.Embedder.EmbedError e) {
+                    conn.rollback();
+                    throw new ApiError(502, "向量化中断（已写入 " + done + " 块，可重复调用续跑）："
+                            + e.getMessage());
+                }
+                if (embs.size() != part.size()) {
+                    conn.rollback();
+                    throw new ApiError(502, "向量数不符：请求 " + part.size() + " 返回 " + embs.size());
+                }
+                ChunkStore.vectorUpsert(conn, kb, part, embs);
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE chunks SET embed_version=? WHERE chunk_id=?")) {
+                    for (Map<String, Object> r : part) {
+                        ps.setString(1, version);
+                        ps.setString(2, String.valueOf(r.get("chunk_id")));
+                        ps.executeUpdate();
+                    }
+                }
+                conn.commit();
+                done += part.size();
+                dim = embs.get(0).size();
+            }
+            com.ownrag.core.DocumentStore.refreshStats(conn, docId);
+            conn.commit();
+        }
+        out.put("status", "vectorized");
+        out.put("pending_before", pending.size());
+        out.put("vectorized", done);
+        out.put("dim", dim);
+        out.put("ms", Math.round((System.nanoTime() - t0) / 1_000_000.0 * 10) / 10.0);
+        return out;
+    }
+
 
     /**
      * 向量通道重建（换 embedding 模型的必要动作）：按 chunks.text 原地重算向量，
@@ -364,14 +584,16 @@ public class KbManageController {
     public Map<String, Object> listDocuments(@PathVariable String kb,
                                              @RequestParam(defaultValue = "") String q,
                                              @RequestParam(defaultValue = "20") int limit,
-                                             @RequestParam(defaultValue = "0") int offset)
+                                             @RequestParam(defaultValue = "0") int offset,
+                                             javax.servlet.http.HttpServletRequest request)
             throws Exception {
         limit = Math.max(1, Math.min(limit, 200));
         offset = Math.max(0, offset);
+        boolean loggedIn = authService.currentUser(request) != null;
         String qv = q.trim();
-        String filter = qv.isEmpty() ? "" :
+        String filter = publicOnlyClause(loggedIn) + (qv.isEmpty() ? "" :
                 " AND (instr(lower(COALESCE(source_file,'')), lower(?)) > 0"
-                        + " OR instr(lower(doc_id), lower(?)) > 0)";
+                        + " OR instr(lower(doc_id), lower(?)) > 0)");
 
         long total = 0;
         try (Connection conn = Db.connect(settings.getDbPath())) {
@@ -391,7 +613,8 @@ public class KbManageController {
                     + " COALESCE(source_file, doc_id) source_file,"
                     + " chunk_count, vector_count, chars,"
                     + " created_at first_at, updated_at last_at,"
-                    + " task_status, pipeline, review_status, size_bytes, file_hash"
+                    + " task_status, pipeline, review_status, size_bytes, file_hash,"
+                    + " COALESCE(enabled, 1) enabled, COALESCE(access_level,'public') access_level"
                     + " FROM documents WHERE kb=?" + filter
                     + " ORDER BY last_at DESC, doc_id LIMIT ? OFFSET ?";
             List<Map<String, Object>> docs = new ArrayList<>();
@@ -420,6 +643,8 @@ public class KbManageController {
                         row.put("review_status", rs.getString("review_status"));
                         row.put("size_bytes", rs.getLong("size_bytes"));
                         row.put("file_hash", rs.getString("file_hash"));
+                        row.put("enabled", rs.getInt("enabled"));
+                        row.put("access_level", rs.getString("access_level"));
                         docs.add(row);
                     }
                 }
@@ -430,6 +655,8 @@ public class KbManageController {
             out.put("total", total);
             out.put("limit", limit);
             out.put("offset", offset);
+            out.put("logged_in", loggedIn);
+            out.put("public_only", !loggedIn);
             out.put("documents", docs);
             return out;
         }
@@ -443,8 +670,13 @@ public class KbManageController {
                                              @RequestParam(defaultValue = "") String kb,
                                              @RequestParam(defaultValue = "") String q,
                                              @RequestParam(defaultValue = "20") int limit,
-                                             @RequestParam(defaultValue = "0") int offset)
+                                             @RequestParam(defaultValue = "0") int offset,
+                                             javax.servlet.http.HttpServletRequest request)
             throws Exception {
+        // 块正文与向量就是文档本身：受限文档未登录时明确拒绝（并给出登录入口）
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
         limit = Math.max(1, Math.min(limit, 200));
         offset = Math.max(0, offset);
         String qv = q.trim();

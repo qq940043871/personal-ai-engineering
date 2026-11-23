@@ -29,8 +29,9 @@ import com.ownrag.util.Json;
  *
  * 落盘结构（data/review/<doc_id>/）：
  *   parsed.md     解析中间态全文（复核对象原貌，不经任何裁剪）
+ *   cleaned.md    清洗后正文 = 真正送去切分与入库的那份（CleanMarkdown 产物，与 parsed.md 逐栏对照）
  *   chunks.json   切分预览（块序号 / 块头 / 锚点 / 字数 / 前若干字）
- *   report.json   页级明细 + 解析步骤 + 质量检查 + 本次参数
+ *   report.json   页级明细 + 解析步骤 + 质量检查 + 清洗统计 + 本次参数
  */
 public final class ReviewStore {
 
@@ -112,6 +113,12 @@ public final class ReviewStore {
      */
     public static Map<String, Object> qualityChecks(Map<String, Object> parsed, List<Map<String, Object>> chunks,
                                                     int minCharsPerPage, int maxChunkTokens, double oversizedRatio) {
+        return qualityChecks(parsed, chunks, minCharsPerPage, maxChunkTokens, oversizedRatio, null);
+    }
+
+    public static Map<String, Object> qualityChecks(Map<String, Object> parsed, List<Map<String, Object>> chunks,
+                                                    int minCharsPerPage, int maxChunkTokens, double oversizedRatio,
+                                                    Map<String, Object> clean) {
         String markdown = parsed.get("markdown") == null ? "" : String.valueOf(parsed.get("markdown"));
         Map<String, Object> metadata = orEmpty(parsed.get("metadata"));
         Map<String, Object> statsIn = orEmpty(parsed.get("stats"));
@@ -224,12 +231,21 @@ public final class ReviewStore {
         stats.put("backend", backend != null && !backend.isEmpty() ? backend
                 : (degraded != null && !degraded.isEmpty() ? degraded : "unknown"));
 
+        // 文档统计 + 存疑清单：多少页/字/图/公式/表，以及哪些地方不能信（跨页表格等）。
+        // 刻意不并入 blocking/warn——它是"事实与风险提示"，放不放行仍由人决定。
+        Map<String, Object> docStats = DocStats.compute(parsed, chunks, clean);
+        stats.put("format", docStats.get("format"));
+        stats.put("images", docStats.get("images"));
+        stats.put("formulas", docStats.get("formulas"));
+        stats.put("suspects", docStats.get("suspect_count"));
+
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("verdict", verdict);
         out.put("blocking", blocking);
         out.put("warn", warn);
         out.put("stats", stats);
         out.put("pages", details.pages);
+        out.put("doc_stats", docStats);
         return out;
     }
 
@@ -242,8 +258,11 @@ public final class ReviewStore {
 
     // ---------------------------------------------------------------- 工件落盘
 
-    /** 三份工件落盘（全量，不截断）：给人看的原件、切分预览、结构化报告。 */
-    public static Map<String, String> writeArtifacts(Path reviewDir, String markdown,
+    /**
+     * 工件落盘（全量，不截断）：解析原样、清洗后正文、切分预览、结构化报告。
+     * cleanedMarkdown 为空则只写 parsed.md（旧行为）——复核页会显式标注"未生成清洗后工件"。
+     */
+    public static Map<String, String> writeArtifacts(Path reviewDir, String markdown, String cleanedMarkdown,
                                                      List<Map<String, Object>> chunks,
                                                      Map<String, Object> report) throws java.io.IOException {
         Files.createDirectories(reviewDir);
@@ -275,6 +294,11 @@ public final class ReviewStore {
         paths.put("parsed_md", parsedMd.toString());
         paths.put("chunks", chunksJs.toString());
         paths.put("report", reportJs.toString());
+        if (cleanedMarkdown != null && !cleanedMarkdown.isEmpty()) {
+            Path cleanedMd = reviewDir.resolve("cleaned.md");
+            Files.write(cleanedMd, cleanedMarkdown.getBytes(StandardCharsets.UTF_8));
+            paths.put("cleaned_md", cleanedMd.toString());
+        }
         return paths;
     }
 
@@ -330,13 +354,16 @@ public final class ReviewStore {
                                     String traceId, String pipeline, String sourceFile,
                                     Map<String, Object> checks, String reportPath) throws SQLException {
         Map<String, Object> stats = (Map<String, Object>) checks.get("stats");
+        Map<String, Object> docStats = checks.get("doc_stats") instanceof Map
+                ? (Map<String, Object>) checks.get("doc_stats") : new LinkedHashMap<String, Object>();
         Map<String, Object> existing = getReview(conn, docId);
         String status = existing != null && STATUS_APPROVED.equals(existing.get("status"))
                 ? STATUS_APPROVED : STATUS_PENDING;
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO parse_reviews(doc_id, kb, task_id, trace_id, pipeline, source_file, backend,"
                         + " status, verdict, pages, chars, tables, structures, blocking_json, warn_json,"
-                        + " pages_json, report_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                        + " pages_json, report_path, format, images, formulas, suspects, doc_stats_json)"
+                        + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
                         + " ON CONFLICT(doc_id) DO UPDATE SET kb=excluded.kb, task_id=excluded.task_id,"
                         + " trace_id=excluded.trace_id, pipeline=excluded.pipeline,"
                         + " source_file=excluded.source_file, backend=excluded.backend,"
@@ -344,6 +371,8 @@ public final class ReviewStore {
                         + " tables=excluded.tables, structures=excluded.structures,"
                         + " blocking_json=excluded.blocking_json, warn_json=excluded.warn_json,"
                         + " pages_json=excluded.pages_json, report_path=excluded.report_path,"
+                        + " format=excluded.format, images=excluded.images, formulas=excluded.formulas,"
+                        + " suspects=excluded.suspects, doc_stats_json=excluded.doc_stats_json,"
                         + " updated_at=datetime('now','localtime')")) {
             ps.setString(1, docId);
             ps.setString(2, kb);
@@ -356,12 +385,19 @@ public final class ReviewStore {
             ps.setString(9, String.valueOf(checks.get("verdict")));
             ps.setInt(10, num(stats.get("pages")));
             ps.setInt(11, num(stats.get("chars")));
-            ps.setInt(12, num(stats.get("tables")));
+            // tables 用文档统计口径（正文管道表 ∪ structures，取大者）：
+            // stats.tables 只数 structures，表格被拍平/结构清单缺失时会是 0，列表页会误报"没有表格"
+            ps.setInt(12, num(docStats.get("tables")));
             ps.setInt(13, num(stats.get("structures")));
             ps.setString(14, Json.write(checks.get("blocking")));
             ps.setString(15, Json.write(checks.get("warn")));
             ps.setString(16, Json.write(checks.get("pages")));
             ps.setString(17, reportPath);
+            ps.setString(18, String.valueOf(docStats.get("format")));
+            ps.setInt(19, num(docStats.get("images")));
+            ps.setInt(20, num(docStats.get("formulas")));
+            ps.setInt(21, num(docStats.get("suspect_count")));
+            ps.setString(22, Json.write(docStats));
             ps.executeUpdate();
         }
         conn.commit();

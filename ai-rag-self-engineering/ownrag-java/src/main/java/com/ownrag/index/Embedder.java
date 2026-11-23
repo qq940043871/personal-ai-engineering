@@ -22,7 +22,7 @@ import okhttp3.Response;
 
 /**
  * embedding 适配（Python 版 index/embedder.py 的平移，供应商可换）：
- * ollama 原生 /api/embed | OpenAI 兼容 /embeddings。
+ * 只打 **OpenAI 兼容 `/embeddings`**（SiliconFlow / DashScope / 本地 vLLM 等），不保留 Ollama 原生 `/api/embed`。
  *
  * 显式版本：embed_version 与向量兼容性绑定——跨版本向量禁止混用（换供应商/模型 = 换值 = 全量重建索引）。
  * 熔断（breaker）：连接级失败在本机可能耗 2 秒以上；一次问答要付两份代价（直击库 L1 + 混合检索各 embed 一次）。
@@ -72,66 +72,21 @@ public class Embedder {
         BREAKER_UNTIL.set(System.nanoTime() / 1_000_000 + (long) (BREAKER_SECONDS * 1000));
     }
 
-    /** 文档侧批量向量化：不加指令前缀。按 settings.embedProvider 分派，失败抛 EmbedError。 */
+    /** 文档侧批量向量化：不加指令前缀，失败抛 EmbedError（OpenAI 兼容 `/embeddings`）。 */
     public List<List<Double>> embedTexts(Settings settings, List<String> texts, int batch, String model) {
-        return "openai".equals(settings.getEmbedProvider())
-                ? embedTextsOpenai(settings, texts, batch, model)
-                : embedTextsOllama(settings, texts, batch, model);
+        return embedTextsOpenai(settings, texts, batch, model);
     }
 
     /** 查询侧单条向量化：指令前缀默认关闭（bge-m3 无此语义）；OWNRAG_EMBED_QUERY_INSTRUCT 开启。 */
     public List<Double> embedQuery(Settings settings, String query) {
         String q = query;
-        if ("openai".equals(settings.getEmbedProvider()) && settings.getEmbedQueryInstruct() != null
-                && !settings.getEmbedQueryInstruct().isEmpty()) {
+        if (settings.getEmbedQueryInstruct() != null && !settings.getEmbedQueryInstruct().isEmpty()) {
             q = "Instruct: " + settings.getEmbedQueryInstruct() + "\nQuery: " + query;
         }
         return embedTexts(settings, java.util.Collections.singletonList(q), 32, null).get(0);
     }
 
-    // ---- ollama 分派：POST {base}/api/embed（原生批量接口） ----
-    List<List<Double>> embedTextsOllama(Settings settings, List<String> texts, int batch, String model) {
-        String base = settings.getOllamaBaseUrl();
-        String m = model == null ? settings.getEmbedModel() : model;
-        if (breakerOpen()) {
-            throw embedError("embedding 后端不可用（熔断中，" + String.format("%.1f", breakerRemainingSec())
-                    + "s 后重试）：" + base);
-        }
-        List<List<Double>> out = new ArrayList<>();
-        for (int i = 0; i < texts.size(); i += batch) {
-            List<String> part = texts.subList(i, Math.min(i + batch, texts.size()));
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("model", m);
-            body.put("input", part);
-            Request request = new Request.Builder()
-                    .url(base + "/api/embed")
-                    .post(RequestBody.create(Json.write(body), JSON_TYPE))
-                    .build();
-            JsonNode payload;
-            try (Response resp = http.newCall(request).execute()) {
-                if (!resp.isSuccessful()) {
-                    // 协议/状态码级：不改熔断，属于配置或模型问题
-                    throw embedError("Ollama embedding 失败（" + base + "，模型 " + m + "）：HTTP " + resp.code());
-                }
-                payload = Json.MAPPER.readTree(resp.body().byteStream());
-            } catch (EmbedError e) {
-                throw e;
-            } catch (IOException e) {
-                // 连接级：Ollama 没起/网络不通
-                tripBreaker();
-                throw embedError("Ollama embedding 不可达（" + base + "，模型 " + m + "）：" + e.getMessage());
-            }
-            JsonNode embs = payload.path("embeddings");
-            if (!embs.isArray() || embs.size() != part.size()) {
-                throw embedError("embedding 数量不符：请求 " + part.size() + " 返回 "
-                        + (embs.isArray() ? embs.size() : 0));
-            }
-            out.addAll(nodeToVectors(embs));
-        }
-        return out;
-    }
-
-    // ---- openai 兼容分派：POST {base}/embeddings，响应 data[i].embedding 按 index 对齐 ----
+    // ---- OpenAI 兼容：POST {base}/embeddings，响应 data[i].embedding 按 index 对齐 ----
     List<List<Double>> embedTextsOpenai(Settings settings, List<String> texts, int batch, String model) {
         String base = settings.getEmbedBaseUrl() == null ? "" : settings.getEmbedBaseUrl().replaceAll("/+$", "");
         if (base.isEmpty() || settings.getEmbedApiKey() == null || settings.getEmbedApiKey().isEmpty()) {
@@ -187,18 +142,6 @@ public class Embedder {
                 }
                 out.add(vec);
             }
-        }
-        return out;
-    }
-
-    private static List<List<Double>> nodeToVectors(JsonNode embs) {
-        List<List<Double>> out = new ArrayList<>();
-        for (JsonNode emb : embs) {
-            List<Double> vec = new ArrayList<>(emb.size());
-            for (JsonNode v : emb) {
-                vec.add(v.asDouble());
-            }
-            out.add(vec);
         }
         return out;
     }

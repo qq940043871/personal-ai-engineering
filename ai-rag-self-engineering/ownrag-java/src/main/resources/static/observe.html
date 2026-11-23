@@ -16,22 +16,23 @@
     <div class="top"><h1>观测</h1><div class="pills" id="pills"></div></div>
 
     <div class="grid g3" id="obKpis"></div>
-    <div class="grid g32" style="margin-top:14px">
-      <div class="card">
-        <h3>按 trace_id 复盘 <span class="tag tiny">任何一次“答案不对”先查这里</span></h3>
-        <div class="row">
-          <div><label class="f">trace_id</label><input id="trId" placeholder="从问答页复制"></div>
-          <div class="fix"><button class="btn primary" id="trGo">查 trace</button></div>
-        </div>
-        <div id="trOut" style="margin-top:12px"><div class="empty">输入 trace_id 查看每一步的耗时/计数/错误</div></div>
-      </div>
-      <div class="card">
-        <h3>运行计数</h3>
-        <div id="obMetrics" class="tiny mono" style="line-height:2">加载中…</div>
-      </div>
-    </div>
+
     <div class="card" style="margin-top:14px">
-      <h3>问答日志 <span class="tag tiny">评测集与直击库 L2 的原料</span></h3>
+      <h3>按 trace_id 复盘 <span class="tag tiny">任何一次“答案不对”先查这里</span></h3>
+      <div class="row">
+        <div><label class="f">trace_id</label><input id="trId" placeholder="从问答页「用 trace 复盘」按钮复制"></div>
+        <div class="fix"><button class="btn primary" id="trGo">查 trace</button></div>
+      </div>
+      <div id="trOut" style="margin-top:12px"><div class="empty">输入 trace_id 查看每一步做了什么、耗时多少、结论是什么</div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>运行计数 <span class="tag tiny">只给运行事实，不含命中率等业务指标</span></h3>
+      <div id="obMetrics" class="muted">加载中…</div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>问答日志 <span class="tag tiny">点 trace 列可直接复盘那一次</span></h3>
       <div id="obQa"><div class="empty">加载中…</div></div>
     </div>
   </main>
@@ -41,47 +42,433 @@
 <script src="/ui/assets/app.js"></script>
 <script src="/ui/assets/menu.js"></script>
 <script>
+/* ------------------------------------------------------------------
+   步骤字典：把机器名翻译成"这一步在干什么"
+   main: 前缀是管道执行器加的（main / fallback），展示时剥掉
+   ------------------------------------------------------------------ */
+const STEP_INFO = {
+  // ---- 问答链路（与 /ui/chat 调试页 ①-⑧ 对应）----
+  pre_redline:   { t: '提问红线闸门', d: '检查问题本身是否含禁词（客户名等）：命中就拒答，不进检索、不生成', at: '问答调试 ① 之前' },
+  direct_hit:    { t: '直击库匹配', d: '高频题精确/近义命中，直接吐标准答案，零检索零生成', at: '问答调试 ① 之前' },
+  rewrite:       { t: '问句改写', d: '指代消解 / 去套话，决定这次召回到底用哪句话', at: '问答调试 ①' },
+  retrieve:      { t: '混合检索 + 重排', d: '关键词 + 向量两路召回 → RRF 名次融合 → rerank 重排，产出候选池', at: '问答调试 ②→⑤' },
+  generate:      { t: '大模型生成', d: '把候选块灌进 prompt 生成回答，并跑闸门二（引用真实性 / 红线禁词）', at: '问答调试 ⑥→⑧' },
+  // ---- 入库管道 ----
+  detect_pages:   { t: '页级路由探测', d: '抽几页判断电子版还是扫描版，决定走文本解析还是 OCR/VLM' },
+  parse_mineru:   { t: 'MinerU 解析', d: '主解析器：产出 Markdown + 页锚 + 图片' },
+  parse_pdfbox:   { t: 'PDFBox 兜底解析', d: 'MinerU 不可用时的纯文本兜底：结构丢了但内容还在' },
+  parse_textfile: { t: '文本/Markdown 直读', d: '原生 md/txt 直通，严格 UTF-8 失败则 GBK 兜底' },
+  parse_docx:     { t: 'Word 解析', d: 'POI 读 docx：标题样式转 #、表格转管道表' },
+  validate_parsed:{ t: '解析校验闸', d: '空/过短/丢页 = 与解析失败同待遇，不许往下走' },
+  clean_markdown: { t: '正文清洗', d: '页标记、页码行、空行归一，逐类计数' },
+  chunk_markdown: { t: '结构感知切分', d: '标题路径注入块首、表格永不跨块、段落间重叠' },
+  dedupe_chunks:  { t: '块级去重', d: '按块内容哈希查重，命中的块不占索引名额' },
+  prepare_review: { t: '生成复核单', d: '产物与切分落盘 + 质量检查，置 pending 等人工放行' },
+  review_gate:    { t: '入库闸门', d: 'pending/rejected 一律不许写索引' },
+  embed:          { t: '向量化', d: '调 embed 端点批量嵌入；端点不可达则显式降级为关键词单路' },
+  index_upsert:   { t: '写索引', d: '按 doc_id 先删后插：chunks + FTS5 + 向量三处一起写' },
+  ff_extract_audio:{ t: '抽音轨与关键帧', d: 'ffmpeg 抽音频（16k 单声道）+ 按间隔抓关键帧' },
+  asr_transcribe: { t: '语音转写', d: 'OpenAI 兼容 /audio/transcriptions 走 ASR' },
+  segment_by_time:{ t: '按时间切段', d: '优先停顿/句尾边界，块带 [mm:ss] 时间锚' },
+  ocr_keyframes:  { t: '关键帧 OCR', d: 'Java 版暂无进程内 OCR，未配置时显式 skipped' },
+  excel_stage:    { t: '表格落 staging', d: '全 TEXT 保真落临时表，避免类型推断把数据编坏' },
+  schema_infer:   { t: '列结构推断', d: '列名/非空率/样本/类型推断' },
+  column_mapping: { t: '列映射', d: '恒等映射起步，向量化前把列名与业务语义对齐' },
+  textualize:     { t: '行级卡片化', d: '每行转成一张 row_card：数字留在表格里，可引用' }
+};
+
+/* 计数键 → 中文标签（认不出的键原样显示，不丢信息） */
+const CTR_LABEL = {
+  chars: '字符数', chars_in: '输入字符', chars_out: '输出字符', removed: '删去字符',
+  removed_ratio: '删去占比', clean_chars: '清洗后字符', clean_removed_ratio: '清洗删去占比',
+  page_markers: '页标记行', page_numbers: '页码行', comments: '注释行', blank_lines: '空行',
+  chunks: '块数', tables: '表格数', total: '总数', kept: '保留', skipped: '跳过',
+  verdict: '质量结论', status: '状态', pages: '页数', blocking: '阻断项', warn: '提示项',
+  gate: '闸门结论', embedded: '已嵌入向量', vector: '向量通道', note: '说明', encoding: '编码',
+  candidates: '候选块', rerank: '重排', query: '检索式', kb: '知识库', filter: '过滤条件',
+  vector_topk: '向量 topk', bm25_topk: '关键词 topk', bm25_hits: '关键词命中', vector_hits: '向量命中',
+  gate_post: '闸门二', ctx_blocks: '上下文块', ctx_tokens: '上下文 tok', num_ctx: '上下文窗口',
+  reserved_output: '输出预留', method: '改写方式', original: '原问题', rewritten: '改写后',
+  history_turns: '历史轮数'
+};
+/* 同名字段在不同步骤含义不同时的覆盖（generate.chars = 输出字数，不是正文字符数） */
+const STEP_LABEL_OVERRIDE = { generate: { chars: '输出字数' } };
+/* 长文本类字段单独一行显示，不塞进 chip */
+const LONG_KEYS = { note: 1, query: 1, original: 1, rewritten: 1, filter: 1 };
+
+const fmtMs = (v) => {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  if (!isFinite(n)) return String(v);
+  if (n >= 1000) return (n / 1000).toFixed(2) + ' s';
+  if (n >= 10) return Math.round(n) + ' ms';
+  return n.toFixed(1) + ' ms';
+};
+const fmtVal = (k, v) => {
+  if (v === null || v === undefined || v === '') return '—';
+  if (k === 'gate_post') return v ? '通过' : '未通过';
+  if (k === 'removed_ratio' || k === 'clean_removed_ratio') return (Number(v) * 100).toFixed(1) + '%';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+const stepInfo = (name) => {
+  const key = String(name || '').replace(/^(main|fallback):/, '');
+  return Object.assign({ t: key, d: '' }, STEP_INFO[key] || {});
+};
+
+/* ---------------- trace 复盘 ---------------- */
 $('#trGo').onclick = lookupTrace;
 $('#trId').addEventListener('keydown', e => { if (e.key === 'Enter') lookupTrace(); });
+
 async function lookupTrace() {
   const id = $('#trId').value.trim();
-  if (!id) return;
+  if (!id) return toast('先填 trace_id');
   $('#trOut').innerHTML = '<div class="empty">查询中…</div>';
   try {
     const d = await api('/admin/trace/' + encodeURIComponent(id));
-    $('#trOut').innerHTML = `<div class="tiny mono">trace ${esc(d.trace_id)} · ${d.steps.length} 步</div>
-      <div class="steps" style="margin-top:8px">${d.steps.map((s, i) => `
-        <div class="step"><span class="n">${i + 1}</span>
-          <span><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${s.status}</span>
-            <span class="mono" style="font-size:12px"> ${esc(s.step)}</span>
-            ${s.error ? `<div class="tiny" style="color:#ffb0b0">${esc(s.error)}</div>` : ''}</span>
-          <span class="c">${s.ms}ms<br>${esc(JSON.stringify(s.counters || {}))}</span></div>`).join('')}</div>`;
-  } catch (e) { $('#trOut').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+    const steps = d.steps || [];
+    const total = steps.reduce((a, s) => a + (Number(s.ms) || 0), 0);
+    const qa = isQaTrace(steps);
+    $('#trOut').innerHTML = `
+      <div class="flex" style="margin-bottom:10px">
+        <span class="chip info mono">trace ${esc(d.trace_id)}</span>
+        <span class="chip ${qa ? 'v' : ''}">${qa ? '问答链路 · 8 步' : '入库管道'}</span>
+        <span class="chip">${steps.length} 条记录</span>
+        <span class="chip">合计 ${fmtMs(total)}</span>
+        <span class="sp"></span>
+        <span class="tiny">${qa ? '点开每一步看它到底做了什么' : '每步标题是"在做什么"，灰色小字是它的原始 step 名与耗时'}</span>
+      </div>
+      ${qa ? qaFlowHtml(steps) : `<div class="steps">${steps.map((s, i) => stepRow(s, i)).join('')}</div>`}`;
+  } catch (e) {
+    $('#trOut').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
 }
+
+/* ==================================================================
+   问答链路 8 步：把 traces 的 5 类行重新拆成"用户视角的执行顺序"
+   ① 改写  ② 关键词 ③ 向量 ④ 融合 ⑤ 重排 ⑥ 上下文 ⑦ prompt ⑧ 应答
+   ②-⑤ 同属 retrieve 一行、⑥-⑧ 同属 generate 一行，详情全部来自 counters。
+   旧 trace 没有明细字段时，明确说明"未落表"，不假装有数据。
+   ================================================================== */
+const stripTag = (s) => String(s || '').replace(/^(main|fallback\d*):/, '');
+const QA_STEP_KEYS = new Set(['pre_redline', 'direct_hit', 'rewrite', 'retrieve', 'generate']);
+const isQaTrace = (steps) => steps.some(s => QA_STEP_KEYS.has(stripTag(s.step)));
+
+function statusChip(status) {
+  const ok = status === 'ok';
+  return `<span class="chip ${ok ? 'ok' : 'bad'}">${ok ? '成功' : esc(status || '失败')}</span>`;
+}
+function qaSec(o) {
+  return `<details class="qa-step${o.open ? ' open' : ''}"${o.open ? ' open' : ''}>
+    <summary>
+      <span class="qn">${esc(o.no)}</span>
+      <span class="nm">${esc(o.title)}</span>
+      ${o.status ? statusChip(o.status) : ''}
+      ${o.ms != null ? `<span class="tiny mono">${fmtMs(o.ms)}</span>` : ''}
+      <span class="sp"></span>
+      <span class="qa-sum">${o.sum || ''}</span>
+      <span class="qa-tog">详情</span>
+    </summary>
+    <div class="qa-body">
+      ${o.desc ? `<div class="desc">${esc(o.desc)}</div>` : ''}
+      ${o.chips && o.chips.length ? `<div class="kv">${o.chips.join('')}</div>` : ''}
+      ${o.body || ''}
+    </div>
+  </details>`;
+}
+const qchip = (label, val, cls) => `<span class="chip ${cls || ''}">${esc(label)} <b>${esc(val)}</b></span>`;
+const noDetail = (why) => `<div class="empty">${esc(why || '该步没有落明细（旧 trace，或这次没走到这一步）')}</div>`;
+
+/* 召回/排序列表：名次 · 块 · 序号 · 分数 · 字数 · 正文预览 */
+function qaHits(rows, scoreKey, scoreLabel, emptyText) {
+  if (!rows || !rows.length) return `<div class="empty">${esc(emptyText || '无命中')}</div>`;
+  return `<table class="qa-tb"><thead><tr>
+      <th>#</th><th>块</th><th>序</th><th>${esc(scoreLabel)}</th><th>字数</th><th>正文预览</th></tr></thead><tbody>
+    ${rows.map((r, i) => `<tr>
+      <td class="mono">${i + 1}</td>
+      <td class="mono" title="${esc(r.chunk_id)}">${esc(shortId(r.chunk_id))}</td>
+      <td>${r.ordinal != null ? esc(r.ordinal) : '—'}</td>
+      <td class="mono">${r[scoreKey] != null ? Number(r[scoreKey]).toFixed(4) : '—'}</td>
+      <td>${fmt(r.chars || 0)}</td>
+      <td class="tiny">${esc(r.preview || '')}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+function qaDelta(r) {
+  if (r.prev_rank == null || r.prev_rank < 0) return '<span class="chip warn">新增</span>';
+  if (r.prev_rank === r.rank) return '<span class="same">＝</span>';
+  return r.prev_rank > r.rank
+    ? `<span class="up">↑${r.prev_rank - r.rank}</span>`
+    : `<span class="down">↓${r.rank - r.prev_rank}</span>`;
+}
+/* 发给模型的 messages：逐条列出，长文本限高滚动 */
+function qaPromptBlock(p) {
+  if (!p) return noDetail('这次没有生成 prompt（拒答 / 生成失败 / 旧 trace）');
+  const msgs = p.messages || [];
+  return `<div class="kv" style="margin-bottom:8px">
+    ${qchip('模板', p.prompt || '—', 'info')}
+    ${qchip('上下文', (p.ctx_blocks ?? '—') + ' 块 / ' + fmt(p.ctx_tokens ?? 0) + ' tok')}
+    ${qchip('窗口', fmt(p.num_ctx ?? 0))}
+    ${qchip('输出预留', fmt(p.max_new ?? 0))}
+    ${qchip('合计', fmt(p.chars || 0) + ' 字')}
+  </div>` + msgs.map(m => `<div class="qa-msg">
+    <div class="tiny mono">${esc(m.role)} · ${fmt(m.chars || 0)} 字</div>
+    <div class="pmt">${esc(m.content || '')}</div>
+  </div>`).join('');
+}
+
+function qaFlowHtml(steps) {
+  const map = {};
+  steps.forEach(s => { map[stripTag(s.step)] = s; });
+  const pre = map.pre_redline, hit = map.direct_hit;
+  const rw = map.rewrite, rt = map.retrieve, gen = map.generate;
+  const C = (s) => (s && s.counters) || {};
+  const rc = C(rt), gc = C(gen);
+  const secs = [];
+
+  /* ---- 前置：红线 + 直击库（不属于 8 步，但决定链路有没有往下走） ---- */
+  if (pre) {
+    const pc = C(pre);
+    secs.push(qaSec({
+      no: '0', title: '提问红线闸门', status: pre.status, ms: pre.ms,
+      desc: '检查问题本身是否含禁词：命中就拒答，不进检索、不生成。',
+      sum: pc.passed === false ? '命中禁词，已拒答' : '通过',
+      open: pc.passed === false,
+      chips: [qchip('结论', pc.passed === false ? '命中拒答' : '通过'),
+        ...(pc.hits || []).map(h => qchip('禁词', h, 'bad'))],
+      body: pc.passed === false ? `<div class="hint">命中禁词后链路直接结束：没有 ①-⑧，也不会产生检索与生成成本。</div>` : ''
+    }));
+  }
+  if (hit) {
+    const hc = C(hit);
+    secs.push(qaSec({
+      no: '0', title: '直击库匹配', status: hit.status,
+      desc: '高频题精确/近义命中，直接吐标准答案，零检索零生成。',
+      sum: '命中 ' + esc(hc.level || '') + '，链路到此结束',
+      open: true,
+      chips: [qchip('级别', hc.level || '—', 'info'), qchip('相似度', hc.score != null ? Number(hc.score).toFixed(3) : '—')],
+      body: `<div class="qa-msg"><div class="tiny mono">标准问题</div><div class="pmt">${esc(hc.question || '')}</div></div>
+        <div class="qa-msg"><div class="tiny mono">标准答案</div><div class="pmt">${esc(hc.answer || '')}</div></div>`
+    }));
+  }
+
+  if (!rw && !rt && !gen) {
+    return `<div class="steps">${secs.join('')}</div>
+      <div class="hint" style="margin-top:12px">这条 trace 在检索前就结束了（红线拒答或直击库命中），没有 ①-⑧。</div>`;
+  }
+
+  /* ---- ① 查询改写 ---- */
+  const rwc = C(rw);
+  secs.push(qaSec({
+    no: '①', title: '查询改写', status: rw ? rw.status : null, ms: rw ? rw.ms : null,
+    desc: '指代消解 / 去套话，决定这次召回到底用哪句话。',
+    sum: rw ? (rwc.triggered ? '已改写 · ' + esc(rwc.method || '') : '未改写') : '未执行',
+    open: !!(rw && rwc.triggered),
+    chips: rw ? [
+      qchip('触发', rwc.triggered ? '是' : '否', rwc.triggered ? 'warn' : ''),
+      qchip('方式', rwc.method || '—'),
+      qchip('历史', (rwc.history_turns != null ? rwc.history_turns : 0) + ' 轮')
+    ] : [],
+    body: rw ? `<div class="tiny" style="margin:6px 0">原因：${esc(rwc.reason || '—')}</div>
+      <div class="json"><div>原问题：${esc(rwc.original || '')}</div>
+      <div>检索用：<b style="color:${rwc.triggered ? '#ffe3a6' : '#8df0ca'}">${esc(rwc.rewritten || '')}</b></div></div>`
+      : noDetail('该 trace 没有 rewrite 记录（旧 trace 只在触发改写时才落表）')
+  }));
+
+  /* ---- ②③④⑤ 都来自 retrieve 一行 ---- */
+  const hasDetail = !!(rc.bm25_top || rc.vector_top || rc.fuse_order || rc.rerank_order);
+  secs.push(qaSec({
+    no: '②', title: '关键词召回（FTS5 / BM25）', status: rt ? rt.status : null,
+    sum: rc.bm25_hits != null ? rc.bm25_hits + ' 块命中' : '',
+    chips: rt ? [qchip('topk', rc.bm25_topk ?? '—'), qchip('命中', rc.bm25_hits ?? '—')] : [],
+    body: hasDetail ? qaHits(rc.bm25_top, 'score', 'bm25', '关键词通道无命中（中文按字切分，换短词试试）')
+      : noDetail()
+  }));
+  secs.push(qaSec({
+    no: '③', title: '向量召回（余弦）', status: rt ? rt.status : null,
+    sum: rc.vector_hits != null ? rc.vector_hits + ' 块命中' : '',
+    chips: rt ? [qchip('topk', rc.vector_topk ?? '—'), qchip('命中', rc.vector_hits ?? '—'),
+      ...(rc.vector_skipped_reason ? [qchip('降级', rc.vector_skipped_reason, 'warn')] : [])] : [],
+    body: hasDetail ? qaHits(rc.vector_top, 'score', 'cos', rc.vector_skipped_reason || '向量通道无命中')
+      : noDetail()
+  }));
+  secs.push(qaSec({
+    no: '④', title: '混合排序（RRF 融合后）', status: rt ? rt.status : null,
+    sum: (rc.fuse_order || []).length ? (rc.fuse_order || []).length + ' 块' : '',
+    desc: '两路名次融合，重排前的基础顺序。',
+    body: hasDetail && (rc.fuse_order || []).length
+      ? `<table class="qa-tb"><thead><tr><th>#</th><th>块</th><th>序</th><th>rrf</th><th>通道</th><th>正文预览</th></tr></thead><tbody>
+        ${rc.fuse_order.map((r, i) => `<tr><td class="mono">${i + 1}</td>
+          <td class="mono">${esc(shortId(r.chunk_id))}</td><td>${r.ordinal != null ? esc(r.ordinal) : '—'}</td>
+          <td class="mono">${r.rrf != null ? Number(r.rrf).toFixed(4) : '—'}</td>
+          <td>${(r.channels || []).map(c => `<span class="chip v">${esc(c.channel)}</span>`).join('')}</td>
+          <td class="tiny">${esc(r.preview || '')}</td></tr>`).join('')}
+        </tbody></table>` : noDetail()
+  }));
+  secs.push(qaSec({
+    no: '⑤', title: '重排序（rerank 后）', status: rt ? rt.status : null, ms: rt ? rt.ms : null,
+    desc: rt && rc.rerank ? String(rc.rerank) : '按语义相关度重排，产出最终候选池。',
+    sum: rc.candidates != null ? '保留 ' + rc.candidates + ' 块' : '',
+    chips: rt ? [qchip('检索合计耗时', fmtMs(rt.ms)), qchip('检索式', rc.query || '—', 'info')] : [],
+    body: hasDetail && (rc.rerank_order || []).length
+      ? `<table class="qa-tb"><thead><tr><th>#</th><th>块</th><th>序</th><th>rerank</th><th>rrf</th><th>名次变化</th><th>正文预览</th></tr></thead><tbody>
+        ${rc.rerank_order.map((r, i) => `<tr><td class="mono">${i + 1}</td>
+          <td class="mono">${esc(shortId(r.chunk_id))}</td><td>${r.ordinal != null ? esc(r.ordinal) : '—'}</td>
+          <td class="mono">${r.rerank_score != null ? Number(r.rerank_score).toFixed(4) : '—'}</td>
+          <td class="mono">${r.rrf != null ? Number(r.rrf).toFixed(4) : '—'}</td>
+          <td>${qaDelta(r)}</td><td class="tiny">${esc(r.preview || '')}</td></tr>`).join('')}
+        </tbody></table>` : noDetail()
+  }));
+
+  /* ---- ⑥ 进入上下文 ---- */
+  const budget = gc.budget || {};
+  secs.push(qaSec({
+    no: '⑥', title: '进入上下文的块', status: gen ? gen.status : null,
+    desc: '预算裁剪后真正进 prompt 的块——闸门二与引用只认这批。',
+    sum: gc.ctx_blocks != null ? gc.ctx_blocks + ' 块 / ' + fmt(gc.ctx_tokens || 0) + ' tok' : '',
+    chips: gen ? [
+      qchip('块数', gc.ctx_blocks ?? '—'),
+      qchip('上下文 tok', fmt(gc.ctx_tokens || 0)),
+      qchip('保留/丢弃', (budget.kept ?? '—') + ' / ' + (budget.dropped ?? '—')),
+      ...(budget.truncated ? [qchip('首块截断', '是', 'warn')] : [])
+    ] : [],
+    body: (gc.ctx || []).length
+      ? (budget.kept != null ? `<div class="tiny" style="margin:6px 0">预算：窗口 ${fmt(budget.num_ctx)} ·
+          固定开销 ${fmt(budget.prompt_overhead)} · 可用 ${fmt(budget.available)} · 输出预留 ${fmt(budget.reserved_output)}
+          ${(budget.dropped_ids || []).length ? ' · 丢弃 ' + esc((budget.dropped_ids || []).join(', ')) : ''}</div>` : '')
+        + `<table class="qa-tb"><thead><tr><th>块</th><th>文档</th><th>序</th><th>rrf</th><th>通道</th><th>正文预览</th></tr></thead><tbody>
+          ${gc.ctx.map(c => `<tr><td class="mono">${esc(shortId(c.chunk_id))}</td>
+            <td class="tiny">${esc(c.doc_name || shortId(c.doc_id) || '—')}</td>
+            <td>${c.ordinal != null ? esc(c.ordinal) : '—'}</td>
+            <td class="mono">${c.score != null ? Number(c.score).toFixed(4) : '—'}</td>
+            <td>${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)}</span>`).join('')}</td>
+            <td class="tiny">${esc(c.preview || '')}</td></tr>`).join('')}
+          </tbody></table>`
+      : noDetail()
+  }));
+
+  /* ---- ⑦ 发给大模型 ---- */
+  secs.push(qaSec({
+    no: '⑦', title: '发给大模型的内容', status: gen ? gen.status : null,
+    desc: 'system + user 全文，逐字可见（trace 侧单条 message 限 4000 字）。',
+    sum: gc.prompt ? fmt(gc.prompt.chars || 0) + ' 字 · ' + (gc.prompt.messages || []).length + ' 条' : '',
+    body: qaPromptBlock(gc.prompt)
+      + (gc.prompt_repair ? `<div class="qa-sub">闸门二重答时的第二次调用</div>${qaPromptBlock(gc.prompt_repair)}` : '')
+  }));
+
+  /* ---- ⑧ 应答 + 引用与闸门 ---- */
+  const answer = gc.answer || '';
+  const first = gc.first_answer || '';
+  const changed = first && answer && first.trim() !== answer.trim();
+  secs.push(qaSec({
+    no: '⑧', title: '大模型的应答', status: gen ? gen.status : null, ms: gen ? gen.ms : null,
+    desc: '闸门二重答时同时给出首答与最终答案。',
+    sum: gc.chars != null ? fmt(gc.chars) + ' 字' : '',
+    chips: gen ? [
+      qchip('闸门二', gc.gate_post === false ? '未通过' : (gc.gate_post ? '通过' : '—'),
+        gc.gate_post === false ? 'bad' : 'ok'),
+      ...(gc.repaired ? [qchip('重答', '触发', 'warn')] : []),
+      qchip('引用块', (gc.citations || []).length + ' 块')
+    ] : [],
+    body: (answer
+      ? (changed ? `<div class="qa-sub">首答（未通过闸门二）</div><div class="pmt">${esc(first)}</div>
+          <div class="qa-sub">最终交付给用户的答案</div>` : '')
+        + `<div class="pmt">${esc(answer)}</div>`
+      : noDetail('这次没有生成答案（拒答 / 生成失败 / 旧 trace）'))
+      + (gc.gate_post_reason ? `<div class="tiny" style="margin-top:8px">闸门结论：${esc(gc.gate_post_reason)}</div>` : '')
+      + ((gc.violations || []).length
+        ? `<div class="qa-sub">闸门二违规项</div><div class="json">${esc((gc.violations || []).join('\n'))}</div>` : '')
+      + ((gc.citations || []).length
+        ? `<div class="qa-sub">引用的块</div><div class="json">${esc((gc.citations || [])
+          .map(c => '块' + c.ordinal + ' · ' + (c.doc_name || shortId(c.doc_id)) + ' · ' + JSON.stringify(c.anchors || {})).join('\n'))}</div>` : '')
+  }));
+
+  return `<div class="qa-flow">${secs.join('')}</div>`;
+}
+
+function stepRow(s, i) {
+  const info = stepInfo(s.step);
+  const ctr = s.counters || {};
+  const override = STEP_LABEL_OVERRIDE[String(s.step).replace(/^(main|fallback):/, '')] || {};
+  const long = [], chips = [];
+  Object.keys(ctr).forEach(k => {
+    const label = override[k] || CTR_LABEL[k] || k;
+    const v = fmtVal(k, ctr[k]);
+    if (LONG_KEYS[k] || String(v).length > 40) {
+      long.push(`<div class="desc"><span class="tiny mono">${esc(label)}</span> ${esc(v)}</div>`);
+    } else {
+      chips.push(`<span class="chip" title="${esc(k)}">${esc(label)} <b>${esc(v)}</b></span>`);
+    }
+  });
+  const ok = s.status === 'ok';
+  return `<div class="step">
+    <span class="n">${i + 1}</span>
+    <div style="min-width:0">
+      <div class="hd">
+        <span class="chip ${ok ? 'ok' : 'bad'}">${ok ? '成功' : esc(s.status || '失败')}</span>
+        <span class="nm">${esc(info.t)}</span>
+        <span class="tiny mono">${esc(String(s.step).replace(/^(main|fallback):/, ''))}</span>
+        ${info.at ? `<span class="chip info">${esc(info.at)}</span>` : ''}
+        <span class="sp"></span>
+        <span class="tiny mono">${fmtMs(s.ms)}</span>
+        ${s.created_at ? `<span class="tiny mono">${esc(String(s.created_at).slice(11, 19))}</span>` : ''}
+      </div>
+      ${info.d ? `<div class="desc">${esc(info.d)}</div>` : ''}
+      ${chips.length ? `<div class="kv">${chips.join('')}</div>` : ''}
+      ${long.join('')}
+      ${s.error ? `<div class="desc" style="color:#ffb0b0">错误：${esc(s.error)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ---------------- 运行计数（语义化，不铺原始 JSON） ---------------- */
+function kvLine(label, value) {
+  return `<div class="kvline"><span class="k">${esc(label)}</span><span class="v">${value}</span></div>`;
+}
+function distText(obj) {
+  const e = Object.entries(obj || {});
+  return e.length ? e.map(([k, v]) => `${esc(k)} <b>${fmt(v)}</b>`).join(' · ') : '—';
+}
+
 async function loadObserve() {
   try {
     const m = await api('/admin/metrics');
     const by = m.tasks_by_status || {};
-    const total = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
+    const totalChunks = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
     $('#obKpis').innerHTML = [
-      ['任务', Object.entries(by).map(([k, v]) => k + ' ' + v).join(' · ') || '0', 'done / pending_review / failed / running'],
-      ['分块', fmt(total), JSON.stringify(m.chunks_by_kb || {})],
-      ['待办', fmt(m.todos_open || 0), 'open 队列']
-    ].map(([t, v, s]) => `<div class="card"><h3>${esc(t)}</h3><div class="kpi">${esc(v)}</div><div class="tiny">${esc(s)}</div></div>`).join('');
-    $('#obMetrics').textContent = JSON.stringify(m, null, 2);
-  } catch (e) { $('#obMetrics').textContent = e.message; }
+      ['任务', fmt((by.done || 0) + (by.running || 0) + (by.pending_review || 0) + (by.failed || 0)),
+        Object.entries(by).map(([k, v]) => k + ' ' + v).join(' · ') || '暂无任务'],
+      ['分块', fmt(totalChunks), distText(m.chunks_by_kb)],
+      ['待办', fmt(m.todos_open || 0), '未处理的失败/待确认项']
+    ].map(([t, v, s]) => `<div class="card"><h3>${esc(t)}</h3><div class="kpi">${esc(v)}</div>
+      <div class="tiny">${s}</div></div>`).join('');
+
+    $('#obMetrics').innerHTML = [
+      kvLine('任务状态', distText(m.tasks_by_status)),
+      kvLine('分块（按库）', distText(m.chunks_by_kb)),
+      kvLine('向量（按 embed_version）', distText(m.chunks_by_embed_version)),
+      kvLine('待办', `${fmt(m.todos_open || 0)} 条 open`),
+      m.note ? kvLine('口径说明', esc(m.note)) : ''
+    ].join('');
+  } catch (e) {
+    $('#obMetrics').innerHTML = `<span class="chip bad">读取失败</span> ${esc(e.message)}`;
+  }
 
   try {
     const d = await api('/admin/qa_log?limit=15');
     const rows = d.qa_log || [];
-    $('#obQa').innerHTML = rows.length ? `<table><thead><tr><th>时间</th><th>问题</th><th>答案</th><th>trace</th></tr></thead><tbody>
-      ${rows.map(r => `<tr><td class="tiny mono">${esc((r.ts || '').slice(5, 19))}</td>
+    $('#obQa').innerHTML = rows.length ? `<table><thead><tr>
+        <th>时间</th><th>问题</th><th>答案（截断）</th><th>复盘</th></tr></thead><tbody>
+      ${rows.map(r => `<tr>
+        <td class="tiny mono">${esc((r.ts || '').slice(5, 19))}</td>
         <td>${esc(r.question)}</td>
-        <td class="tiny" style="max-width:420px">${esc(String(r.answer || '').slice(0, 160))}</td>
-        <td><button class="btn sm ghost" onclick="openTrace('${esc(r.trace_id || '')}')">${esc(shortId(r.trace_id))}</button></td></tr>`).join('')}
-      </tbody></table>` : '<div class="empty">还没有问答记录</div>';
-  } catch (e) { $('#obQa').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+        <td class="tiny">${esc(String(r.answer || '').slice(0, 120))}${String(r.answer || '').length > 120 ? '…' : ''}</td>
+        <td><button class="btn sm ghost" onclick="openTrace('${esc(r.trace_id || '')}')">trace ${esc(shortId(r.trace_id))}</button></td>
+      </tr>`).join('')}</tbody></table>` : '<div class="empty">还没有问答记录</div>';
+  } catch (e) {
+    $('#obQa').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
 }
+
 window.pageInit = () => {
   loadObserve();
   const trace = new URLSearchParams(location.search).get('trace');

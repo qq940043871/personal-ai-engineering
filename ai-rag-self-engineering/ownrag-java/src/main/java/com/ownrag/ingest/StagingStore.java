@@ -23,7 +23,12 @@ public final class StagingStore {
     private StagingStore() {
     }
 
-    /** 删掉该 doc 的全部 staging 表与登记行，返回被删的表名（供接口回显）。 */
+    /**
+     * 删掉该 doc 的全部 staging 表与登记行，返回被删的表名（供接口回显）。
+     *
+     * 双路清理：登记行是主路；**按前缀扫 sqlite_master 是兜底**——原子换表（`_v<epoch>` 后缀）
+     * 之后，并发重传或换表后 DROP 失败都会留下"不在登记行里"的表，只按登记行清会漏。
+     */
     public static List<String> dropByDoc(Connection conn, String docId) throws SQLException {
         List<String> tables = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(
@@ -35,8 +40,22 @@ public final class StagingStore {
                 }
             }
         }
+        String prefix = "staging_" + docId.substring(0, Math.min(8, docId.length())) + "_";
+        String like = likePrefix(prefix);
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ? ESCAPE '\\'")) {
+            ps.setString(1, like);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String name = rs.getString(1);
+                    if (!tables.contains(name)) {
+                        tables.add(name);
+                    }
+                }
+            }
+        }
         for (String table : tables) {
-            // 表名来自本库登记行（写侧只允许 sanitize 后的 [A-Za-z0-9_]），双引号兜住标识符
+            // 表名来自本库（写侧只允许 sanitize 后的 [A-Za-z0-9_]），双引号兜住标识符
             try (Statement st = conn.createStatement()) {
                 st.executeUpdate("DROP TABLE IF EXISTS \"" + table.replace("\"", "\"\"") + "\"");
             }
@@ -47,5 +66,11 @@ public final class StagingStore {
             ps.executeUpdate();
         }
         return tables;
+    }
+
+    /** LIKE 模式转义：表名里的 `_` 是通配符，不转义会误伤 `staging_ab12cd34x...` 这类同前缀的表名。 */
+    static String likePrefix(String prefix) {
+        String escaped = prefix.replace("\\", "\\\\").replace("_", "\\_").replace("%", "\\%");
+        return escaped + "%";
     }
 }

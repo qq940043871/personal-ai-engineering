@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资源 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body data-page="resources">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top">
+      <h1>资源</h1>
+      <span class="muted">全部已上传文档 · 向量化是这里的显式动作，不做不做由你决定</span>
+      <div class="pills" id="pills"></div>
+    </div>
+
+    <div class="hint">资源口径：<b>上传 = 解析 + 切分入库</b>（可选"暂不向量化"），文档先成为资源；
+      <b>向量化</b>是逐篇/批量的手动动作 = 写入向量通道（语义召回）；关键词检索（BM25）对已入库资源始终可用，嵌入后端故障时也靠它兜底。已向量化也能再跑（换嵌入模型后重算）。</div>
+
+    <div class="card">
+      <div class="row">
+        <div class="fix" style="width:160px;flex:0 0 160px">
+          <label class="f">知识库</label><select id="rKb"></select>
+        </div>
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">状态</label>
+          <select id="rState">
+            <option value="">全部</option>
+            <option value="pending">待向量化</option>
+            <option value="done">已向量化</option>
+            <option value="disabled">已停用</option>
+          </select>
+        </div>
+        <div>
+          <label class="f">按文件名 / doc_id 过滤</label>
+          <input id="rQ" placeholder="如：JVM / 面试">
+        </div>
+        <div class="fix"><button class="btn" id="rGo">筛选</button></div>
+        <div class="fix"><a class="btn ghost" href="/ui/ingest">去上传</a></div>
+      </div>
+
+      <div class="flex" style="margin-top:12px">
+        <span class="chip info" id="rTotal">–</span>
+        <button class="btn sm primary" id="rVecSel" disabled>向量化所选</button>
+        <button class="btn sm ghost" id="rDelSel" disabled>删除所选</button>
+        <span class="sp"></span>
+        <button class="btn sm ghost" id="rReload">刷新</button>
+      </div>
+
+      <div id="rList" style="margin-top:6px"><div class="empty">加载中…</div></div>
+      <div class="pager" id="rPager"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+'use strict';
+/* 资源管理：全部已上传文档（跨库）+ 向量化显式触发。
+ * 上传时选"暂不向量化"→ 文档落在"待向量化"；这里单篇/批量向量化后进入检索。
+ * 向量化调 POST /admin/documents/{docId}/vectorize（分批提交、幂等可续跑）。 */
+const R = { kb: '', q: '', state: '', offset: 0, limit: 20, total: 0, items: [], sel: new Set(), busy: false };
+
+function vecState(r) {
+  if (r.enabled === 0) return ['warn', '已停用'];
+  const v = r.vector_count || 0, c = r.chunk_count || 0;
+  if (c > 0 && v === 0) return ['bad', '待向量化'];
+  if (v < c) return ['warn', '部分向量化 ' + v + '/' + c];
+  return ['ok', '已向量化'];
+}
+
+async function loadList() {
+  const qs = new URLSearchParams({ limit: R.limit, offset: R.offset });
+  if (R.kb) qs.set('kb', R.kb);
+  if (R.q) qs.set('q', R.q);
+  if (R.state) qs.set('state', R.state);
+  try {
+    const d = await api('/admin/documents?' + qs);
+    R.items = d.documents || [];
+    R.total = d.total;
+    // 清掉已不在当前页的选中项
+    const ids = new Set(R.items.map(r => r.doc_id));
+    for (const id of [...R.sel]) if (!ids.has(id)) R.sel.delete(id);
+    render();
+  } catch (e) {
+    $('#rList').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+function render() {
+  const pendingN = R.items.filter(r => (r.vector_count || 0) < (r.chunk_count || 0) && r.enabled !== 0).length;
+  $('#rTotal').textContent = R.total + ' 篇 · 本页 ' + R.items.length + ' 篇 · 可向量化 ' + pendingN + ' 篇'
+    + (isLoggedIn() ? '' : ' · 未登录仅列公开文档');
+  $('#rVecSel').textContent = '向量化所选 (' + R.sel.size + ')';
+  $('#rDelSel').textContent = '删除所选 (' + R.sel.size + ')';
+  $('#rVecSel').disabled = R.sel.size === 0 || R.busy;
+  $('#rDelSel').disabled = R.sel.size === 0 || R.busy;
+
+  $('#rList').innerHTML = R.items.length ? `<table><thead><tr>
+      <th style="width:34px"><input type="checkbox" id="rAll" style="width:auto"
+        ${R.items.every(r => R.sel.has(r.doc_id)) && R.items.length ? 'checked' : ''}></th>
+      <th>文档</th><th>库</th><th>块 / 向量</th><th>权限</th><th>状态</th><th>更新时间</th><th style="width:250px"></th>
+    </tr></thead><tbody>
+    ${R.items.map(r => {
+      const [cls, label] = vecState(r);
+      const needVec = (r.vector_count || 0) < (r.chunk_count || 0);
+      const lv = String(r.access_level || 'public');
+      return `<tr data-doc="${esc(r.doc_id)}">
+        <td><input type="checkbox" class="r-sel" data-doc="${esc(r.doc_id)}" style="width:auto"
+          ${R.sel.has(r.doc_id) ? 'checked' : ''}></td>
+        <td><div style="word-break:break-all">${esc(r.source_file)}</div>
+            <div class="tiny mono">${esc(r.doc_id.slice(0, 10))} · ${fmt(r.chars)} 字 · ${esc(r.pipeline || '-')}</div></td>
+        <td><span class="chip v">${esc(r.kb)}</span></td>
+        <td class="mono" style="font-size:12px">${fmt(r.chunk_count)} / ${fmt(r.vector_count)}</td>
+        <td>${isLoggedIn() ? accessChipEdit(lv, r.doc_id) : accessChip(lv)}</td>
+        <td><span class="chip ${cls}">${label}</span></td>
+        <td class="tiny mono">${esc((r.last_at || '').slice(0, 16))}</td>
+        <td>
+          <div class="flex" style="justify-content:flex-end">
+            ${needVec ? `<button class="btn sm primary" data-act="vec" data-doc="${esc(r.doc_id)}">向量化</button>` : ''}
+            <button class="btn sm ghost" data-act="en" data-doc="${esc(r.doc_id)}" data-en="${r.enabled === 0 ? 0 : 1}">${r.enabled === 0 ? '启用' : '停用'}</button>
+            <button class="btn sm ghost" data-act="chunks" data-kb="${esc(r.kb)}" data-doc="${esc(r.doc_id)}">分块</button>
+            <button class="btn sm ghost" data-act="del" data-doc="${esc(r.doc_id)}">删</button>
+          </div>
+        </td></tr>`;
+    }).join('')}</tbody></table>`
+    : `<div class="empty">${R.q || R.state || R.kb ? '没有匹配的资源' : '还没有上传过文档：先去「入库」上传，可选"暂不向量化"让文档先落成资源'}</div>`;
+
+  const from = R.total ? R.offset + 1 : 0;
+  const to = R.offset + R.items.length;
+  $('#rPager').innerHTML = `<span>${fmt(from)}–${fmt(to)} / ${fmt(R.total)}</span><span class="sp"></span>
+    <button class="btn sm ghost" data-act="prev" ${R.offset <= 0 ? 'disabled' : ''}>上一页</button>
+    <button class="btn sm ghost" data-act="next" ${(R.offset + R.items.length) >= R.total ? 'disabled' : ''}>下一页</button>`;
+}
+
+async function vectorizeDocs(ids) {
+  if (R.busy) return;
+  R.busy = true; render();
+  let okN = 0, failN = 0;
+  for (let i = 0; i < ids.length; i++) {
+    const doc = ids[i];
+    const row = R.items.find(r => r.doc_id === doc);
+    toast(`向量化 ${i + 1}/${ids.length}：${(row && row.source_file) || doc} …`);
+    try {
+      const r = await postJSON('/admin/documents/' + encodeURIComponent(doc) + '/vectorize?batch=16');
+      if (r.status === 'noop') okN++;
+      else okN++;
+    } catch (e) {
+      failN++;
+      toast('向量化失败：' + ((row && row.source_file) || doc) + ' — ' + e.message, 'bad');
+    }
+  }
+  R.busy = false;
+  toast('向量化完成：成功 ' + okN + ' 篇' + (failN ? '，失败 ' + failN + ' 篇（可重跑续）' : ''), failN ? 'bad' : 'ok');
+  await loadList();
+}
+
+async function deleteDocs(ids) {
+  let okN = 0, failN = 0;
+  for (const doc of ids) {
+    try {
+      await api('/docs/' + encodeURIComponent(doc), { method: 'DELETE' });
+      R.sel.delete(doc);
+      okN++;
+    } catch (e) { failN++; toast('删除失败：' + doc + ' — ' + e.message, 'bad'); }
+  }
+  toast('删除完成：' + okN + ' 篇' + (failN ? '，失败 ' + failN + ' 篇' : ''), failN ? 'bad' : 'ok');
+  await loadList();
+}
+
+$('#rList').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const doc = btn.dataset.doc;
+  if (btn.dataset.act === 'vec') {
+    await vectorizeDocs([doc]);
+  } else if (btn.dataset.act === 'acl') {
+    // 权限切换：改的是 documents.access_level 一行，检索/原件/分块三处立即按新权限生效
+    if (await toggleDocAccess(doc, btn.dataset.lv)) await loadList();
+  } else if (btn.dataset.act === 'en') {
+    const on = btn.dataset.en !== '0';
+    if (!on && !(await uiConfirm('停用后这篇文档退出检索（分身不再引用），块与向量保留，随时可再启用。', '停用这篇文档？'))) return;
+    try {
+      await postJSON('/docs/' + encodeURIComponent(doc) + '/enabled', { enabled: !on });
+      toast(on ? '已停用' : '已恢复检索', 'ok');
+      await loadList();
+    } catch (err) { toast(err.message, 'bad'); }
+  } else if (btn.dataset.act === 'chunks') {
+    goto('kb', 'kb=' + encodeURIComponent(btn.dataset.kb || '') + '&doc=' + encodeURIComponent(doc));
+  } else if (btn.dataset.act === 'del') {
+    if (!(await uiConfirm('其全部分块、向量、指纹都会一并移除，且不可恢复。', '删除这篇文档？', true))) return;
+    await deleteDocs([doc]);
+  }
+});
+$('#rList').addEventListener('change', e => {
+  if (e.target.id === 'rAll') {
+    if (e.target.checked) R.items.forEach(r => R.sel.add(r.doc_id));
+    else R.items.forEach(r => R.sel.delete(r.doc_id));
+    render();
+  } else if (e.target.classList.contains('r-sel')) {
+    const doc = e.target.dataset.doc;
+    if (e.target.checked) R.sel.add(doc); else R.sel.delete(doc);
+    render();
+  }
+});
+$('#rPager').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  if (b.dataset.act === 'prev') R.offset = Math.max(0, R.offset - R.limit);
+  if (b.dataset.act === 'next') R.offset = R.offset + R.limit;
+  loadList();
+});
+
+$('#rGo').onclick = () => { R.q = $('#rQ').value.trim(); R.offset = 0; loadList(); };
+$('#rQ').onkeydown = e => { if (e.key === 'Enter') $('#rGo').click(); };
+$('#rState').onchange = () => { R.state = $('#rState').value; R.offset = 0; loadList(); };
+$('#rKb').onchange = () => { R.kb = $('#rKb').value; R.offset = 0; loadList(); };
+$('#rReload').onclick = loadList;
+$('#rVecSel').onclick = async () => {
+  if (!R.sel.size) return;
+  if (!(await uiConfirm('对选中的 ' + R.sel.size + ' 篇文档逐篇向量化（本地嵌入，每千块约 1-2 分钟），逐篇完成后会汇报结果。', '批量向量化？'))) return;
+  await vectorizeDocs([...R.sel]);
+};
+$('#rDelSel').onclick = async () => {
+  if (!R.sel.size) return;
+  if (!(await uiConfirm('删除选中的 ' + R.sel.size + ' 篇文档：分块、向量、指纹一并移除，不可恢复。', '批量删除？', true))) return;
+  await deleteDocs([...R.sel]);
+};
+
+window.pageInit = async () => {
+  try {
+    const d = await api('/admin/kbs');
+    const names = (d.kbs || []).map(k => k.kb);
+    fillSelect('#rKb', [''].concat(names), '');
+  } catch (e) { /* kb 列表失败不挡列表加载 */ }
+  loadList();
+};
+boot();
+</script>
+</body>
+</html>

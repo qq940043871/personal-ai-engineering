@@ -58,6 +58,13 @@ public final class Gates {
         if (candidates == null || candidates.isEmpty()) {
             return new GateResult("sufficiency_check", false, "候选池为空：未找到有效依据，不进模型");
         }
+        // SQL 结果是确定性证据（引擎算出来的，不是语义邻近）：只要它在，就不该被重排分下限拦掉。
+        // 否则「多源问题里 RAG 那一路很弱」会把带 SQL 事实的正确答案一起判成"无依据"。
+        for (Map<String, Object> c : candidates) {
+            if ("sql".equals(c.get("kind"))) {
+                return new GateResult("sufficiency_check", true, "命中 SQL 事实证据，放行");
+            }
+        }
         List<Double> rerankScores = new ArrayList<>();
         for (Map<String, Object> c : candidates) {
             Object s = c.get("rerank_score");

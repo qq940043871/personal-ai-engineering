@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>评测集 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body data-page="evalset">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top">
+      <h1>评测集</h1>
+      <span class="muted">黄金集 · 8 类题型分桶 · 只跑检索侧，不调生成模型</span>
+      <div class="pills" id="pills"></div>
+    </div>
+
+    <div class="hint">
+      <b>来源三档</b> ——
+      <b>人工编写</b>：按语料出的题，带标准答案关键词；
+      <b>问答日志回流</b>：线上真实提问，踩坑/高频题优先；
+      <b>直击库回归</b>：L0/L1/L2 快问快答，该问题<b>必须命中直击库</b>，掉到检索链路即坏。<br>
+      <b>好坏判定</b> —— 人工题有期望词：TopN 候选必须含<b>全部</b>期望词且闸门一通过 → 好；
+      应拒答题：闸门一必须拦下 → 好（放行即坏）；
+      <b>无期望词</b>：只观察不判定（保持"待判"）——没有标准答案时给通过就是自欺，
+      点行内「设期望」或「标拒答」把题变成可判的。判定每次落库，也可人工改判。<br>
+      <b>题型分桶</b> —— 事实 / 概念 / 对比 / 排障 / 找全 / 跨文档 / 拒答 / 直击库。
+      只看总分会掩盖"事实题全过、跨文档全挂"这类结构性缺陷，所以分母必须拆开看。
+    </div>
+
+    <div class="grid g3" id="evalKpi"></div>
+    <div class="flex" id="evalBuckets" style="margin-top:12px;flex-wrap:wrap"></div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="row">
+        <div class="fix" style="width:190px;flex:0 0 190px">
+          <label class="f">知识库</label><select id="evalKb"></select>
+        </div>
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">来源</label>
+          <select id="evalSource">
+            <option value="">全部</option>
+            <option value="manual">人工编写</option>
+            <option value="qa_log">问答日志回流</option>
+            <option value="direct_hit">直击库回归</option>
+          </select>
+        </div>
+        <div class="fix" style="width:130px;flex:0 0 130px">
+          <label class="f">判定</label>
+          <select id="evalVerdict">
+            <option value="">全部</option>
+            <option value="pass">好</option>
+            <option value="fail">坏</option>
+            <option value="pending">待跑</option>
+          </select>
+        </div>
+        <div class="fix"><button class="btn" id="evalFilter">筛选</button></div>
+      </div>
+
+      <div class="flex" style="margin-top:12px">
+        <span class="chip info" id="evalTotal">–</span>
+        <button class="btn sm primary" id="evalRun">跑一遍评测</button>
+        <button class="btn sm ghost" id="evalImport">从问答日志回流</button>
+        <button class="btn sm ghost" id="evalGolden">导入黄金集</button>
+        <span class="sp"></span>
+        <button class="btn sm ghost" id="evalReload">刷新</button>
+      </div>
+
+      <div id="evalList" style="margin-top:6px"><div class="empty">加载中…</div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>新增评测题 <span class="tag tiny">期望留空 = 只判"是否给出依据"；应拒答题不填期望词</span></h3>
+      <div class="row">
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">知识库</label><select id="evalNewKb"></select>
+        </div>
+        <div>
+          <label class="f">问题（内容）</label>
+          <input id="evalNewQ" placeholder="如：JVM 的 G1 回收器适用什么场景？">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="f">期望关键词（逗号分隔，全部命中才算好）</label>
+          <input id="evalNewExpect" placeholder="如：G1,Region,可预测停顿">
+        </div>
+        <div class="fix" style="width:150px;flex:0 0 150px">
+          <label class="f">该拒答</label>
+          <label class="flex" style="margin-top:9px">
+            <input type="checkbox" id="evalNewEmpty" style="width:auto"> 语料里没有答案
+          </label>
+        </div>
+        <div class="fix" style="width:160px;flex:0 0 160px">
+          <label class="f">期望通道</label>
+          <select id="evalNewRoute">
+            <option value="" selected>不判路由</option>
+            <option value="rag">RAG 检索</option>
+            <option value="sql">SQL 查表</option>
+            <option value="multi">双通道</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="f">备注（来源说明 / 出题理由）</label>
+          <input id="evalNewNote" placeholder="如：面经高频题，答错要能定位到切分还是召回">
+        </div>
+        <div class="fix"><button class="btn primary" id="evalAdd">加入评测集</button></div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+'use strict';
+/* 评测集：来源 / 内容 / 好坏三列是这张表的主干。
+ * 跑评测走 POST /admin/eval-set/run（检索→重排→闸门一，不生成答案），
+ * 判定与证据一并落库；来源导入走 /admin/eval-set/import/qa-log。 */
+const EV = { kb: '', source: '', verdict: '', rows: [], busy: false };
+
+const SRC = {
+  manual:     ['chip v',    '人工编写'],
+  qa_log:     ['chip info', '日志回流'],
+  direct_hit: ['chip',      '直击库']
+};
+const VD = {
+  pass:    ['chip ok',  '好'],
+  fail:    ['chip bad', '坏'],
+  pending: ['chip warn', '待判']
+};
+
+async function loadEval() {
+  const qs = new URLSearchParams();
+  if (EV.kb) qs.set('kb', EV.kb);
+  if (EV.source) qs.set('source', EV.source);
+  if (EV.verdict) qs.set('verdict', EV.verdict);
+  try {
+    const d = await api('/admin/eval-set?' + qs);
+    EV.rows = d.cases || [];
+    renderKpi(d.kpi || {});
+    if (d.kbs && d.kbs.length && !$('#evalKb').options.length) {
+      fillSelect('#evalKb', [''].concat(d.kbs), EV.kb);
+      fillSelect('#evalNewKb', d.kbs, EV.kb || d.kbs[0]);
+    }
+    renderTable();
+  } catch (e) {
+    $('#evalList').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+function renderKpi(k) {
+  const src = k.sources || {};
+  $('#evalKpi').innerHTML = [
+    ['评测题', fmt(k.total || 0), '分母：先固定再谈提升'],
+    ['好', fmt(k.pass || 0), '按口径通过'],
+    ['坏', fmt(k.fail || 0), '该修的题，排在最上面'],
+    ['待判', fmt(k.pending || 0), '未设期望或还没跑，不假装通过'],
+    ['来源分布', '人工 ' + (src.manual || 0) + ' · 日志 ' + (src.qa_log || 0) + ' · 直击 ' + (src.direct_hit || 0),
+      '拒答题 ' + (k.reject_cases || 0) + ' · 带期望词 ' + (k.expect_cases || 0)],
+    ['路由题', fmt(k.route_cases || 0),
+      '设了期望通道 · 不符 ' + fmt(k.route_mismatch || 0) + '（路由错但答案对也算坏）']
+  ].map(([t, v, s]) => `<div class="card"><h3>${esc(t)}</h3>
+    <div class="kpi" ${String(v).length > 8 ? 'style="font-size:15px;line-height:1.6"' : ''}>${esc(v)}</div>
+    <div class="tiny">${esc(s)}</div></div>`).join('');
+  renderBuckets(k);
+}
+
+const CAT_NAME = {
+  fact: '事实', concept: '概念', compare: '对比', troubleshoot: '排障',
+  multi: '找全', cross: '跨文档', reject: '拒答', direct: '直击库', sql: '算数(SQL)'
+};
+const ROUTE_NAME = { rag: 'RAG', sql: 'SQL', multi: '双通道' };
+const DIFF_NAME = { easy: '易', medium: '中', hard: '难' };
+
+/** 分桶 chips：颜色按通过率（≥80% 绿 / ≥50% 黄 / 其余红），pending 不计入分母。 */
+function renderBuckets(k) {
+  const cats = (k.by_category || []).map(b => {
+    const judged = b.pass + b.fail;
+    const rate = judged ? Math.round(b.pass * 100 / judged) : null;
+    const cls = rate === null ? 'chip' : (rate >= 80 ? 'chip ok' : rate >= 50 ? 'chip warn' : 'chip bad');
+    const txt = `${CAT_NAME[b.key] || b.key} ${b.pass}/${judged}` + (rate === null ? '' : ` · ${rate}%`);
+    return `<span class="${cls}" title="共 ${b.total} 题 · 待判 ${b.pending}">${txt}</span>`;
+  });
+  const diffs = (k.by_difficulty || []).map(b => {
+    const judged = b.pass + b.fail;
+    const rate = judged ? Math.round(b.pass * 100 / judged) : null;
+    return `<span class="chip" title="共 ${b.total} 题">${DIFF_NAME[b.key] || b.key} ${b.pass}/${judged}`
+      + (rate === null ? '' : ` · ${rate}%`) + '</span>';
+  });
+  // 通道分桶：看"该走 SQL 的题是不是真走了 SQL"，比总通过率更能定位问题在路由还是检索
+  const routes = (k.by_route || []).map(b => {
+    const judged = b.pass + b.fail;
+    const rate = judged ? Math.round(b.pass * 100 / judged) : null;
+    return `<span class="chip" title="共 ${b.total} 题">${ROUTE_NAME[b.key] || b.key} ${b.pass}/${judged}`
+      + (rate === null ? '' : ` · ${rate}%`) + '</span>';
+  });
+  $('#evalBuckets').innerHTML = cats.join('')
+    + (routes.length ? '<span class="tiny" style="align-self:center;margin:0 4px">实跑通道</span>' + routes.join('') : '')
+    + (diffs.length ? '<span class="tiny" style="align-self:center;margin:0 4px">难度</span>' + diffs.join('') : '');
+}
+
+function routeText(r) {
+  // 期望通道 vs 实跑通道：不符用红色，让"路由错但答案看起来对"这种题一眼可见
+  if (!r.expect_route) return '';
+  const bad = r.route_actual && r.route_actual !== r.expect_route;
+  return `<span class="chip ${bad ? 'bad' : (r.route_actual ? 'ok' : '')}"
+    title="期望 ${esc(ROUTE_NAME[r.expect_route] || r.expect_route)}${r.route_actual ? ' · 实跑 ' + esc(ROUTE_NAME[r.route_actual] || r.route_actual) : '（未跑）'}">
+    ${bad ? '路由不符' : '通道'} ${esc(ROUTE_NAME[r.expect_route] || r.expect_route)}
+    ${r.route_actual && r.route_actual !== r.expect_route ? '→ ' + esc(ROUTE_NAME[r.route_actual] || r.route_actual) : ''}</span>`;
+}
+
+function expectText(r) {
+  if (r.expect_empty) return '<span class="chip warn">应拒答</span>' + routeText(r);
+  const e = r.expect_all || [];
+  if (!e.length) {
+    // 直击库题不需要关键词：口径就是"该问题必须命中直击库"
+    return (r.source === 'direct_hit'
+      ? '<span class="chip info">必须命中直击库</span>'
+      : '<span class="chip">未设期望词</span>') + routeText(r);
+  }
+  return e.map(x => `<span class="chip info">${esc(x)}</span>`).join(' ') + routeText(r);
+}
+
+/** 来源可回查：日志#id 能对到观测页的 qa_log 行，直击#id 能对到直击库记录。 */
+function refText(r) {
+  if (!r.source_ref) return r.source === 'manual' ? '手工录入' : '';
+  const p = r.source === 'qa_log' ? '日志#' : (r.source === 'direct_hit' ? '直击#' : '#');
+  return p + r.source_ref;
+}
+
+function renderTable() {
+  $('#evalTotal').textContent = EV.rows.length + ' 道'
+    + (EV.kb || EV.source || EV.verdict ? '（已筛选）' : '');
+  $('#evalList').innerHTML = EV.rows.length ? `<table><thead><tr>
+      <th style="width:64px">判定</th><th style="width:110px">来源</th>
+      <th>问题 / 内容</th><th>期望</th><th style="width:80px">得分</th>
+      <th style="width:120px">上次跑</th><th style="width:230px"></th>
+    </tr></thead><tbody>
+    ${EV.rows.map(r => {
+      const [vcls, vlabel] = VD[r.verdict] || VD.pending;
+      const [scls, slabel] = SRC[r.source] || SRC.manual;
+      const d = r.last_detail || {};
+      const noExpect = !(r.expect_all || []).length && !r.expect_empty;
+      const score = (r.last_score === null || r.last_score === undefined)
+        ? '–' : Math.round(r.last_score * 100) + '%';
+      return `<tr data-id="${r.id}">
+        <td><span class="${vcls}">${vlabel}</span></td>
+        <td><span class="${scls}">${slabel}</span>
+          <div class="tiny mono">${esc(refText(r))}</div>
+          <div class="tiny">${esc(CAT_NAME[r.category] || '')}${r.difficulty ? ' · ' + esc(DIFF_NAME[r.difficulty] || r.difficulty) : ''}</div></td>
+        <td><div>${esc(r.question)}</div>
+          <div class="tiny">${esc(r.note || '')}</div>
+          ${d.reason ? `<details><summary class="tiny">证据：${esc(String(d.reason).slice(0, 60))}</summary>
+            <div class="tiny mono" style="white-space:pre-wrap;word-break:break-word;margin-top:6px">${esc(JSON.stringify({
+              route: d.route, gate: d.gate, expect: d.expect, rerank: d.rerank, channels: d.channels, top: d.top
+            }, null, 2)).slice(0, 1400)}</div></details>` : ''}</td>
+        <td>${expectText(r)}<div class="tiny">${esc(r.kb)}</div></td>
+        <td class="mono" style="font-size:12px">${score}</td>
+        <td class="tiny mono">${esc((r.last_run_at || '').slice(5, 16))}</td>
+        <td><div class="flex" style="justify-content:flex-end">
+          <button class="btn sm primary" data-act="run" data-id="${r.id}">跑</button>
+          <button class="btn sm ghost" data-act="expect" data-id="${r.id}">${noExpect ? '设期望' : '改期望'}</button>
+          ${noExpect ? `<button class="btn sm ghost" data-act="reject" data-id="${r.id}">标拒答</button>` : ''}
+        </div>
+        <div class="flex" style="justify-content:flex-end;margin-top:4px">
+          <select class="ev-verdict" data-id="${r.id}" style="width:104px" title="人工改判（下一次跑评测会覆盖）">
+            <option value="">人工判定…</option>
+            <option value="pass">标为「好」</option>
+            <option value="fail">标为「坏」</option>
+          </select>
+          <button class="btn sm ghost" data-act="del" data-id="${r.id}">删</button>
+        </div></td></tr>`;
+    }).join('')}</tbody></table>`
+    : `<div class="empty">${EV.kb || EV.source || EV.verdict ? '没有匹配的评测题'
+        : '评测集为空：点「从问答日志回流」把线上真实提问导进来，或手动新增'}</div>`;
+}
+
+function setBusy(on, text) {
+  EV.busy = on;
+  const b = $('#evalRun');
+  b.disabled = on;
+  b.textContent = on ? (text || '评测中…') : '跑一遍评测';
+  $('#evalImport').disabled = on;
+}
+
+async function runEval(ids, skipConfirm) {
+  if (EV.busy) return;
+  const scope = ids && ids.length ? '这 1 道题' : '当前筛选下全部评测题';
+  if (!skipConfirm && !(await uiConfirm('对' + scope + '跑一遍检索评测：逐题检索 → 重排 → 闸门一，不调生成模型。'
+      + '结果会更新好/坏判定与证据。', '跑评测？'))) return;
+  setBusy(true);
+  try {
+    const d = await postJSON('/admin/eval-set/run', { kb: EV.kb || null, ids: ids || null });
+    const ms = d.ms >= 1000 ? (d.ms / 1000).toFixed(1) + 's' : Math.round(d.ms) + 'ms';
+    toast(`跑完 ${d.ran} 题 · 好 ${d.pass} · 坏 ${d.fail}`
+      + (d.pending ? ` · 待判 ${d.pending}（未设期望）` : '') + ` · ${ms}`, d.fail ? 'bad' : 'ok');
+    await loadEval();
+  } catch (e) {
+    toast('评测失败：' + e.message, 'bad');
+  } finally { setBusy(false); }
+}
+
+$('#evalList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const id = Number(b.dataset.id);
+  const act = b.dataset.act;
+  if (act === 'run') return runEval([id]);
+  if (act === 'expect') {
+    const r = EV.rows.find(x => x.id === id) || {};
+    const f = await uiPrompt('设置期望关键词（全部命中才算好）', [{
+      key: 'kw', label: '关键词（逗号 / 顿号分隔）', value: (r.expect_all || []).join(','),
+      placeholder: '如：G1,Region,可预测停顿'
+    }, {
+      key: 'route', label: '期望通道（留空=不判路由；rag / sql / multi）', value: r.expect_route || '',
+      placeholder: '如：sql（该题应当查 staging 表算数）'
+    }]);
+    if (!f) return;
+    try {
+      await postJSON('/admin/eval-set/cases/' + id + '/expect', {
+        expect_all: f.kw, expect_empty: !!r.expect_empty,
+        expect_route: (f.route || '').trim().toLowerCase() || null
+      });
+      toast('期望已更新（旧判定作废），正在跑这题…', 'ok');
+      await loadEval();
+      await runEval([id], true);
+    } catch (err) { toast(err.message, 'bad'); }
+    return;
+  }
+  if (act === 'reject') {
+    if (!(await uiConfirm('把这道题标为「应拒答」：语料里没有答案，检索必须把它拦住。'
+        + '之后跑评测时，闸门一放行即判坏。', '标为应拒答题？'))) return;
+    try {
+      await postJSON('/admin/eval-set/cases/' + id + '/expect', { expect_empty: true });
+      toast('已标应拒答，正在跑这题…', 'ok');
+      await loadEval();
+      await runEval([id], true);
+    } catch (err) { toast(err.message, 'bad'); }
+    return;
+  }
+  if (act === 'del') {
+    if (!(await uiConfirm('只删这一道评测题，不影响知识库内容。', '删除评测题？', true))) return;
+    try { await api('/admin/eval-set/cases/' + id, { method: 'DELETE' }); toast('已删除', 'ok'); await loadEval(); }
+    catch (err) { toast(err.message, 'bad'); }
+    return;
+  }
+});
+
+/** 人工改判走下拉：一次选择不产生歧义，也省掉两个占宽按钮。 */
+$('#evalList').addEventListener('change', async e => {
+  const sel = e.target.closest('.ev-verdict');
+  if (!sel || !sel.value) return;
+  const id = Number(sel.dataset.id);
+  try {
+    await postJSON('/admin/eval-set/cases/' + id + '/verdict', { verdict: sel.value });
+    toast(sel.value === 'pass' ? '已人工判为「好」（下一次跑评测会覆盖）'
+      : '已人工判为「坏」（下一次跑评测会覆盖）', sel.value === 'pass' ? 'ok' : 'bad');
+    await loadEval();
+  } catch (err) { toast(err.message, 'bad'); }
+});
+
+$('#evalRun').onclick = () => runEval(null);
+$('#evalReload').onclick = loadEval;
+$('#evalFilter').onclick = () => {
+  EV.kb = $('#evalKb').value;
+  EV.source = $('#evalSource').value;
+  EV.verdict = $('#evalVerdict').value;
+  loadEval();
+};
+$('#evalKb').onchange = $('#evalSource').onchange = $('#evalVerdict').onchange = () => $('#evalFilter').click();
+
+$('#evalImport').onclick = async () => {
+  const f = await uiPrompt('从问答日志回流', [{
+    key: 'limit', label: '导入最近多少条（去重后入库）', value: '10'
+  }]);
+  if (!f) return;
+  try {
+    const d = await postJSON('/admin/eval-set/import/qa-log', { limit: Number(f.limit) || 10 });
+    toast(`回流完成：新增 ${d.added} 道，跳过重复 ${d.skipped} 道（扫描 ${d.scanned} 条）`, 'ok');
+    await loadEval();
+  } catch (e) { toast('回流失败：' + e.message, 'bad'); }
+};
+
+/** 一键重建：题库在 classpath `eval/golden-set.json`，同库同题幂等，不会重复灌。 */
+$('#evalGolden').onclick = async () => {
+  if (!(await uiConfirm('从 classpath 的 eval/golden-set.json 导入黄金集（42 题，按题型/难度标注）。'
+      + '同库同题自动跳过；只导题不跑评测。', '导入黄金集？'))) return;
+  try {
+    const d = await postJSON('/admin/eval-set/import/golden', {});
+    toast(`黄金集导入：新增 ${d.added} 题，跳过重复 ${d.skipped} 题（v${d.version || '-'}）`, 'ok');
+    await loadEval();
+  } catch (e) { toast('导入失败：' + e.message, 'bad'); }
+};
+
+$('#evalAdd').onclick = async () => {
+  const question = $('#evalNewQ').value.trim();
+  if (!question) return toast('问题不能为空', 'bad');
+  const payload = {
+    kb: $('#evalNewKb').value,
+    question,
+    expect_all: $('#evalNewExpect').value,
+    expect_empty: $('#evalNewEmpty').checked,
+    expect_route: $('#evalNewRoute').value || null,
+    note: $('#evalNewNote').value.trim(),
+    source: 'manual'
+  };
+  try {
+    const d = await postJSON('/admin/eval-set/cases', payload);
+    toast(d.created ? '已加入评测集（待跑）' : '该库已有同一道题，未重复添加', d.created ? 'ok' : 'bad');
+    $('#evalNewQ').value = ''; $('#evalNewExpect').value = '';
+    $('#evalNewEmpty').checked = false; $('#evalNewNote').value = '';
+    $('#evalNewRoute').value = '';
+    await loadEval();
+  } catch (e) { toast('添加失败：' + e.message, 'bad'); }
+};
+
+window.pageInit = () => {
+  fillSelect('#evalKb', [''].concat(S.kbs || []), '');
+  fillSelect('#evalNewKb', S.kbs || [], (S.kbs || [])[0] || '');
+  loadEval();
+};
+boot();
+</script>
+</body>
+</html>

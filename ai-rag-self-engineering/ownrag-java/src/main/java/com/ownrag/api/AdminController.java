@@ -53,9 +53,7 @@ public class AdminController {
      */
     @javax.annotation.PostConstruct
     public void warmUpProbe() {
-        if ("openai".equals(settings.getChatProvider())) {
-            refreshChatProbeAsync();
-        }
+        refreshChatProbeAsync();
     }
 
     @GetMapping("/admin/tasks")
@@ -87,6 +85,25 @@ public class AdminController {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("todo_id", todoId);
             out.put("status", "done");
+            return out;
+        }
+    }
+
+    /**
+     * 批量关闭待办（可选 reason 前缀过滤）。系统性失败修完后的成批同因待办用这个清，
+     * 记录保留（status='done'）只是退出人工队列。body 可省略 = 全清 open 待办。
+     */
+    @PostMapping("/admin/todos/resolve_all")
+    public Map<String, Object> resolveAllTodos(
+            @org.springframework.web.bind.annotation.RequestBody(
+                    required = false) Map<String, Object> body) throws Exception {
+        String reasonPrefix = body == null || body.get("reason_prefix") == null
+                ? "" : String.valueOf(body.get("reason_prefix")).trim();
+        try (Connection conn = Db.connect(settings.getDbPath())) {
+            int n = TaskStore.resolveAllOpenTodos(conn, reasonPrefix);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("resolved", n);
+            out.put("reason_prefix", reasonPrefix.isEmpty() ? null : reasonPrefix);
             return out;
         }
     }
@@ -153,44 +170,15 @@ public class AdminController {
     public Map<String, Object> health() throws Exception {
         try (Connection conn = Db.connect(settings.getDbPath())) {
             // DSL 已在启动期校验（StartupCheck）；此处回显注册状态
-            // ollama 只在真有 provider 用它时才探活：默认档位（chat/embed/rerank 全走远程 OpenAI 兼容端点）
-            // 下探一个没装的本地服务等于白等 connectTimeout。而每个页面 boot() 都先 await 这个接口、
-            // 前端还每 20s 轮询一次——2s 空等就是"打开页面明显停顿"的主因之一。
-            boolean ollamaUsed = "ollama".equals(settings.getChatProvider())
-                    || "ollama".equals(settings.getEmbedProvider())
-                    || "ollama".equals(settings.getRerankProvider());
-            Map<String, Object> ollama = new LinkedHashMap<>();
-            ollama.put("used", ollamaUsed);
-            if (!ollamaUsed) {
-                ollama.put("ok", true);
-                ollama.put("detail", "未使用（provider 均为远程 OpenAI 兼容端点）");
-            } else {
-                try {
-                    Response resp = http.newBuilder().connectTimeout(Duration.ofMillis(800))
-                            .readTimeout(Duration.ofMillis(800)).build().newCall(
-                                    new Request.Builder().url(settings.getOllamaBaseUrl() + "/api/tags").build())
-                            .execute();
-                    try (Response r = resp) {
-                        ollama.put("ok", r.isSuccessful());
-                        ollama.put("detail", r.isSuccessful() ? "" : "HTTP " + r.code());
-                    }
-                } catch (Exception e) {
-                    ollama.put("ok", false);
-                    ollama.put("detail", truncate(e.getMessage(), 120));
-                }
-            }
-            // chat 后端按供应商探测：openai = 远程 /models（Bearer）；ollama = 上面的 /api/tags
+            // 生成后端只有 OpenAI 兼容一种形态：探远端 /models（带 15s 缓存 + 后台单飞刷新）。
+            // 不再探本地 Ollama：每个页面 boot() 都先 await 这个接口、前端还 20s 轮询一次，
+            // 探一个没装的服务等于每次白等 connectTimeout（曾造成"打开页面停顿 10 秒"）。
             Map<String, Object> chatBackend = new LinkedHashMap<>();
-            chatBackend.put("provider", settings.getChatProvider());
+            chatBackend.put("provider", "openai");
             chatBackend.put("model", settings.getChatModel());
             chatBackend.put("ok", false);
             chatBackend.put("detail", "");
-            if ("openai".equals(settings.getChatProvider())) {
-                probeChatBackend(chatBackend);
-            } else {
-                chatBackend.put("ok", ollama.get("ok"));
-                chatBackend.put("detail", ollama.get("detail"));
-            }
+            probeChatBackend(chatBackend);
             Map<String, Object> embedBackend = new LinkedHashMap<>();
             embedBackend.put("breaker_open", Embedder.breakerOpen());
             embedBackend.put("retry_in", Embedder.breakerRemainingSec());
@@ -198,7 +186,6 @@ public class AdminController {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("steps_registered", new ArrayList<>(registry.describe().keySet()));
             out.put("pipeline_missing_steps", new ArrayList<>());
-            out.put("ollama", ollama);
             out.put("chat_backend", chatBackend);
             out.put("embed_backend", embedBackend);
             out.put("rerank_enabled", settings.getRerankBaseUrl() != null

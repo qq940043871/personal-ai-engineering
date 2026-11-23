@@ -29,7 +29,11 @@ import com.ownrag.generate.Gates;
 import com.ownrag.index.ChunkStore;
 import com.ownrag.retrieve.DirectHit;
 import com.ownrag.retrieve.HybridSearch;
+import com.ownrag.retrieve.QueryRewriter;
 import com.ownrag.retrieve.RerankClient;
+import com.ownrag.router.QueryRouter;
+import com.ownrag.router.RouteResult;
+import com.ownrag.router.TableCatalog;
 import com.ownrag.util.Ids;
 import com.ownrag.util.Json;
 
@@ -44,15 +48,22 @@ public class InspectController {
 
     private final Settings settings;
     private final HybridSearch hybridSearch;
+    private final QueryRewriter queryRewriter;
     private final RerankClient rerankClient;
     private final DirectHit directHit;
+    private final QueryRouter queryRouter;
+    private final com.ownrag.auth.AuthService authService;
 
-    public InspectController(Settings settings, HybridSearch hybridSearch,
-                             RerankClient rerankClient, DirectHit directHit) {
+    public InspectController(Settings settings, HybridSearch hybridSearch, QueryRewriter queryRewriter,
+                             RerankClient rerankClient, DirectHit directHit, QueryRouter queryRouter,
+                             com.ownrag.auth.AuthService authService) {
         this.settings = settings;
         this.hybridSearch = hybridSearch;
+        this.queryRewriter = queryRewriter;
         this.rerankClient = rerankClient;
         this.directHit = directHit;
+        this.queryRouter = queryRouter;
+        this.authService = authService;
     }
 
     // ---- 配置视图 ----
@@ -84,8 +95,12 @@ public class InspectController {
     public Map<String, Object> listChunks(@RequestParam(defaultValue = "") String kb,
                                           @RequestParam(defaultValue = "") String q,
                                           @RequestParam(defaultValue = "") String docId,
-                                          @RequestParam(defaultValue = "20") int limit) throws Exception {
+                                          @RequestParam(defaultValue = "20") int limit,
+                                          javax.servlet.http.HttpServletRequest request) throws Exception {
         limit = Math.max(1, Math.min(limit, 100));
+        // 分块正文属于文档内容：未登录只看公开文档（两条分支都要过滤，不能只顾关键词那条）
+        boolean loggedIn = authService.currentUser(request) != null;
+        Map<String, Object> accessFilter = com.ownrag.auth.AuthService.accessFilter(null, loggedIn);
         try (Connection conn = Db.connect(settings.getDbPath())) {
             if (!q.trim().isEmpty()) {
                 // q 非空走 FTS5（与线上关键词通道同一函数）
@@ -93,7 +108,7 @@ public class InspectController {
                         ? settings.getKnownKbs().stream().sorted().findFirst().orElse("default") : kb;
                 long t0 = System.nanoTime();
                 List<Map<String, Object>> hits =
-                        ChunkStore.keywordSearch(conn, kbForSearch, q.trim(), limit);
+                        ChunkStore.keywordSearch(conn, kbForSearch, q.trim(), limit, accessFilter);
                 double ms = Math.round((System.nanoTime() - t0) / 1_000_000.0 * 10) / 10.0;
                 Map<String, Map<String, Object>> mapped =
                         ChunkStore.readChunks(conn, idsOf(hits));
@@ -116,6 +131,7 @@ public class InspectController {
                 out.put("kb", kbForSearch);
                 out.put("q", q.trim());
                 out.put("ms", ms);
+                out.put("public_only", !loggedIn);
                 out.put("total", chunks.size());
                 out.put("chunks", chunks);
                 return out;
@@ -123,7 +139,13 @@ public class InspectController {
 
             StringBuilder where = new StringBuilder();
             List<Object> args = new ArrayList<>();
+            if (!loggedIn) {
+                where.append("1=1 ").append(ChunkStore.publicOnlySql("chunks.doc_id"));
+            }
             if (!kb.isEmpty()) {
+                if (where.length() > 0) {
+                    where.append(" AND ");
+                }
                 where.append("kb=?");
                 args.add(kb);
             }
@@ -161,6 +183,7 @@ public class InspectController {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("mode", "list");
             out.put("kb", kb);
+            out.put("public_only", !loggedIn);
             out.put("total", total);
             out.put("chunks", chunks);
             return out;
@@ -196,6 +219,8 @@ public class InspectController {
         public String answer;
         public String level = "L0";
         public List<String> aliases = new ArrayList<>();
+        /** public | protected：直击库直达用户，不挂在 documents 上，权限得自己带（缺省 public）。 */
+        public String access_level;
     }
 
     @GetMapping("/admin/direct_hits")
@@ -237,6 +262,7 @@ public class InspectController {
             throw new ApiError(422, "question 与 answer 不能为空");
         }
         String hitId = Ids.short12().substring(0, 10);
+        String level = com.ownrag.auth.AccessLevel.normalize(body.access_level);
         // 幂等：同 (kb, question) 已存在 → 更新内容并返回原 id，不新增行（灌库脚本可重跑）
         String existingId = null;
         try (Connection conn = Db.connect(settings.getDbPath())) {
@@ -252,24 +278,32 @@ public class InspectController {
             }
             Db.endRead(conn);  // 先查后写：读事务不收尾，下面的写会撞 BUSY_SNAPSHOT
             if (existingId != null) {
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE direct_hits SET level=?, aliases_json=?, answer=? WHERE id=?")) {
+                // access_level 未显式给出时不覆盖已有值（避免"改答案顺手把权限改回公开"）
+                String sql = body.access_level == null
+                        ? "UPDATE direct_hits SET level=?, aliases_json=?, answer=? WHERE id=?"
+                        : "UPDATE direct_hits SET level=?, aliases_json=?, answer=?, access_level=? WHERE id=?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setString(1, body.level);
                     ps.setString(2, Json.write(body.aliases == null ? new ArrayList<>() : body.aliases));
                     ps.setString(3, body.answer);
-                    ps.setString(4, existingId);
+                    int i = 4;
+                    if (body.access_level != null) {
+                        ps.setString(i++, level);
+                    }
+                    ps.setString(i, existingId);
                     ps.executeUpdate();
                 }
             } else {
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO direct_hits(id,kb,level,question,aliases_json,answer,enabled) "
-                                + "VALUES (?,?,?,?,?,?,1)")) {
+                        "INSERT INTO direct_hits(id,kb,level,question,aliases_json,answer,enabled,access_level) "
+                                + "VALUES (?,?,?,?,?,?,1,?)")) {
                     ps.setString(1, hitId);
                     ps.setString(2, body.kb);
                     ps.setString(3, body.level);
                     ps.setString(4, body.question.trim());
                     ps.setString(5, Json.write(body.aliases == null ? new ArrayList<>() : body.aliases));
                     ps.setString(6, body.answer);
+                    ps.setString(7, level);
                     ps.executeUpdate();
                 }
             }
@@ -308,11 +342,20 @@ public class InspectController {
         public Integer top_n;
         public Integer rerank_top_n;
         public java.util.Map<String, Object> metadataFilter;
+        /** 单次改写开关：null=按 apps.yaml；true=强制（本端点无历史，等价于去套话）；false=关闭。 */
+        public Boolean rewrite;
+        /** true = 只跑路由（不检索、不生成、不执行 SQL）：路由回归台。 */
+        public Boolean route;
+        /** route=true 时强制指定通道（rag/sql/multi/web），用于验证"指定了但不可用"的回落。 */
+        public String force_route;
     }
 
     @PostMapping("/admin/retrieve")
-    public Map<String, Object> debugRetrieve(@RequestBody RetrieveReq req) throws Exception {
-        // 只跑检索侧：直击库 → 双通道 → RRF → rerank → 预算 → 闸门一。不调用生成模型。
+    public Map<String, Object> debugRetrieve(@RequestBody RetrieveReq req,
+                                            @RequestParam(value = "route", required = false) Boolean routeParam,
+                                            javax.servlet.http.HttpServletRequest request)
+            throws Exception {
+        // 只跑检索侧：直击库 →（问句改写）→ 双通道 → RRF → rerank → 预算 → 闸门一。不调用生成模型。
         if (req.question == null || req.question.trim().isEmpty()) {
             throw new ApiError(422, "问题为空");
         }
@@ -323,6 +366,22 @@ public class InspectController {
         List<String> kbs = appCfg.knowledgeBases.isEmpty()
                 ? java.util.Collections.singletonList("default") : appCfg.knowledgeBases;
         String kb = req.kb == null || req.kb.isEmpty() ? kbs.get(0) : req.kb;
+        // 调试台与线上同一口径：未登录时同样只看公开文档（否则"调试能搜到、问答搜不到"无从解释）
+        boolean loggedIn = authService.currentUser(request) != null;
+        Map<String, Object> metadataFilter =
+                com.ownrag.auth.AuthService.accessFilter(req.metadataFilter, loggedIn);
+
+        // 路由回归台：只跑"分诊"，不检索、不生成、不执行 SQL。
+        // 它是唯一能脱离模型、脱离答案质量来验证"判定对不对"的入口（路由错但答案对也算错）。
+        if (Boolean.TRUE.equals(req.route) || Boolean.TRUE.equals(routeParam)) {
+            return routeOnly(req, appCfg, kbs);
+        }
+
+        // 改写这一步与 /chat 同源：llm=null（本端点约定不调生成模型）、history=null（无对话上下文），
+        // 因此这里只会走"去套话"或"不改"两条确定性分支——调试页看到的检索式与问答页首轮一致。
+        QueryRewriter.Result rw = queryRewriter.rewrite(settings, null, req.question, null,
+                req.rewrite != null ? req.rewrite : (appCfg.queryRewrite ? null : Boolean.FALSE));
+        String query = rw.triggered ? rw.rewritten : rw.original;
 
         long t0 = System.nanoTime();
         Map<String, Object> direct;
@@ -341,15 +400,18 @@ public class InspectController {
             } else {
                 direct.put("hit", false);
             }
-            result = hybridSearch.search(conn, settings, kb, req.question,
+            // 与 /chat 同一口径：调试台看到的候选必须就是线上会进 prompt 的那批
+            // （不含 Excel 行卡片 + 未登录时不含需登录文档）
+            result = hybridSearch.search(conn, settings, kb, query,
                     req.vector_topk != null ? req.vector_topk : appCfg.vectorTopk,
                     req.bm25_topk != null ? req.bm25_topk : appCfg.bm25Topk,
-                    req.top_n != null ? req.top_n : appCfg.topN, req.metadataFilter);
+                    req.top_n != null ? req.top_n : appCfg.topN,
+                    HybridSearch.withAccess(HybridSearch.ragFilter(metadataFilter), loggedIn));
             List<Map<String, Object>> candidates =
                     (List<Map<String, Object>>) result.getOrDefault("candidates", new ArrayList<>());
             int rerankTopN = req.rerank_top_n != null ? req.rerank_top_n
                     : Math.max(4, (req.top_n != null ? req.top_n : appCfg.topN) / 2);
-            reranked = rerankClient.rerank(settings, req.question, candidates, rerankTopN);
+            reranked = rerankClient.rerank(settings, query, candidates, rerankTopN);
             Map<String, Object> genCfg = new LinkedHashMap<>();
             genCfg.put("max_ctx_tokens", appCfg.maxCtxTokens);
             genCfg.put("max_new_tokens", appCfg.maxNewTokens);
@@ -364,7 +426,16 @@ public class InspectController {
         out.put("question", req.question);
         out.put("app", req.app);
         out.put("kb", kb);
+        // 权限口径随结果回显：候选为空时，页面才能区分"语料没有"和"未登录看不到"
+        Map<String, Object> access = new LinkedHashMap<>();
+        access.put("logged_in", loggedIn);
+        access.put("public_only", !loggedIn);
+        access.put("protected_docs", loggedIn ? 0 : authService.countProtected(kbs));
+        access.put("note", loggedIn ? "已登录：检索全部文档"
+                : "未登录：只在公开文档中检索，登录后可检索全部");
+        out.put("access", access);
         out.put("ms", ms);
+        out.put("rewrite", rw.toEvent());   // 检索用的是哪句话：静默改写查不出问题
         out.put("direct_hit", direct);
         out.put("vector_skipped_reason", result.get("vector_skipped_reason"));
         out.put("retrieval_path", result.get("retrieval_path"));
@@ -390,6 +461,67 @@ public class InspectController {
         gatePre.put("passed", pre.passed);
         gatePre.put("reason", pre.reason);
         out.put("gate_pre", gatePre);
+        return out;
+    }
+
+    // ---- 路由回归台 ----
+    /**
+     * 只跑路由 + 选表。刻意不执行 SQL、不调生成模型：
+     * 这个端点回答的是"系统认为这道题该查哪类数据"，一旦掺进 SQL 结果或答案，就分不清
+     * "判定错"和"执行错"了。
+     */
+    private Map<String, Object> routeOnly(RetrieveReq req, AppDef appCfg, List<String> kbs) throws Exception {
+        long t0 = System.nanoTime();
+        Map<String, Object> out = new LinkedHashMap<>();
+        try (Connection conn = Db.connect(settings.getDbPath())) {
+            RouteResult r = queryRouter.route(conn, appCfg, kbs, req.question, req.force_route);
+            out.put("mode", "route");
+            out.put("question", req.question);
+            out.put("app", appCfg.name);
+            out.put("kbs", kbs);
+            out.put("routing_enabled", appCfg.routingEnabled);
+            if (!appCfg.routingEnabled) {
+                out.put("note", "该 app 未开启 routing：/chat 仍走单轨 RAG，此处仅试跑判定");
+            }
+            out.put("route", r.toEvent());
+
+            // 判成 sql 但 targets 为空 = "判对了一半"（知道要查表，但不知道查哪张）：
+            // 单列一个字段，让这种半对在页面上一眼可见，而不是埋在 route.targets 的空数组里
+            List<Map<String, Object>> picked = new ArrayList<>();
+            for (Map<String, Object> t : r.targets) {
+                picked.add(t);
+            }
+            out.put("picked_tables", picked);
+            out.put("catalog", catalogView(conn, kbs));
+        }
+        out.put("ms", Math.round((System.nanoTime() - t0) / 1_000_000.0 * 10) / 10.0);
+        return out;
+    }
+
+    /** 该 app 可见的 Excel 表目录（staging_registry 现算）：路由为什么选/不选某张表，靠它解释。 */
+    private List<Map<String, Object>> catalogView(Connection conn, List<String> kbs) throws Exception {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (TableCatalog.TableInfo t : TableCatalog.list(conn, kbs)) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("table", t.table);
+            m.put("sheet", t.sheet);
+            m.put("kb", t.kb);
+            m.put("doc_id", t.docId);
+            m.put("doc_name", t.docName);
+            m.put("rows", t.rows);
+            m.put("pk", t.pk);
+            List<Map<String, Object>> cols = new ArrayList<>();
+            for (Map<String, Object> c : t.columns) {
+                Map<String, Object> cm = new LinkedHashMap<>();
+                cm.put("column", c.get("column"));
+                cm.put("physical", c.get("physical"));
+                cm.put("type", c.get("type"));
+                cm.put("sql_expr", c.get("sql_expr"));
+                cols.add(cm);
+            }
+            m.put("columns", cols);
+            out.add(m);
+        }
         return out;
     }
 
@@ -425,6 +557,7 @@ public class InspectController {
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("chunk_id", c.get("chunk_id"));
             b.put("doc_id", c.get("doc_id"));
+            b.put("doc_name", c.get("doc_name"));  // 引用位置要能直接看出是哪篇文档，而不是 doc_id 前几位
             b.put("ordinal", c.get("ordinal"));
             Object rrf = c.get("rrf");
             b.put("rrf", rrf instanceof Number ? Math.round(((Number) rrf).doubleValue() * 1e6) / 1e6 : 0);

@@ -38,16 +38,14 @@ public class ConfigLoader {
         Map<String, Object> mineruCfg = orEmpty(Yamls.map(models, "mineru"));
         Map<String, Object> asrCfg = orEmpty(Yamls.map(models, "asr"));
 
-        Map<String, Object> ollama = orEmpty(Yamls.map(endpoints, "ollama"));
         Map<String, Object> chatEp = orEmpty(Yamls.map(endpoints, "chat"));
         Map<String, Object> embedEp = orEmpty(Yamls.map(endpoints, "embed"));
         Map<String, Object> rerankEp = orEmpty(Yamls.map(endpoints, "rerank"));
 
         // 优先级：env > models.yaml（与 Python 版一致）
-        String chatProvider = env("OWNRAG_CHAT_PROVIDER", Yamls.str(chatEp, "provider", "ollama"));
+        // 端点形态只有一种：OpenAI 兼容 HTTP（本地/云端皆可），不再有 ollama 原生协议分支
         String chatBaseUrl = env("OWNRAG_CHAT_BASE_URL", Yamls.str(chatEp, "base_url", ""));
         String chatModel = env("OWNRAG_CHAT_MODEL", Yamls.str(defaults, "chat", "agnes-3.0-flash"));
-        String embedProvider = env("OWNRAG_EMBED_PROVIDER", Yamls.str(embedEp, "provider", "ollama"));
         String embedBaseUrl = env("OWNRAG_EMBED_BASE_URL", Yamls.str(embedEp, "base_url", ""));
         String embedModel = env("OWNRAG_EMBED_MODEL", Yamls.str(defaults, "embed", "BAAI/bge-large-zh-v1.5"));
         String embedVersion = env("OWNRAG_EMBED_VERSION",
@@ -100,9 +98,8 @@ public class ConfigLoader {
         }
 
         return new Settings(dataDir, dir,
-                Yamls.str(ollama, "base_url", "http://127.0.0.1:11434"),
-                chatProvider, chatBaseUrl, env("OWNRAG_CHAT_API_KEY", ""),
-                chatModel, embedProvider, embedBaseUrl, env("OWNRAG_EMBED_API_KEY", ""),
+                chatBaseUrl, env("OWNRAG_CHAT_API_KEY", ""), chatModel,
+                embedBaseUrl, env("OWNRAG_EMBED_API_KEY", ""),
                 embedModel, embedVersion, env("OWNRAG_EMBED_QUERY_INSTRUCT", ""),
                 rerankProvider, rerankBaseUrl, rerankModel, env("OWNRAG_RERANK_API_KEY", ""),
                 mineruMode, mineruBaseUrl, mineruOpenBaseUrl, env("MINERU_OPEN_TOKEN", ""),

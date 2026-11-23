@@ -94,8 +94,8 @@ class PipelineConcurrencyTest {
             defs.put(p.name, p);
         }
         return new Settings(dataDir, "",
-                "http://127.0.0.1:11434", "openai", "http://localhost:1/v1", "k", "m",
-                "openai", "http://localhost:1/v1", "k", "bge-m3", "test", "",
+                "http://localhost:1/v1", "k", "m",
+                "http://localhost:1/v1", "k", "bge-m3", "test", "",
                 "", "", "BAAI/bge-reranker-v2-m3", "",
                 "open", "", com.ownrag.ingest.MineruOpenClient.API_BASE_DEFAULT, "",
                 "", "", "", "",

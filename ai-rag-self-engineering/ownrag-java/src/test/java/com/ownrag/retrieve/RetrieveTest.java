@@ -86,19 +86,16 @@ public class RetrieveTest {
 
     /** 测试专用 Settings 构造器（最小可用配置，跨测试包共用）。 */
     public static class SettingsBuilder {
-        private String embedProvider = "openai";
         private String embedBaseUrl = "http://localhost:1/v1";
         private String embedApiKey = "k";
         private String embedModel = "bge-m3";
         private String embedVersion = "test";
-        private String chatProvider = "openai";
         private String chatBaseUrl = "http://localhost:1/v1";
         private String chatApiKey = "k";
         private String chatModel = "m";
         private String rerankProvider = "";
         private String rerankBaseUrl = "";
         private String rerankModel = "BAAI/bge-reranker-v2-m3";
-        private String ollamaBaseUrl = "http://127.0.0.1:11434";
         private String mineruMode = "open";
         private String mineruOpenBaseUrl = com.ownrag.ingest.MineruOpenClient.API_BASE_DEFAULT;
         private int numCtx = 6144;
@@ -106,7 +103,6 @@ public class RetrieveTest {
         private int maxUploadMb = 200;
         private java.nio.file.Path dataDir;
 
-        public SettingsBuilder embedProvider(String v) { this.embedProvider = v; return this; }
         public SettingsBuilder rerankProvider(String v) { this.rerankProvider = v; return this; }
         public SettingsBuilder rerankBaseUrl(String v) { this.rerankBaseUrl = v; return this; }
         public SettingsBuilder mineruMode(String v) { this.mineruMode = v; return this; }
@@ -116,8 +112,8 @@ public class RetrieveTest {
             return new com.ownrag.config.Settings(
                     dataDir == null ? java.nio.file.Paths.get("./data") : dataDir,
                     "",
-                    ollamaBaseUrl, chatProvider, chatBaseUrl, chatApiKey, chatModel,
-                    embedProvider, embedBaseUrl, embedApiKey, embedModel, embedVersion, "",
+                    chatBaseUrl, chatApiKey, chatModel,
+                    embedBaseUrl, embedApiKey, embedModel, embedVersion, "",
                     rerankProvider, rerankBaseUrl, rerankModel, "",
                     mineruMode, "", mineruOpenBaseUrl, "token",
                     "http://localhost:1/v1", "m", "zh", "k",

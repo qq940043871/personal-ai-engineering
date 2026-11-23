@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>问答 · ownrag</title>
+<title>问答调试 · ownrag</title>
 <link rel="stylesheet" href="/ui/assets/app.css">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -14,7 +14,7 @@
   <aside id="sidebar"></aside>
 
   <main>
-    <div class="top"><h1>问答</h1><div class="pills" id="pills"></div></div>
+    <div class="top"><h1>问答调试</h1><div class="pills" id="pills"></div></div>
 
     <div class="card">
       <div class="row">
@@ -23,27 +23,106 @@
         </div>
         <div>
           <label class="f">问题</label>
-          <input id="chatQ" placeholder="例：报销口径是什么？" value="报销口径是什么">
+          <input id="chatQ" placeholder="例：用一分钟介绍下你自己" value="用一分钟介绍下你自己">
+        </div>
+        <div class="fix" style="width:160px;flex:0 0 160px">
+          <label class="f">问句改写</label>
+          <select id="chatRewrite">
+            <option value="auto" selected>自动（按规则触发）</option>
+            <option value="force">强制改写</option>
+            <option value="off">关闭改写</option>
+          </select>
+        </div>
+        <div class="fix" style="width:130px;flex:0 0 130px">
+          <label class="f">通道</label>
+          <select id="chatRoute">
+            <option value="auto" selected>自动（按路由判定）</option>
+            <option value="rag">强制 RAG</option>
+            <option value="sql">强制 SQL</option>
+            <option value="multi">强制双通道</option>
+          </select>
+        </div>
+        <div class="fix" style="width:auto;flex:0 0 auto">
+          <label class="f">调试明细</label>
+          <label class="flex tiny" style="gap:6px;padding:8px 0">
+            <input type="checkbox" id="chatDebug" checked style="width:auto;margin:0"> 下发召回 / 排序 / Prompt
+          </label>
         </div>
         <div class="fix"><button class="btn primary" id="chatGo">提问（SSE）</button></div>
       </div>
       <div class="tiny" style="margin-top:8px">
-        事件顺序：hit（直击库）→ ctx（候选）→ token（流式）→ gate（闸门）→ done。任何降级都会以 gate 事件出现。
+        事件顺序：route（该查哪类数据）→ rewrite（是否改写）→ retrieval（两路召回）→ fuse（RRF 顺序）
+        → rerank（重排顺序）→ ctx（进 prompt 的块）→ prompt（发给模型全文）→ token（流式）→ gate（闸门）→ done。
+        任何降级都会以 gate 事件出现；勾掉「调试明细」则只保留 route/ctx/token/gate/done。
       </div>
     </div>
-    <div class="grid g2" style="margin-top:14px">
-      <div class="card">
-        <h3>回答 <span class="tag" id="chatState"></span></h3>
-        <div class="answer" id="chatAnswer"><span class="muted">还没有提问</span></div>
-        <div class="sep"></div>
-        <h3>事件流</h3>
-        <div class="log" id="chatLog"><span class="t">等待请求…</span></div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>回答 <span class="tag" id="chatState"></span></h3>
+      <div class="answer" id="chatAnswer"><span class="muted">还没有提问</span></div>
+      <div class="sep"></div>
+      <h3>事件流</h3>
+      <div class="log" id="chatLog"><span class="t">等待请求…</span></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>调试链路（①→⑧ 按执行顺序） <span class="tag tiny" id="dbgState">等待提问</span></h3>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>⓪ 数据源路由</b><span class="tag tiny" id="dbgRouteTag">–</span>
+          <span class="tiny">先判"该查哪类数据"，再决定 RAG / SQL / 双通道；应用未开启 routing 时无此事件</span></div>
+        <div id="dbgRoute"><span class="muted">等待 route 事件…</span></div>
       </div>
-      <div class="card">
-        <h3>模型看到的上下文 <span class="tag tiny" id="chatCtxN"></span></h3>
-        <div id="chatCtx"><div class="empty">提问后展示（只显示真正进 prompt 的块）</div></div>
-        <div class="sep"></div>
-        <h3>引用与校验</h3>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>① 查询改写</b><span class="tiny">要不要改写、改成什么、为什么</span></div>
+        <div id="dbgRewrite"><span class="muted">等待 rewrite 事件…</span></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>② 关键词召回（FTS5 / BM25）</b><span class="chip" id="dbgBm25N">–</span>
+          <span class="tiny">单路原始命中，按 bm25 分数排序</span></div>
+        <div id="dbgBm25"><div class="empty">等待 retrieval 事件</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>③ 向量召回（余弦）</b><span class="chip" id="dbgVecN">–</span>
+          <span class="tiny">单路原始命中，按余弦相似度排序</span></div>
+        <div id="dbgVec"><div class="empty">等待 retrieval 事件</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>④ 混合排序（RRF 融合后）</b><span class="chip" id="dbgFuseN">–</span>
+          <span class="tiny">两路名次融合，重排前的基础顺序</span></div>
+        <div id="dbgFuse"><div class="empty">等待 fuse 事件</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>⑤ 重排序（rerank 后）</b><span class="chip" id="dbgRerankN">–</span>
+          <span class="tiny">与 ④ 对比看名次升降</span></div>
+        <div id="dbgRerank"><div class="empty">等待 rerank 事件</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>⑥ 进入上下文的块</b><span class="chip" id="chatCtxN">–</span>
+          <span class="tiny">预算裁剪后真正进 prompt 的块（闸门二与引用只认这批）</span></div>
+        <div id="chatCtx"><div class="empty">提问后展示</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>⑦ 发给大模型的内容</b><span class="tiny" id="dbgPromptMeta"></span>
+          <span class="tiny">system + user 全文，逐字可见</span></div>
+        <div id="dbgPrompt"><div class="empty">等待 prompt 事件</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>⑧ 大模型的应答</b><span class="tiny" id="dbgAnswerMeta"></span>
+          <span class="tiny">闸门二重答时同时给出首答与最终答案</span></div>
+        <div id="dbgAnswer"><div class="empty">等待生成</div></div>
+      </div>
+
+      <div class="dbg-sec">
+        <div class="dbg-h"><b>引用与校验</b><span class="tiny">最终答案引用了哪些块、预算与 trace 复盘入口</span></div>
         <div id="chatGate" class="muted">—</div>
       </div>
     </div>
@@ -58,31 +137,260 @@
 <script src="/ui/assets/md.js?v=20261117"></script>
 <script>
 let chatAbort = null;
+/* 一次问答的调试快照：每个事件落一格，done 时统一收口 */
+let dbg = freshDbg();
+
 $('#chatGo').onclick = () => runChat();
 $('#chatQ').addEventListener('keydown', e => { if (e.key === 'Enter') runChat(); });
+
+function freshDbg() {
+  return { rewrite: null, retrieval: null, fuse: null, rerank: null, prompts: [], raw: '', answer: '', debug: false };
+}
+
+function resetPanels(debugOn) {
+  dbg = freshDbg();
+  dbg.debug = debugOn;
+  const wait = debugOn ? '等待事件…' : '调试未开启（勾选「下发召回 / 排序 / Prompt」后重问）';
+  $('#dbgState').textContent = '运行中';
+  $('#dbgRewrite').innerHTML = `<span class="muted">${esc(wait)}</span>`;
+  $('#dbgRouteTag').textContent = '–';
+  $('#dbgRoute').innerHTML = `<span class="muted">${esc(wait)}</span>`;
+  ['dbgBm25N', 'dbgVecN', 'dbgFuseN', 'dbgRerankN'].forEach(id => $('#' + id).textContent = '–');
+  ['dbgBm25', 'dbgVec', 'dbgFuse', 'dbgRerank', 'dbgPrompt'].forEach(id =>
+    $(`#${id}`).innerHTML = `<div class="empty">${esc(wait)}</div>`);
+  $('#dbgAnswer').innerHTML = '<div class="empty">生成中…</div>';
+  $('#dbgPromptMeta').textContent = '';
+  $('#dbgAnswerMeta').textContent = '';
+  $('#chatCtx').innerHTML = '<div class="empty">等待 ctx 事件</div>';
+  $('#chatCtxN').textContent = '–';
+  $('#chatGate').innerHTML = '—';
+}
+
+/* ---------------- 列表渲染小工具 ---------------- */
+
+/** 一行召回/排序记录：名次 · 块 id · 块序号 · 尾部 chip · 正文预览（单行省略） */
+function rkRow(i, r, tail) {
+  const ord = r.ordinal != null ? `<span class="chip info" style="padding:1px 7px">块${esc(r.ordinal)}</span>` : '';
+  const doc = r.doc_name ? `<span class="chip doc" title="${esc(r.doc_name)}">${esc(r.doc_name)}</span>` : '';
+  const tx = (r.preview || '').replace(/\s+/g, ' ');
+  return `<div class="rk">
+    <span class="no">${i + 1}</span>
+    <span class="cid" title="${esc(r.chunk_id)}">${esc(shortId(r.chunk_id))}</span>${ord}${doc}
+    ${tail || ''}
+    <span class="tx" title="${esc(tx)}">${esc(tx)}</span>
+  </div>`;
+}
+function chChips(r) {
+  return (r.channels || []).map(c =>
+    `<span class="chip v">${esc(c.channel)}${c.score != null ? ' ' + Number(c.score).toFixed(3) : ''}</span>`).join('');
+}
+function hitsPanel(sel, nSel, hits, kind, emptyText) {
+  $(nSel).textContent = hits.length;
+  if (!hits.length) { $(sel).innerHTML = `<div class="empty">${esc(emptyText)}</div>`; return; }
+  $(sel).innerHTML = hits.map((h, i) => {
+    const score = h.score == null ? '' : (kind === 'bm25' ? 'bm25 ' + Number(h.score).toFixed(3) : 'cos ' + Number(h.score).toFixed(3));
+    return rkRow(i, h, `<span class="chip">${score}</span><span class="tiny">${fmt(h.chars || 0)} 字</span>`);
+  }).join('');
+}
+
+/* ---------------- 各面板 ---------------- */
+
+function renderRewrite(d) {
+  const on = !!d.triggered;
+  $('#dbgRewrite').innerHTML = `
+    <div class="flex">
+      <span class="chip ${on ? 'warn' : ''}">${on ? '已触发改写' : '未触发改写'}</span>
+      <span class="chip">method=${esc(d.method)}</span>
+      <span class="chip">${d.history_turns ? '历史 ' + d.history_turns + ' 轮' : '无对话历史'}</span>
+      <span class="chip">${Number(d.ms || 0).toFixed(1)} ms</span>
+    </div>
+    <div class="tiny" style="margin:8px 0">原因：${esc(d.reason || '—')}</div>
+    <div class="json">
+      <div>原问题：${esc(d.original || '')}</div>
+      <div>检索用：<b style="color:${on ? '#ffe3a6' : '#8df0ca'}">${esc(d.rewritten || '')}</b></div>
+    </div>`;
+}
+
+function renderRoute(d) {
+  const a = d.availability || {};
+  const cls = { sql: 'v', multi: 'warn', rag: 'info' }[d.route] || 'info';
+  $('#dbgRouteTag').textContent = d.route + ' · ' + d.layer;
+  const sig = (d.signals || []).map(s =>
+    `<span class="chip">${esc(s.name)} +${s.weight}→${esc(s.route)}</span>`).join('');
+  const tg = (d.targets || []).map(t =>
+    `<span class="chip doc" title="${esc(t.table)}">${esc(t.doc_name || t.doc_id)} / ${esc(t.sheet || '')}</span>`).join('');
+  const det = d.detail || {};
+  $('#dbgRoute').innerHTML = `
+    <div class="flex" style="flex-wrap:wrap;gap:6px">
+      <span class="chip ${cls}">route = ${esc(d.route)}</span>
+      <span class="chip">layer = ${esc(d.layer)}</span>
+      <span class="chip">conf ${esc(String(d.confidence))}</span>
+      <span class="chip ${a.sql ? 'ok' : ''}">sql ${a.sql ? '可用' : '不可用'}</span>
+      <span class="chip ${a.rag ? 'ok' : ''}">rag ${a.rag ? '可用' : '不可用'}</span>
+      <span class="chip">web ${a.web ? '可用' : '不可用'}</span>
+      <span class="chip">${Number(d.ms || 0).toFixed(1)} ms</span>
+    </div>
+    <div class="tiny" style="margin:8px 0">原因：${esc(d.reason || '—')}</div>
+    ${sig ? `<div class="flex" style="flex-wrap:wrap;gap:6px">${sig}</div>` : ''}
+    ${tg ? `<div class="flex" style="flex-wrap:wrap;gap:6px;margin-top:6px">目标表：${tg}</div>` : ''}
+    ${det.sql ? `<div class="json" style="margin-top:8px"><div>SQL（${esc(String(det.rows))} 行 / ${esc(String(det.ms))} ms${det.truncated ? ' / 已截断' : ''}）：</div>
+      <div class="mono" style="white-space:pre-wrap">${esc(det.sql)}</div></div>` : ''}
+    ${det.degraded ? `<div class="hint">SQL 通道降级：${esc(det.note || '')}</div>` : ''}`;
+}
+
+function renderRetrieval(d) {
+  const bm = d.bm25 || [], vec = d.vector || [];
+  hitsPanel('#dbgBm25', '#dbgBm25N', bm, 'bm25', '关键词通道无命中（中文按字切分，换短词试试）');
+  hitsPanel('#dbgVec', '#dbgVecN', vec, 'vector', d.vector_skipped_reason || '向量通道无命中');
+  dbg.retrieval = d;
+}
+
+function renderFuse(d) {
+  $('#dbgFuseN').textContent = (d.count || 0) + ' 块';
+  $('#dbgFuse').innerHTML = (d.order || []).map((r, i) =>
+    rkRow(i, r, `<span class="chip">rrf ${Number(r.rrf || 0).toFixed(4)}</span>${chChips(r)}`)).join('')
+    || '<div class="empty">没有融合候选</div>';
+}
+
+function renderRerank(d) {
+  $('#dbgRerankN').textContent = (d.after || 0) + ' 块';
+  const delta = (r) => {
+    if (r.prev_rank == null || r.prev_rank < 0) return '<span class="chip warn">新增</span>';
+    if (r.prev_rank === r.rank) return '<span class="same">＝</span>';
+    return r.prev_rank > r.rank
+      ? `<span class="up">↑${r.prev_rank - r.rank}</span>`
+      : `<span class="down">↓${r.rank - r.prev_rank}</span>`;
+  };
+  const head = `<div class="tiny" style="margin-bottom:8px">${esc(d.note || '')}
+    · 候选 ${d.before} → 保留 ${d.after}${d.dropped ? '（截掉 ' + d.dropped + '）' : ''}</div>`;
+  $('#dbgRerank').innerHTML = head + ((d.order || []).map((r, i) =>
+    rkRow(i, r, `<span class="chip">${r.rerank_score != null ? 'rerank ' + Number(r.rerank_score).toFixed(3) : '未打分'}</span>
+      <span class="chip">rrf ${r.rrf != null ? Number(r.rrf).toFixed(4) : '–'}</span>
+      <span class="tiny">原第 ${r.prev_rank >= 0 ? r.prev_rank + 1 : '—'} 名</span>${delta(r)}`)).join('')
+    || '<div class="empty">没有重排候选</div>');
+}
+
+function renderPrompts() {
+  const ps = dbg.prompts;
+  $('#dbgPromptMeta').textContent = ps.map(p => (p.phase === 'repair' ? '重答' : '首答') + ' ' + fmt(p.chars) + ' 字').join(' · ');
+  $('#dbgPrompt').innerHTML = ps.map((p, idx) => {
+    const g = 'pmt' + idx;
+    const bodies = p.messages.map((m, i) =>
+      `<div class="pmt" data-body="${g}" data-i="${i}"${i ? ' style="display:none"' : ''}>${esc(m.content)}</div>`).join('');
+    const tabs = p.messages.map((m, i) =>
+      `<button class="btn sm ghost" data-pmt="${g}" data-i="${i}">${esc(m.role)} · ${fmt(m.chars)} 字</button>`).join('');
+    return `<div class="dbg-sec">
+      <div class="dbg-h">
+        <b>${p.phase === 'repair' ? '第 2 次调用（闸门重答）' : '第 1 次调用（生成）'}</b>
+        <span class="chip info">prompt=${esc(p.prompt)}</span>
+        <span class="chip">上下文 ${p.ctx_blocks} 块 / ${fmt(p.ctx_tokens)} tok</span>
+        <span class="sp"></span>
+        <button class="btn sm ghost" data-copy="${g}">复制全文</button>
+      </div>
+      ${bodies}
+      <div class="flex" style="margin-top:8px">${tabs}</div>
+      <div class="tiny" style="margin-top:6px">窗口 ${fmt(p.num_ctx)} tok · 输出预留 ${fmt(p.max_new)} · messages 合计 ${fmt(p.chars)} 字</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDbgAnswer() {
+  const finalText = dbg.answer || '';
+  const raw = dbg.raw || '';
+  const repaired = raw && finalText && raw.trim() !== finalText.trim();
+  $('#dbgAnswerMeta').textContent = repaired ? '闸门二重答过' : '';
+  const head = `<div class="flex" style="margin-bottom:8px">
+      <span class="chip">${fmt(finalText.length)} 字</span>
+      ${repaired ? '<span class="chip warn">首答被闸门二打回并重答</span>' : '<span class="chip ok">首答直接通过</span>'}
+    </div>`;
+  const body = repaired
+    ? `<div class="dbg-h"><b>首答原文（未通过闸门二）</b></div>
+       <div class="pmt" style="max-height:220px">${esc(raw)}</div>
+       <div class="dbg-h" style="margin-top:12px"><b>最终交付给用户的答案</b></div>
+       <div class="pmt">${esc(finalText)}</div>`
+    : `<div class="pmt">${esc(finalText || '（空）')}</div>`;
+  $('#dbgAnswer').innerHTML = head + body;
+}
+
+/* Prompt 面板：role 页签切换 + 复制全文 */
+$('#dbgPrompt').addEventListener('click', async (e) => {
+  const tab = e.target.closest('[data-pmt]');
+  if (tab) {
+    const g = tab.dataset.pmt, i = tab.dataset.i;
+    $$(`[data-body="${g}"]`).forEach(el => { el.style.display = el.dataset.i === i ? '' : 'none'; });
+    return;
+  }
+  const cp = e.target.closest('[data-copy]');
+  if (cp) {
+    const g = cp.dataset.copy;
+    const text = $$(`[data-body="${g}"]`).map(el => el.textContent).join('\n\n----- 下一条 message -----\n\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('已复制 ' + text.length + ' 字');
+    } catch (err) {
+      toast('复制失败：' + err.message, 'bad');
+    }
+  }
+});
+
+/* ---------------- 主流程 ---------------- */
 
 async function runChat() {
   const question = $('#chatQ').value.trim();
   if (!question) return toast('先写一个问题');
   if (chatAbort) chatAbort.abort();
   chatAbort = new AbortController();
+
+  const debugOn = $('#chatDebug').checked;
+  const rwMode = $('#chatRewrite').value;
+  const rtMode = $('#chatRoute').value;
+  const body = { app: $('#chatApp').value, question };
+  if (rwMode === 'force') body.rewrite = true;
+  else if (rwMode === 'off') body.rewrite = false;
+  if (rtMode && rtMode !== 'auto') body.route = rtMode;   // 强制通道：仍会做可用性校验
+  if (debugOn) body.debug = true;
+
   $('#chatAnswer').innerHTML = '<span class="muted">生成中…</span>';
-  $('#chatCtx').innerHTML = '<div class="empty">等待 ctx 事件</div>';
-  $('#chatGate').innerHTML = '—';
-  $('#chatCtxN').textContent = '';
   $('#chatState').innerHTML = '<span class="chip warn">running</span>';
+  resetPanels(debugOn);
+
   const log = $('#chatLog'); log.innerHTML = '';
   const t0 = performance.now();
   const add = (html) => { log.innerHTML += html + '\n'; log.scrollTop = log.scrollHeight; };
-  let answer = '', citations = [], traceId = '', firstToken = 0;
+  let answer = '', citations = [], traceId = '', firstToken = 0, refused = false, retracted = false;
 
   try {
-    await sse('/chat', { app: $('#chatApp').value, question }, (ev, d) => {
+    await sse('/chat', body, (ev, d) => {
       if (ev === 'hit') {
-        add(`<span class="acc">[hit]</span> 直击库 ${d.level} · ${esc(d.question)} → ${esc(d.answer)}`);
+        add(`<span class="acc">[hit]</span> 直击库 ${esc(d.level)} · ${esc(d.question)} → ${esc(d.answer)}`);
         answer = d.answer; traceId = d.trace_id || '';
         $('#chatAnswer').textContent = answer;
         $('#chatState').innerHTML = '<span class="chip v">direct_hit</span>';
+        $('#dbgState').textContent = '直击库命中，未走检索';
+        $('#dbgRewrite').innerHTML = '<span class="muted">直击库命中：零检索零改写</span>';
+      } else if (ev === 'route') {
+        renderRoute(d);
+        const av = d.availability || {};
+        add(`<span class="acc">[route]</span> ${esc(d.route)} · layer=${esc(d.layer)} · conf=${esc(String(d.confidence))}
+          · sql ${av.sql ? '可用' : '不可用'} / rag ${av.rag ? '可用' : '不可用'} / web ${av.web ? '可用' : '不可用'}
+          ${(d.targets || []).length ? '· 表：' + d.targets.map(t => esc(t.sheet || t.table)).join(' / ') : ''}
+          ${d.detail && d.detail.sql ? '<br>&nbsp;&nbsp;SQL: ' + esc(d.detail.sql) : ''}`);
+      } else if (ev === 'rewrite') {
+        renderRewrite(d);
+        add(`<span class="${d.triggered ? 'warn' : 'acc'}">[rewrite]</span> ${d.triggered ? '已改写' : '未改写'}
+          · method=${esc(d.method)} · ${esc(d.reason || '')}
+          ${d.triggered ? `<br>&nbsp;&nbsp;原：${esc(d.original)}<br>&nbsp;&nbsp;用：${esc(d.rewritten)}` : ''}`);
+      } else if (ev === 'retrieval') {
+        renderRetrieval(d);
+        add(`<span class="acc">[retrieval]</span> 关键词 ${(d.bm25 || []).length} 块 · 向量 ${(d.vector || []).length} 块
+          ${d.vector_skipped_reason ? '· ' + esc(d.vector_skipped_reason) : ''}`);
+      } else if (ev === 'fuse') {
+        renderFuse(d);
+        add(`<span class="acc">[fuse]</span> RRF 融合 ${d.count} 块：${(d.order || []).map(r => '块' + r.ordinal).join(' ')}`);
+      } else if (ev === 'rerank') {
+        renderRerank(d);
+        add(`<span class="acc">[rerank]</span> ${esc(d.note || '')} · ${d.before} → ${d.after}
+          ：${(d.order || []).map(r => '块' + r.ordinal).join(' ')}`);
       } else if (ev === 'ctx') {
         const cs = d.candidates || [];
         $('#chatCtxN').textContent = cs.length + ' 块';
@@ -93,6 +401,7 @@ async function runChat() {
           <div class="ctx">
             <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
               <span class="tiny mono">${esc(shortId(c.chunk_id))}</span>
+              ${c.doc_name ? `<span class="chip doc" title="${esc(c.doc_name)}">${esc(c.doc_name)}</span>` : ''}
               ${c.score ? `<span class="chip">rrf ${Number(c.score).toFixed(4)}</span>` : ''}
               ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)}</span>`).join('')}
               <span class="sp"></span>${Md.playBtn(docId, t)}
@@ -102,10 +411,15 @@ async function runChat() {
         }).join('');
         Md.typeset($('#chatCtx'));
         add(`<span class="acc">[ctx]</span> ${cs.length} 块进入上下文：${cs.map(c => '块' + c.ordinal).join(' ')}`);
+      } else if (ev === 'prompt') {
+        dbg.prompts.push(d);
+        renderPrompts();
+        add(`<span class="acc">[prompt]</span> ${d.phase === 'repair' ? '重答' : '首答'}调用 · ${d.messages.length} 条 message · ${fmt(d.chars)} 字`);
       } else if (ev === 'token') {
         if (!firstToken) { firstToken = performance.now() - t0; }
-        answer += d.t || '';
-        $('#chatAnswer').textContent = answer;
+        // repaired = 闸门二重答：整段替换（不是增量），直接覆盖已流出的原答案
+        if (d.repaired) { answer = d.t || ''; $('#chatAnswer').innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>'; }
+        else { answer += d.t || ''; $('#chatAnswer').textContent = answer; }
         if (d.repaired) add(`<span class="warn">[token]</span> 闸门重答版本开始`);
       } else if (ev === 'gate') {
         const bad = d.passed === false;
@@ -121,24 +435,53 @@ async function runChat() {
           $('#chatGate').innerHTML += `<div class="hint">预算：kept ${d.kept} / dropped ${d.dropped} / ctx ${d.ctx_tokens} tok，窗口 ${d.num_ctx}，输出预留 ${d.reserved_output}${d.truncated ? '（首块被截断）' : ''}</div>`;
         }
       } else if (ev === 'no_evidence') {
-        $('#chatState').innerHTML = '<span class="chip warn">no_evidence</span>';
-        $('#chatAnswer').innerHTML = `<span class="muted">没有依据，按规则拒答（这是正确行为）</span>`;
+        refused = true;
+        $('#chatState').innerHTML = '<span class="chip warn">拒答</span>';
+        $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#6b5a22">
+          <b>未生成回答（无依据拒答）</b>——候选池为空或不足以支撑回答，这是刻意的安全行为，不是故障。<br>
+          <span class="tiny">${esc(d.reason || '')}</span><br>
+          <span class="tiny">常见原因：知识库还没有这个主题的语料 / 提问全是代词（追问请带全称）/ 该库向量通道失效（去「知识库」页点「重新嵌入」）。</span></div>`;
         add(`<span class="warn">[no_evidence]</span> ${esc(d.reason)}`);
+        $('#dbgState').textContent = '无依据拒答（未生成）';
+        $('#dbgAnswer').innerHTML = '<div class="empty">未生成（闸门一拦截：候选不足以支撑回答）</div>';
         traceId = d.trace_id || traceId;
       } else if (ev === 'error') {
         $('#chatState').innerHTML = '<span class="chip bad">error</span>';
         add(`<span class="bad">[error]</span> ${esc(d.message)}`);
+        $('#dbgState').textContent = '生成失败';
+        $('#dbgAnswer').innerHTML = `<div class="empty">生成调用失败：${esc(d.message || '')}</div>`;
         $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#7a2f2f">
           <b>生成阶段不可达</b>（检索与闸门已跑完，见右侧上下文）。<br>
           <span class="mono tiny">${esc(d.message)}</span><br>
-          <span class="tiny">检查生成后端：<code>configs/models.yaml → endpoints.chat</code>（provider / base_url / 模型名）
+          <span class="tiny">检查生成后端：<code>configs/models.yaml → endpoints.chat</code>（base_url / 模型名）
             + <code>.env</code> 里的 <code>OWNRAG_CHAT_API_KEY</code>，改完 <code>restart.ps1</code> 重启</span></div>`;
         traceId = d.trace_id || traceId;
       } else if (ev === 'done') {
         citations = d.citations || [];
         traceId = d.trace_id || traceId;
+        // done.answer 是闸门二处理后的最终版本（重答时与流式累积不同），以它为准
+        if (d.answer) answer = d.answer;
+        dbg.answer = answer || '';
+        dbg.raw = d.raw_answer || '';
+        renderDbgAnswer();
         const dt = Math.round(performance.now() - t0);
-        $('#chatState').innerHTML = `<span class="chip ok">done · ${dt}ms</span>`;
+        if (d.retracted) {
+          // 越权二次校验命中：流式时已经吐出去的正文必须在这里整段盖掉，不能留在页面上
+          retracted = true;
+          answer = '';
+          $('#chatAnswer').innerHTML = `<div class="hint" style="border-left-color:#7a2f2f">
+            <b>答案已撤回（越权校验）</b><br>
+            <span class="tiny">${esc(d.retract_note || '本轮答案涉及你无权访问的内容')}：已拦截，不展示、不落引用。</span><br>
+            <span class="tiny">这是刻意的安全行为，不是故障。登录后可查询与访问全部文档 →
+              <a href="/ui/login?next=/ui/chat">去登录</a></span></div>`;
+          add(`<span class="bad">[done]</span> 越权校验拦截：答案已撤回，引用已清空`);
+          $('#chatState').innerHTML = `<span class="chip bad">已撤回 · ${dt}ms</span>`;
+        } else {
+          $('#chatState').innerHTML = refused
+            ? `<span class="chip warn">拒答 · ${dt}ms</span>`
+            : `<span class="chip ok">done · ${dt}ms</span>`;
+        }
+        $('#dbgState').textContent = `完成 ${dt}ms` + (firstToken ? ` · 首 token ${Math.round(firstToken)}ms` : '');
         if (d.source) add(`<span class="ok">[done]</span> source=${esc(d.source)}`);
       }
     }, chatAbort.signal);
@@ -146,18 +489,24 @@ async function runChat() {
     if (e.name !== 'AbortError') { add(`<span class="bad">[fatal]</span> ${esc(e.message)}`); toast(e.message, 'bad'); }
     $('#chatState').innerHTML = '<span class="chip bad">中断</span>';
   }
-  if (citations.length) {
+  if (retracted) {
+    // 撤回面板已经渲染好：不要用 Md.render(answer) 覆盖它
+  } else if (citations.length && answer) {
     // 回答定型：Markdown + 公式 + 图片一次渲染（流式期间保持纯文本以省开销）
     const ansEl = $('#chatAnswer');
     ansEl.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
     Md.typeset(ansEl);
     $('#chatGate').innerHTML = citations.map(c => {
       const t = c.anchors && c.anchors.t;
+      const name = c.doc_name || shortId(c.doc_id);
       return `<div class="tiny mono" style="display:flex;align-items:center;gap:6px">
-        <span>块${esc(c.ordinal)} · doc ${esc(shortId(c.doc_id))} · ${esc(JSON.stringify(c.anchors || {}))}</span>
+        <span class="chip info" style="padding:1px 7px">块${esc(c.ordinal)}</span>
+        <span class="chip doc" title="${esc(name)}（doc ${esc(shortId(c.doc_id))}）">${esc(name)}</span>
+        <span>${esc(JSON.stringify(c.anchors || {}))}</span>
         ${Md.playBtn(c.doc_id, t)}</div>`;
     }).join('');
-  } else if (traceId !== '' || answer) {
+  } else if (answer) {
+    // 有正文才重渲染；拒答/错误的提示面板不能被空渲染覆盖
     const ansEl = $('#chatAnswer');
     ansEl.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
     Md.typeset(ansEl);

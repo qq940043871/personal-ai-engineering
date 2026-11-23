@@ -51,11 +51,20 @@ public class ParseDocx implements Step {
         int paragraphs = 0;
         int tables = 0;
         int images = 0;
+        int formulas = 0;
         try (InputStream in = Files.newInputStream(src); XWPFDocument doc = new XWPFDocument(in)) {
+            int bodyIndex = 0;
             for (IBodyElement el : doc.getBodyElements()) {
+                bodyIndex++;
                 if (el instanceof XWPFParagraph) {
                     XWPFParagraph p = (XWPFParagraph) el;
-                    images += countPictures(p);
+                    int pics = countPictures(p);
+                    if (pics > 0) {
+                        images += pics;
+                        // 图片不索引（正文里留不下），但登记进 structures，复核页才能如实报"原件有 N 张图"
+                        structures.add(ParsedDoc.structure("image", "docx-para:" + bodyIndex,
+                                "pictures=" + pics, null));
+                    }
                     String text = p.getText();
                     if (text == null || text.trim().isEmpty()) {
                         continue;
@@ -69,6 +78,12 @@ public class ParseDocx implements Step {
                     structures.add(ParsedDoc.structure("table", "docx-table:" + tables,
                             "rows=" + t.getRows().size(), preview(t)));
                 }
+            }
+            // OMML 公式：POI 的段落 getText() 不含公式内容，只能数元素个数。
+            // 登记为 formula 结构，正文里没有对应公式语法时 DocStats 会报"公式未渲染"。
+            formulas = countOmml(doc);
+            for (int i = 1; i <= formulas; i++) {
+                structures.add(ParsedDoc.structure("formula", "docx-formula:" + i, null, null));
             }
         } catch (Exception e) {
             String msg = e.getClass().getSimpleName() + ": " + e.getMessage();
@@ -96,6 +111,7 @@ public class ParseDocx implements Step {
         stats.put("paragraphs", paragraphs);
         stats.put("tables", tables);
         stats.put("images_skipped", images);
+        stats.put("formulas", formulas);
         stats.put("backend", "poi-xwpf");
 
         ParsedDoc parsed = new ParsedDoc(ctx.docId, "docx", out, metadata, structures,
@@ -105,7 +121,8 @@ public class ParseDocx implements Step {
             return StepResult.fail("产出不可用：" + usable[1]);
         }
         ctx.data.put("parsed", parsed.toMap());
-        return StepResult.okMetrics("paragraphs", paragraphs, "tables", tables, "images_skipped", images);
+        return StepResult.okMetrics("paragraphs", paragraphs, "tables", tables,
+                "images_skipped", images, "formulas", formulas);
     }
 
     /** 段落 → Markdown 行：标题样式转 #，编号段落转列表项，其余原样。 */
@@ -148,6 +165,21 @@ public class ParseDocx implements Step {
             }
         }
         return n;
+    }
+
+    /**
+     * OMML 公式计数（Word 内置公式的 XML 是 m:oMath）。
+     * 数不出来不影响解析：返回 0 只代表"没统计到"，公式本身仍留在原件里。
+     */
+    private static int countOmml(XWPFDocument doc) {
+        try {
+            org.apache.xmlbeans.XmlObject[] hits = doc.getDocument().getBody().selectPath(
+                    "declare namespace m='http://schemas.openxmlformats.org/officeDocument/2006/math'"
+                            + " .//m:oMath");
+            return hits == null ? 0 : hits.length;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     /** 表格 → Markdown 管道表：首行当表头；超 max_table_rows 截断并留痕（表格不硬切）。 */

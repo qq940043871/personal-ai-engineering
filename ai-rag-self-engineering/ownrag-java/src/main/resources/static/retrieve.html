@@ -34,9 +34,14 @@
         <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">bm25_topk</label><input id="retB" type="number" value="20"></div>
         <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">top_n</label><input id="retN" type="number" value="12"></div>
         <div class="fix" style="width:130px;flex:0 0 130px"><label class="f">rerank_top_n</label><input id="retR" type="number" value="6"></div>
+        <div class="fix" style="width:120px;flex:0 0 120px"><label class="f">强制通道</label>
+          <select id="retForce"><option value="">auto</option><option value="rag">rag</option><option value="sql">sql</option><option value="multi">multi</option></select>
+        </div>
+        <div class="fix"><button class="btn" id="retRouteGo">只看路由</button></div>
         <div class="fix"><button class="btn primary" id="retGo">跑检索</button></div>
       </div>
     </div>
+    <div id="retRoute" style="margin-top:14px"></div>
     <div id="retSummary" style="margin-top:14px"></div>
     <div class="grid g2" style="margin-top:14px">
       <div class="card"><h3>关键词通道（FTS5 / BM25）<span class="tag chip" id="retBm25N">–</span></h3><div id="retBm25"><div class="empty">未运行</div></div></div>
@@ -57,6 +62,71 @@
 <script src="/ui/assets/menu.js"></script>
 <script>
 $('#retGo').onclick = runRetrieve;
+$('#retRouteGo').onclick = runRoute;
+
+// 只看路由：不检索、不生成、不执行 SQL，回答"系统认为该查哪类数据"
+async function runRoute() {
+  const q = $('#retQ').value.trim();
+  if (!q) return toast('先写问题');
+  $('#retRoute').innerHTML = '<div class="card"><div class="muted">判定中…</div></div>';
+  try {
+    const body = { question: q, app: $('#retApp').value, kb: $('#retKb').value, route: true };
+    const f = $('#retForce').value;
+    if (f) body.force_route = f;
+    renderRoute(await postJSON('/admin/retrieve', body));
+  } catch (e) {
+    $('#retRoute').innerHTML = `<div class="card"><span class="chip bad">失败</span> ${esc(e.message)}</div>`;
+    toast(e.message, 'bad');
+  }
+}
+
+function renderRoute(d) {
+  const r = d.route || {}, a = r.availability || {};
+  const cls = { sql: 'v', multi: 'warn', rag: 'info' }[r.route] || 'info';
+  const avail = ['sql', 'rag', 'web'].map(k =>
+    `<span class="chip ${a[k] ? 'ok' : ''}">${k} ${a[k] ? '可用' : '不可用'}</span>`).join('');
+  const signals = (r.signals || []).length
+    ? r.signals.map(s => `<span class="chip">${esc(s.name)} +${s.weight} → ${esc(s.route)}</span>`).join('')
+    : '<span class="chip">无信号命中</span>';
+  const targets = (d.picked_tables || []).length
+    ? d.picked_tables.map(t => `<span class="chip doc" title="${esc(t.table)}">${esc(t.doc_name || t.doc_id)} / ${esc(t.sheet || '')}</span>`).join('')
+    : '<span class="chip warn">未定位到目标表</span>';
+  const cat = d.catalog || [];
+  const catHtml = cat.length ? cat.map(t => `
+    <div class="ctx">
+      <div class="h"><span class="chip info">${esc(t.sheet || t.table)}</span>
+        <span class="tiny mono">${esc(t.table)}</span>
+        ${t.doc_name ? `<span class="chip doc">${esc(t.doc_name)}</span>` : ''}
+        <span class="sp"></span>
+        <span class="tiny">${fmt(t.rows)} 行${t.pk ? ' · 主键 ' + esc(t.pk) : ''}</span></div>
+      <div class="b tiny mono" style="line-height:1.9">${(t.columns || []).map(c =>
+        `<span class="chip">${esc(c.column)} · ${esc(c.type)}</span>`).join(' ')}</div>
+    </div>`).join('') : '<div class="empty">该应用可见范围内没有 staging 表（Excel 未入库或已删）</div>';
+
+  $('#retRoute').innerHTML = `
+    <div class="card">
+      <div class="flex">
+        <span class="chip ${cls}">route = ${esc(r.route)}</span>
+        <span class="chip">layer = ${esc(r.layer)}</span>
+        <span class="chip">confidence ${esc(String(r.confidence))}</span>
+        ${avail}
+        <span class="sp"></span>
+        <span class="tiny">判定 ${esc(String(d.ms))} ms</span>
+      </div>
+      <div class="hint">${esc(r.reason || '')}</div>
+      <div class="flex" style="margin-top:8px">${signals}</div>
+      <div class="sep"></div>
+      <div class="tiny">命中目标表：</div>
+      <div class="flex" style="margin-top:6px">${targets}</div>
+      ${d.routing_enabled === false ? `<div class="hint">该 app 未开启 routing：/chat 仍走单轨 RAG，这里只是试跑判定</div>` : ''}
+      ${r.layer === 'structure' ? `<div class="hint">layer=structure：结论被"可用性掩码"改过 —— 不是判错，是库里缺这类数据</div>` : ''}
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>表目录（staging_registry 现算）<span class="tag chip">${cat.length}</span></h3>
+      ${catHtml}
+    </div>`;
+}
+
 async function runRetrieve() {
   const q = $('#retQ').value.trim();
   if (!q) return toast('先写问题');
@@ -79,13 +149,19 @@ function renderRetrieve(d) {
   $('#retVecN').textContent = vc.length;
   $('#retBm25').innerHTML = bm.length ? bm.map(h => `<div class="ctx">
       <div class="h"><span class="chip info">#${h.chunk_id.split('#')[1] || ''}</span>
-        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
-        <span class="chip">-bm25 ${Number(h.score).toFixed(4)}</span></div></div>`).join('')
+        <span class="tiny mono">${esc(h.chunk_id)}</span>
+        ${h.doc_name ? `<span class="chip doc" title="${esc(h.doc_name)}">${esc(h.doc_name)}</span>` : ''}
+        <span class="sp"></span>
+        <span class="chip">-bm25 ${Number(h.score).toFixed(4)}</span></div>
+      <div class="b">${esc(h.preview || '')}</div></div>`).join('')
     : '<div class="empty">无命中（中文按字切分，换短词试试）</div>';
   $('#retVec').innerHTML = vc.length ? vc.map(h => `<div class="ctx">
       <div class="h"><span class="chip v">#${h.chunk_id.split('#')[1] || ''}</span>
-        <span class="tiny mono">${esc(h.chunk_id)}</span><span class="sp"></span>
-        <span class="chip">cos ${Number(h.score).toFixed(3)}</span></div></div>`).join('')
+        <span class="tiny mono">${esc(h.chunk_id)}</span>
+        ${h.doc_name ? `<span class="chip doc" title="${esc(h.doc_name)}">${esc(h.doc_name)}</span>` : ''}
+        <span class="sp"></span>
+        <span class="chip">cos ${Number(h.score).toFixed(3)}</span></div>
+      <div class="b">${esc(h.preview || '')}</div></div>`).join('')
     : `<div class="empty">${esc(d.vector_skipped_reason || '向量通道无命中')}</div>`;
 
   const b = d.budget || {};
@@ -95,11 +171,17 @@ function renderRetrieve(d) {
       <div class="flex">
         <span class="chip info">${esc(d.kb)}</span>
         <span class="chip">${d.ms} ms</span>
+        <span class="chip ${d.rewrite && d.rewrite.triggered ? 'warn' : ''}">改写 ${d.rewrite && d.rewrite.triggered ? '已触发 · ' + esc(d.rewrite.method) : '未触发'}</span>
         <span class="chip ${d.gate_pre.passed ? 'ok' : 'warn'}">闸门一 ${d.gate_pre.passed ? '通过' : '拦截'}：${esc(d.gate_pre.reason)}</span>
         <span class="chip ${d.direct_hit.hit ? 'v' : ''}">直击库 ${d.direct_hit.hit ? ('命中 ' + esc(d.direct_hit.level)) : '未命中'}</span>
+        <span class="chip ${d.access && d.access.public_only ? 'warn' : 'ok'}">${d.access && d.access.public_only
+          ? '未登录 · 仅公开' : '已登录 · 全部文档'}</span>
         <span class="sp"></span>
         <span class="tiny">${esc(d.rerank.note)}</span>
       </div>
+      ${d.rewrite && d.rewrite.triggered ? `<div class="hint">检索式已被改写：<span class="mono">${esc(d.rewrite.original)}</span>
+        → <b class="mono" style="color:#ffe3a6">${esc(d.rewrite.rewritten)}</b><br>
+        <span class="tiny">${esc(d.rewrite.reason || '')}</span></div>` : ''}
       <div class="sep"></div>
       <div class="flex" style="justify-content:space-between">
         <span class="tiny">上下文预算：${fmt(b.ctx_tokens)} / ${fmt(b.available)} tok（窗口 ${fmt(b.num_ctx)}，prompt 开销 ${fmt(b.prompt_overhead)}，输出预留 ${fmt(b.reserved_output)}）</span>
@@ -115,6 +197,7 @@ function renderRetrieve(d) {
     <div class="ctx">
       <div class="h"><span class="chip info">块 ${esc(c.ordinal)}</span>
         <span class="tiny mono">${esc(c.chunk_id)}</span>
+        ${c.doc_name ? `<span class="chip doc" title="${esc(c.doc_name)}">${esc(c.doc_name)}</span>` : ''}
         <span class="chip">rrf ${Number(c.rrf).toFixed(4)}</span>
         ${c.rerank_score != null ? `<span class="chip warn">rerank ${Number(c.rerank_score).toFixed(3)}</span>` : ''}
         ${(c.channels || []).map(ch => `<span class="chip v">${esc(ch.channel)} ${Number(ch.score).toFixed(3)}</span>`).join('')}
@@ -130,6 +213,7 @@ function renderRetrieve(d) {
       <div>dropped: ${esc((b.dropped_ids || []).join(', ') || '—')}</div>
       <div>rerank: ${esc(d.rerank.note)}</div>
       <div>direct_hit: ${esc(JSON.stringify(d.direct_hit))}</div>
+      <div>access: ${esc(JSON.stringify(d.access || {}))}</div>
     </div>
     <div class="hint">看这三件事：① 关键词与向量是否各捞到不同块（互补性）② 融合后名次是否符合直觉
       ③ 预算是否悄悄砍掉了你要的那块——砍了就说明切分太粗或 top_n 太大。</div>`;

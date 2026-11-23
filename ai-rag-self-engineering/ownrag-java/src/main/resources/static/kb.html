@@ -110,6 +110,7 @@ async function loadKbs() {
       <div class="kb-card ${k.kb === M.kb ? 'on' : ''}" data-kb="${esc(k.kb)}">
         <div class="nm">${esc(k.kb)}
           <span class="chip ${k.source === 'apps.yaml' ? 'info' : 'v'}">${k.source === 'apps.yaml' ? '配置声明' : '运行时新建'}</span>
+          ${k.chunks > 0 ? `<button class="btn sm ghost" data-act="reembed" data-kb="${esc(k.kb)}">重嵌</button>` : ''}
           ${k.source === 'registry' ? `<button class="btn sm ghost" data-act="delkb" data-kb="${esc(k.kb)}">删</button>` : ''}
         </div>
         <div class="st"><span>文档 <b>${fmt(k.documents)}</b></span><span>块 <b>${fmt(k.chunks)}</b></span>
@@ -139,10 +140,23 @@ async function loadKbs() {
 }
 
 $('#kbCards').addEventListener('click', async e => {
+  const re = e.target.closest('[data-act="reembed"]');
+  if (re) {
+    const kb = re.dataset.kb;
+    if (!(await uiConfirm('按当前嵌入模型重算全部向量。耗时取决于块数与端点限速（约每千块 1-2 分钟），期间该库检索退 BM25 单路，重建完自动恢复。', '重建「' + kb + '」的全部向量？'))) return;
+    toast('向量重建中…（别关页面，完成会提示）');
+    try {
+      const r = await postJSON('/admin/kbs/' + encodeURIComponent(kb) + '/reembed?batch=16');
+      if (r.status === 'noop') toast('该库已全部是当前向量版本，无需重建', 'ok');
+      else toast('重建完成：' + fmt(r.reembedded) + ' 块 · ' + fmt(r.docs) + ' 篇文档 · ' + r.ms + 'ms', 'ok');
+      loadKbs();
+    } catch (err) { toast('重建失败（已写入部分可用重跑续）：' + err.message, 'bad'); }
+    return;
+  }
   const del = e.target.closest('[data-act="delkb"]');
   if (del) {
     const kb = del.dataset.kb;
-    if (!confirm('确认删除运行时知识库「' + kb + '」？该库必须为空，且不可恢复。')) return;
+    if (!(await uiConfirm('该库必须为空，且删除后不可恢复。', '删除知识库「' + kb + '」？', true))) return;
     try {
       await api('/admin/kbs/' + encodeURIComponent(kb), { method: 'DELETE' });
       toast('已删除知识库 ' + kb, 'ok');
@@ -176,18 +190,24 @@ async function loadDocs() {
   try {
     const d = await api('/admin/kbs/' + encodeURIComponent(M.kb) + '/documents?' + qs);
     const rows = d.documents || [];
-    $('#docTotal').textContent = d.total + ' 篇';
+    $('#docTotal').textContent = d.total + ' 篇' + (d.public_only ? '（未登录仅公开）' : '');
     $('#docList').innerHTML = rows.length ? rows.map(r => {
       const cls = r.task_status === 'done' ? 'ok' : (r.task_status === 'failed' ? 'bad' : 'warn');
+      const disabled = r.enabled === 0;
+      const lv = String(r.access_level || 'public');
       return `<div class="doc-row ${r.doc_id === M.docId ? 'on' : ''}" data-doc="${esc(r.doc_id)}">
         <div class="nm">${esc(r.source_file || r.doc_id)}</div>
         <div class="meta">
           <span class="chip info">${fmt(r.chunk_count)} 块</span>
           <span class="chip ${r.vector_count > 0 ? 'ok' : 'warn'}">${fmt(r.vector_count)} 向量</span>
+          ${isLoggedIn() ? accessChipEdit(lv, r.doc_id) : accessChip(lv)}
           ${r.task_status ? `<span class="chip ${cls}">${esc(r.task_status)}</span>` : ''}
           ${r.review_status && r.review_status !== 'approved' ? `<span class="chip warn">复核 ${esc(r.review_status)}</span>` : ''}
+          ${disabled ? '<span class="chip warn">已停用</span>' : ''}
           <span class="tiny mono">${esc(shortId(r.doc_id))} · ${fmt(r.chars)} 字</span>
           <span class="sp"></span>
+          ${r.vector_count < r.chunk_count ? `<button class="btn sm primary" data-act="vec" data-doc="${esc(r.doc_id)}">向量化</button>` : ''}
+          <button class="btn sm ghost" data-act="toggle-en" data-doc="${esc(r.doc_id)}" data-en="${disabled ? 0 : 1}">${disabled ? '启用' : '停用'}</button>
           <button class="btn sm ghost" data-act="review" data-doc="${esc(r.doc_id)}">复核</button>
           <button class="btn sm ghost" data-act="del" data-doc="${esc(r.doc_id)}">删</button>
         </div></div>`;
@@ -210,12 +230,36 @@ $('#docList').addEventListener('click', async e => {
   const doc = row.dataset.doc;
   const btn = e.target.closest('[data-act]');
   if (btn) {
+    if (btn.dataset.act === 'acl') {
+      if (await toggleDocAccess(doc, btn.dataset.lv)) await loadDocs();
+      return;
+    }
+    if (btn.dataset.act === 'toggle-en') {
+      const on = btn.dataset.en !== '0';
+      if (!on && !(await uiConfirm('停用后这篇文档退出检索（分身不再引用），块与向量保留，随时可再启用。', '停用这篇文档？'))) return;
+      try {
+        await postJSON('/docs/' + encodeURIComponent(doc) + '/enabled', { enabled: !on });
+        toast(on ? '已停用：检索不再引用该文档' : '已恢复检索', 'ok');
+        await loadDocs();
+      } catch (err) { toast(err.message, 'bad'); }
+      return;
+    }
+    if (btn.dataset.act === 'vec') {
+      toast('向量化中…（本地嵌入，每千块约 1-2 分钟）');
+      try {
+        const r = await postJSON('/admin/documents/' + encodeURIComponent(doc) + '/vectorize?batch=16');
+        if (r.status === 'noop') toast('该文档已全部向量化', 'ok');
+        else toast('向量化完成：' + fmt(r.vectorized) + ' 块 · ' + r.ms + 'ms', 'ok');
+        await loadDocs();
+      } catch (err) { toast('向量化失败（已写入部分可用重跑续）：' + err.message, 'bad'); }
+      return;
+    }
     if (btn.dataset.act === 'review') {
       goto('review', 'doc=' + encodeURIComponent(doc));
       return;
     }
     if (btn.dataset.act === 'del') {
-      if (!confirm('确认删除这篇文档？其全部分块、向量、指纹都会一并移除，且不可恢复。\n\n' + doc)) return;
+      if (!(await uiConfirm('其全部分块、向量、指纹都会一并移除，且不可恢复。\n' + doc, '删除这篇文档？', true))) return;
       try {
         await api('/docs/' + encodeURIComponent(doc), { method: 'DELETE' });
         toast('已删除', 'ok');
@@ -307,11 +351,13 @@ $('#docQ').onkeydown = e => { if (e.key === 'Enter') $('#docGo').click(); };
 $('#chunkQ').onkeydown = e => { if (e.key === 'Enter') $('#chunkGo').click(); };
 $('#kbReload').onclick = loadKbs;
 $('#kbNew').onclick = async () => {
-  const kb = (prompt('新库名（字母/数字/_/-，1-64 字符）：') || '').trim();
-  if (!kb) return;
-  const description = (prompt('描述（可留空）：') || '').trim();
+  const r = await uiPrompt('新建知识库', [
+    { key: 'kb', label: '库名（字母/数字/_/-，1-64 字符）', placeholder: '如：kb_resume' },
+    { key: 'description', label: '描述（可留空）', placeholder: '这个库放什么语料' }
+  ]);
+  if (!r || !r.kb) return;
   try {
-    await postJSON('/admin/kbs', { kb, description });
+    await postJSON('/admin/kbs', { kb: r.kb, description: r.description || '' });
     toast('已新建知识库 ' + kb, 'ok');
     M.kb = kb; M.docId = ''; M.docOffset = 0; M.chunkOffset = 0;
     M.keepDocFromUrl = false; M.docQ = ''; M.chunkQ = '';

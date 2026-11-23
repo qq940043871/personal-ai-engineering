@@ -50,16 +50,28 @@ public class DirectHit {
     }
 
     public Hit match(Connection conn, List<String> kbList, String question, double l1Threshold) {
+        return match(conn, kbList, question, l1Threshold, true);
+    }
+
+    /**
+     * @param loggedIn 为 false 时只命中 `access_level='public'` 的条目。
+     *                 直击库是"零检索零生成"直达用户的答案，不挂在 documents 上，
+     *                 所以它的权限必须按自己的 access_level 列过滤——否则它就是绕开文档权限的后门。
+     */
+    public Hit match(Connection conn, List<String> kbList, String question, double l1Threshold,
+                     boolean loggedIn) {
         String q = question == null ? "" : question.trim();
         if (q.isEmpty()) {
             return null;
         }
         String placeholders = String.join(",", Collections.nCopies(kbList.size(), "?"));
+        String accessClause = loggedIn ? "" : " AND COALESCE(access_level,'public')='public'";
 
         // ---- L0：标准问 + 别名 精确匹配（归一化：去空白/标点/全半角）----
         String norm = normalize(q);
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT * FROM direct_hits WHERE enabled=1 AND level='L0' AND kb IN (" + placeholders + ")")) {
+                "SELECT * FROM direct_hits WHERE enabled=1 AND level='L0' AND kb IN (" + placeholders + ")"
+                        + accessClause)) {
             for (int i = 0; i < kbList.size(); i++) {
                 ps.setString(i + 1, kbList.get(i));
             }
@@ -86,20 +98,20 @@ public class DirectHit {
 
         // ---- L1/L2：embedding 相似度阈值命中（embed 不可用时跳过，降级可见）----
         try {
-            return matchSemantic(conn, kbList, q, l1Threshold);
+            return matchSemantic(conn, kbList, q, l1Threshold, accessClause);
         } catch (Embedder.EmbedError | SQLException e) {
             // L1 通道不可用——调用方把"直击库未检 L1"写进 trace 说明
             return null;
         }
     }
 
-    private Hit matchSemantic(Connection conn, List<String> kbList, String q, double l1Threshold)
-            throws SQLException {
+    private Hit matchSemantic(Connection conn, List<String> kbList, String q, double l1Threshold,
+                              String accessClause) throws SQLException {
         String placeholders = String.join(",", Collections.nCopies(kbList.size(), "?"));
         List<Map<String, Object>> rows = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT * FROM direct_hits WHERE enabled=1 AND level IN ('L1','L2') AND kb IN ("
-                        + placeholders + ")")) {
+                        + placeholders + ")" + accessClause)) {
             for (int i = 0; i < kbList.size(); i++) {
                 ps.setString(i + 1, kbList.get(i));
             }

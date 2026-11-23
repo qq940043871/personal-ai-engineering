@@ -91,9 +91,9 @@ class BudgetTest {
         strict.template = "【资料】\n{context_blocks}\n\n【问题】\n{question}";
         prompts.put("policy_strict_v1", strict);
         com.ownrag.config.Settings settings = new com.ownrag.config.Settings(
-                base.getDataDir(), "", base.getOllamaBaseUrl(), base.getChatProvider(),
+                base.getDataDir(), "",
                 base.getChatBaseUrl(), base.getChatApiKey(), base.getChatModel(),
-                base.getEmbedProvider(), base.getEmbedBaseUrl(), base.getEmbedApiKey(),
+                base.getEmbedBaseUrl(), base.getEmbedApiKey(),
                 base.getEmbedModel(), base.getEmbedVersion(), "",
                 base.getRerankProvider(), base.getRerankBaseUrl(), base.getRerankModel(), "",
                 base.getMineruMode(), "", base.getMineruOpenBaseUrl(), "",
@@ -123,9 +123,9 @@ class BudgetTest {
         bad.template = "{question}\n{oops}";
         prompts.put("bad", bad);
         com.ownrag.config.Settings settings = new com.ownrag.config.Settings(
-                base.getDataDir(), "", base.getOllamaBaseUrl(), base.getChatProvider(),
+                base.getDataDir(), "",
                 base.getChatBaseUrl(), base.getChatApiKey(), base.getChatModel(),
-                base.getEmbedProvider(), base.getEmbedBaseUrl(), base.getEmbedApiKey(),
+                base.getEmbedBaseUrl(), base.getEmbedApiKey(),
                 base.getEmbedModel(), base.getEmbedVersion(), "",
                 base.getRerankProvider(), base.getRerankBaseUrl(), base.getRerankModel(), "",
                 base.getMineruMode(), "", base.getMineruOpenBaseUrl(), "",

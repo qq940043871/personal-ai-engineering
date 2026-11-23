@@ -172,6 +172,27 @@ public class TaskStore {
         }
     }
 
+    /**
+     * 批量关闭待办：全量或按 reason 前缀过滤（reason LIKE '前缀%'）。
+     * 场景：一轮批量灌库的系统性失败修完后，成百上千条同因待办逐条点关是刑罚——一次清掉，
+     * 保留记录（status='done'）只是不再骚扰队列。返回关闭条数。
+     */
+    public static int resolveAllOpenTodos(Connection conn, String reasonPrefix) throws SQLException {
+        String sql = "UPDATE todos SET status='done', resolved_at=datetime('now','localtime') "
+                + "WHERE status='open'";
+        if (reasonPrefix != null && !reasonPrefix.isEmpty()) {
+            sql += " AND reason LIKE ?";
+        }
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (reasonPrefix != null && !reasonPrefix.isEmpty()) {
+                ps.setString(1, reasonPrefix + "%");
+            }
+            int n = ps.executeUpdate();
+            conn.commit();
+            return n;
+        }
+    }
+
     /** 该任务是否已有未处理待办（待复核这种"等人"状态重试时用来去重，不刷重复条目）。 */
     public static boolean hasOpenTodo(Connection conn, String taskId) throws SQLException {
         if (taskId == null || taskId.isEmpty()) {

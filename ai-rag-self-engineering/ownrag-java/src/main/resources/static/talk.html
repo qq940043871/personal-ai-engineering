@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>对话 · ownrag 数字分身</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/ui/assets/katex/katex.min.css?v=20261117">
+</head>
+<body data-page="talk">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="talk-wrap">
+      <div class="top" style="align-items:center">
+        <h1>对话</h1>
+        <span class="tiny">与数字分身多轮对话 · 事实只来自知识库 · 依据自动标注</span>
+        <div class="pills" id="pills" style="margin-left:auto"></div>
+      </div>
+
+      <div class="card" style="padding:10px 14px">
+        <div class="flex">
+          <span class="tiny">分身模式</span>
+          <select id="talkApp" style="width:auto;min-width:180px"></select>
+          <span class="sp"></span>
+          <button class="btn sm ghost" id="talkNew">新对话</button>
+        </div>
+      </div>
+
+      <div class="talk-thread" id="talkThread"></div>
+
+      <div class="talk-inputbar">
+        <textarea id="talkQ" rows="1" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+        <button class="btn primary" id="talkGo">发送</button>
+      </div>
+      <div class="talk-hint">追问请尽量带全称（检索按本轮问题原文跑）；拒答 = 知识库没有依据，不是故障。</div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script src="/ui/assets/katex/katex.min.js?v=20261117"></script>
+<script src="/ui/assets/katex/auto-render.min.js?v=20261117"></script>
+<script src="/ui/assets/md.js?v=20261117"></script>
+<script>
+'use strict';
+/* 干净对话页：与「问答调试」共用同一 /chat 链路（闸门/引用口径一致），
+ * 差异只有呈现——没有事件流与上下文面板，历史轮次随请求回传实现多轮。
+ * 历史只进生成不进检索：追问的召回按本轮原文跑，检索口径保持可解释。 */
+const T = { history: [], busy: false, abort: null };
+const thread = $('#talkThread');
+const MAX_TURNS = 4;          // 随请求回传的历史轮数上限（后端同样再截一道）
+const MAX_ANSWER_CHARS = 500; // 单条历史答案截断，防止长答案吃掉上下文预算
+
+function scrollBottom() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+
+/* 欢迎页 + 推荐问题（Dify 式空态：有引导、能一键开聊，不是一句干巴巴的"还没有对话"） */
+const SUGS = ['用一分钟介绍下你自己', '13 年里最有代表性的项目是哪个？', '你团队的分工是怎样的？'];
+function renderWelcome() {
+  thread.innerHTML = `<div class="talk-welcome" id="talkWelcome">
+    <div class="talk-welcome-t">你好，我是你的数字分身</div>
+    <div class="tiny" style="text-align:center">只答知识库里有依据的内容，每个事实都带来源；没有依据会直接说，不编。</div>
+    <div class="talk-sugs">${SUGS.map(s => `<button class="btn sm ghost sug">${esc(s)}</button>`).join('')}</div>
+  </div>`;
+}
+thread.addEventListener('click', e => {
+  const s = e.target.closest('.sug');
+  if (!s || T.busy) return;
+  $('#talkQ').value = s.textContent;
+  ask();
+});
+
+function addUser(text) {
+  $('#talkWelcome')?.remove();
+  const row = document.createElement('div');
+  row.className = 'talk-row user';
+  row.innerHTML = `<div class="talk-msg user">${esc(text)}</div><div class="talk-ava u">我</div>`;
+  thread.appendChild(row);
+  scrollBottom();
+}
+function addBot() {
+  $('#talkWelcome')?.remove();
+  const row = document.createElement('div');
+  row.className = 'talk-row';
+  row.innerHTML = `<div class="talk-ava b">分</div><div class="talk-msg bot streaming"><span class="muted">思考中…</span></div>`;
+  thread.appendChild(row);
+  scrollBottom();
+  return row.querySelector('.talk-msg');
+}
+function tagBot(el, text, kind) {
+  let meta = el.querySelector('.talk-meta');
+  if (!meta) { meta = document.createElement('div'); meta.className = 'talk-meta'; el.appendChild(meta); }
+  meta.insertAdjacentHTML('afterbegin', `<span class="chip ${kind || ''}">${esc(text)}</span>`);
+}
+function citeBar(el, cites, answer) {
+  const hasMeta = (cites && cites.length) || answer;
+  if (!hasMeta) return;
+  let meta = el.querySelector('.talk-meta');
+  if (!meta) { meta = document.createElement('div'); meta.className = 'talk-meta'; el.appendChild(meta); }
+  if (cites && cites.length) {
+    // 依据分多行：一行一条「块N · 文档名」，块号与文档一对一，溯源不用再猜（原先挤成一颗长 chip）
+    const seen = new Set();
+    const rows = cites.filter(c => {
+      const k = (c.ordinal ?? '') + '|' + (c.doc_id || c.doc_name || '');
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).map(c => {
+      const name = c.doc_name || shortId(c.doc_id) || '未知文档';
+      const tip = name + (c.doc_id ? `（doc ${shortId(c.doc_id)}）` : '');
+      return `<div class="cite-row"><span class="chip info">块${esc(c.ordinal)}</span>`
+        + `<span class="chip doc" title="${esc(tip)}">${esc(name)}</span></div>`;
+    }).join('');
+    // 追加而非前插：口径 chip 在上、依据清单居中、复制按钮收尾
+    meta.insertAdjacentHTML('beforeend',
+      `<div class="talk-cites"><span class="cite-h">依据 ${seen.size} 条</span>${rows}</div>`);
+  }
+  if (answer) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.type = 'button'; b.textContent = '复制';
+    b.onclick = () => navigator.clipboard.writeText(answer)
+      .then(() => { b.textContent = '已复制'; setTimeout(() => { b.textContent = '复制'; }, 1500); },
+            () => toast('复制失败', 'bad'));
+    meta.appendChild(b);
+  }
+}
+
+async function ask() {
+  const box = $('#talkQ');
+  const q = box.value.trim();
+  if (!q || T.busy) return;
+  T.busy = true;
+  $('#talkGo').disabled = true;
+  box.value = ''; box.style.height = 'auto';
+  addUser(q);
+  const bot = addBot();
+
+  let answer = '', refused = false, failed = false, cites = [], rendered = false;
+  try {
+    T.abort = new AbortController();
+    await sse('/chat', { app: $('#talkApp').value, question: q, history: T.history }, (ev, d) => {
+      if (ev === 'hit') {
+        answer = d.answer;
+        rendered = true;
+        bot.classList.remove('streaming');
+        bot.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
+        tagBot(bot, '口径直答 · ' + (d.level || ''), 'v');
+      } else if (ev === 'token') {
+        // repaired = 闸门二重答：整段替换而非增量
+        if (d.repaired) { answer = d.t || ''; rendered = true; bot.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>'; }
+        else { answer += d.t || ''; bot.textContent = answer; }
+        scrollBottom();
+      } else if (ev === 'no_evidence') {
+        refused = true;
+        bot.classList.remove('streaming');
+        bot.classList.add('warn');
+        bot.innerHTML = '<b>这个问题我没答</b>——知识库里没有足够的依据，按规则不编答案。'
+          + (d.reason ? '<br><span class="tiny">' + esc(d.reason) + '</span>' : '');
+      } else if (ev === 'error') {
+        failed = true;
+        bot.classList.remove('streaming');
+        bot.classList.add('bad');
+        bot.innerHTML = '<b>生成失败</b>（检索与闸门已跑完）。<br>'
+          + '<span class="tiny mono">' + esc(d.message || '') + '</span>';
+      } else if (ev === 'done') {
+        if (d.retracted) {
+          // 越权二次校验命中：把流式期间已经显示出来的正文整段盖掉（撤回不等于没说过，但要盖住）
+          refused = true;
+          answer = '';
+          bot.classList.remove('streaming');
+          bot.classList.add('bad');
+          bot.innerHTML = '<b>答案已撤回</b>——本轮回答涉及你无权访问的内容，已按安全策略拦截。'
+            + '<br><span class="tiny">登录后可查询与访问全部文档：/ui/login?next=/ui/talk</span>';
+        } else if (d.answer) {
+          answer = d.answer;
+        }
+        cites = d.citations || [];
+      }
+    }, T.abort.signal);
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      failed = true;
+      bot.classList.remove('streaming');
+      bot.classList.add('bad');
+      bot.textContent = '连接中断：' + e.message;
+    }
+  }
+
+  if (!refused && !failed && answer && !rendered) {
+    bot.classList.remove('streaming');
+    bot.innerHTML = '<div class="md-body">' + Md.render(answer) + '</div>';
+    Md.typeset(bot);
+  } else {
+    bot.classList.remove('streaming');
+  }
+  if (!refused && !failed) citeBar(bot, cites, answer || '');
+  // 干净页只回传有效轮次：拒答/失败不进历史，避免下一轮的"上文"里带着失败答案
+  if (!refused && !failed && answer) {
+    T.history.push({ q, a: answer.length > MAX_ANSWER_CHARS ? answer.slice(0, MAX_ANSWER_CHARS) + '…' : answer });
+    if (T.history.length > MAX_TURNS) T.history = T.history.slice(-MAX_TURNS);
+  }
+  T.busy = false;
+  $('#talkGo').disabled = false;
+  box.focus();
+  scrollBottom();
+}
+$('#talkGo').onclick = ask;
+$('#talkQ').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+});
+$('#talkQ').addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = Math.min(160, this.scrollHeight) + 'px';
+});
+$('#talkNew').onclick = () => {
+  T.history = [];
+  renderWelcome();
+};
+
+window.pageInit = () => {
+  const apps = S.apps && S.apps.length ? S.apps : ['interview_coach'];
+  const def = S.config && S.config.apps ? pickDefaultApp(apps, S.config.apps, (S.metrics || {}).chunks_by_kb || {}) : apps[0];
+  fillSelect('#talkApp', apps, def || apps[0]);
+  renderWelcome();
+  $('#talkQ').focus();
+};
+boot();
+</script>
+</body>
+</html>

@@ -27,8 +27,8 @@ public final class DocumentStore {
                                       long sizeBytes, Map<String, Object> meta) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT OR IGNORE INTO documents(doc_id, kb, source_file, pipeline, task_id, trace_id, "
-                        + "file_hash, size_bytes, sensitivity, topic, doc_date, origin, task_status, "
-                        + "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,"
+                        + "file_hash, size_bytes, sensitivity, topic, doc_date, origin, access_level, "
+                        + "task_status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,"
                         + "datetime('now','localtime'), datetime('now','localtime'))")) {
             ps.setString(1, docId);
             ps.setString(2, kb);
@@ -42,7 +42,10 @@ public final class DocumentStore {
             ps.setString(10, str(meta == null ? null : meta.get("topic")));
             ps.setString(11, str(meta == null ? null : meta.get("doc_date")));
             ps.setString(12, str(meta == null ? null : meta.get("origin")));
-            ps.setString(13, TaskStore.STATUS_PENDING);
+            // 访问权限随上传确定；缺省 public（不改存量口径），仅显式 protected 才受限
+            ps.setString(13, com.ownrag.auth.AccessLevel.normalize(
+                    meta == null ? null : str(meta.get("access_level"))));
+            ps.setString(14, TaskStore.STATUS_PENDING);
             ps.executeUpdate();
         }
         conn.commit();

@@ -1,25 +1,7 @@
 # 应用模板 —— 与 Python 版 apps.yaml 同构：一个问答应用 = 一份配置；换模型/换Prompt/开关闸门都不动代码
+# 2026-11-21 移除 policy_qa：其唯一知识库 policy_v1 从未灌语料（0 文档），作为默认应用
+# 令问答/检索/入库三个页面首屏全是"无依据拒答"失败态。要恢复请先给库灌语料再声明应用。
 apps:
-  policy_qa:
-    knowledge_bases: [policy_v1]
-    retrieval:
-      vector_topk: 20
-      bm25_topk: 20
-      top_n: 12                       # RRF 融合后候选池——宁窄勿宽
-      rerank:
-        enabled: false                # 无 rerank 服务时 RRF 顺序兜底（OWNRAG_RERANK_URL）
-    direct_hit:
-      enabled: true
-      levels: [L0, L1, L2]
-    generation:
-      prompt: policy_strict_v1        # configs/prompts/policy_strict_v1.yaml
-      stream: true
-      max_ctx_tokens: 6144            # 总窗口：上下文预算 = 该值 - prompt 开销 - max_new_tokens
-      max_new_tokens: 512             # 环境变量 OWNRAG_NUM_CTX / OWNRAG_MAX_NEW_TOKENS 优先级高于本段
-    gates:
-      pre: [sufficiency_check]
-      post: [citation_check, redline_check, schema_check]
-
   # 以下两个为数字分身双模式（Python 版无对应物）：知识库白名单同时是上传收口
   interview_coach:
     knowledge_bases: [kb_interview]
@@ -27,11 +9,23 @@ apps:
       vector_topk: 20
       bm25_topk: 20
       top_n: 12
+      query_rewrite: true               # 检索问句改写（指代消解/去套话）；请求体 rewrite=true|false 可单次覆盖
       rerank:
         enabled: false
     direct_hit:
       enabled: true                   # L0 直击库灌主线件口径/双开场/三句式，答法完全可控
       levels: [L0, L1, L2]
+    routing:                          # 查询期路由（docs 11）：规则打分 → 可用性掩码 → 兜底
+      enabled: true
+      allow: [rag, sql]               # 本期无 web：写进来也会被判不可用（宁可明说不支持，不假装能联网）
+      default: rag                    # 无信号时按知识库问答
+      on_low_confidence: rag
+      min_confidence: 0.4
+      llm_classify: false             # 低置信不再花一次 LLM 归类（M2）
+      sql:
+        max_rows: 200                 # 一次查询最多返回行数（超出标记 truncated）
+        timeout_ms: 5000
+        max_tables: 3                 # 候选表上限：prompt 里塞 20 张表只会让模型选错
     generation:
       prompt: persona_v1              # configs/prompts/persona_v1.yaml
       stream: true
@@ -47,11 +41,23 @@ apps:
       vector_topk: 20
       bm25_topk: 20
       top_n: 12
+      query_rewrite: true               # 检索问句改写（指代消解/去套话）；请求体 rewrite=true|false 可单次覆盖
       rerank:
         enabled: false
     direct_hit:
       enabled: true
       levels: [L0]                    # 顾问模式只走 L0 精确命中，语义题留给 RAG
+    routing:
+      enabled: true
+      allow: [rag, sql]
+      default: rag
+      on_low_confidence: rag
+      min_confidence: 0.4
+      llm_classify: false
+      sql:
+        max_rows: 200
+        timeout_ms: 5000
+        max_tables: 3
     generation:
       prompt: persona_v1
       stream: true

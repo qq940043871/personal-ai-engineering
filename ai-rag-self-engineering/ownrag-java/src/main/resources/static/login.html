@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="logo">R</div>
+      <div><b>ownrag 控制台</b><span>登录后可检索与访问全部文档</span></div>
+    </div>
+
+    <!-- 登录态 / 错误反馈：三种形态复用同一块，样式由 class 决定（bad 红 / ok 绿 / warn 黄） -->
+    <div id="loginMsg" class="login-msg warn" hidden></div>
+
+    <!-- 未登录：用户名 + 口令 -->
+    <form id="loginForm" autocomplete="on">
+      <div class="login-sub">
+        未登录只能查看<b>公开文档</b>；登录后可查询与访问全部文档（含「需登录」级别）。
+      </div>
+      <!-- 首次部署的默认账号：直接写在页面上（省得去翻启动日志），点一下即填入 -->
+      <button type="button" class="login-default" id="fillDefault"
+              title="首次部署未改密时有效：点击把默认账号填进下面的输入框">
+        <span class="chip info">默认账号</span>
+        <code>admin</code><span class="slash">/</span><code>ownrag</code>
+        <span class="tiny">点击填入</span>
+      </button>
+      <div class="login-field">
+        <label class="f" for="username">用户名</label>
+        <input id="username" name="username" type="text" autocomplete="username"
+               placeholder="用户名" spellcheck="false" required>
+      </div>
+      <div class="login-field">
+        <label class="f" for="password">口令</label>
+        <input id="password" name="password" type="password" autocomplete="current-password"
+               placeholder="口令" required>
+      </div>
+      <div class="login-acts">
+        <button class="btn primary" type="submit" id="loginBtn">登录</button>
+        <a class="btn ghost" id="skipLink" href="/ui/overview">以访客身份浏览</a>
+      </div>
+    </form>
+
+    <!-- 已登录：状态提示 + 登出 + 继续 -->
+    <div id="loggedPanel" hidden>
+      <div class="login-sub">当前会话：<b id="whoName">—</b>
+        <span class="chip ok" style="margin-left:6px">已登录</span></div>
+      <div class="kvline"><span class="k">可访问范围</span><span class="v" id="whoAccess">全部文档</span></div>
+      <div class="kvline"><span class="k">会话到期</span><span class="v mono" id="whoExp">—</span></div>
+      <div class="login-acts" style="margin-top:14px">
+        <button class="btn" type="button" id="goBtn">进入控制台</button>
+        <button class="btn ghost" type="button" id="logoutBtn">退出登录</button>
+      </div>
+    </div>
+
+    <div class="login-foot">
+      会话保存在 HttpOnly Cookie（<code>ownrag_session</code>），页面跳转与检索过程共用同一个登录态；
+      退出登录会同时删除服务端会话行。<br>
+      首次启动（<code>users</code> 表为空）自动创建默认管理员 <code>admin</code> / <code>ownrag</code>；
+      可用 <code>OWNRAG_ADMIN_USER</code> / <code>OWNRAG_ADMIN_PASSWORD</code> 指定别的账号。
+      默认口令只用于「先把门装起来」，登录后请尽快改密。
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script>
+'use strict';
+/* 登录页：只管两件事——把登录态显示出来、把登录/登出结果说清楚。
+ * 状态一律以服务端 /auth/me 为准（不看本地存储），所以刷新、前进后退、多标签页都不会出现"假在线"。 */
+
+const P = new URLSearchParams(location.search);
+
+/** 回跳目标白名单：只接受站内绝对路径，挡掉 //evil.com 与 javascript: 这类跳转。 */
+function safeNext() {
+  const raw = P.get('next') || '';
+  if (!raw) return '/ui/overview';
+  try {
+    const u = new URL(raw, location.origin);
+    if (u.origin !== location.origin) return '/ui/overview';
+    return u.pathname + u.search;
+  } catch { return '/ui/overview'; }
+}
+
+function msg(text, kind = 'bad') {
+  const el = $('#loginMsg');
+  el.hidden = !text;
+  el.className = 'login-msg ' + kind;
+  el.textContent = text || '';
+}
+
+let ME = null;
+
+function paint() {
+  const next = safeNext();
+  $('#skipLink').href = next;
+  if (ME && ME.logged_in) {
+    $('#loginForm').hidden = true;
+    $('#loggedPanel').hidden = false;
+    $('#whoName').textContent = ME.display_name || ME.username;
+    $('#whoAccess').textContent = ME.access || '全部文档';
+    $('#whoExp').textContent = ME.expires_at || '—';
+    if (!P.get('msg')) msg('你已登录：' + (ME.display_name || ME.username)
+      + ' · 可查询与访问全部文档', 'ok');
+    document.title = '已登录 · ownrag';
+  } else {
+    $('#loginForm').hidden = false;
+    $('#loggedPanel').hidden = true;
+    if (!P.get('msg')) $('#loginMsg').hidden = true;
+    document.title = '登录 · ownrag';
+  }
+}
+
+async function loadMe() {
+  try {
+    ME = await api('/auth/me');
+  } catch (e) {
+    ME = { logged_in: false };
+    msg('读取登录状态失败：' + e.message, 'bad');
+  }
+  paint();
+  // 已经登录又带着 next 过来：直接进目标页（不让人多点一次）
+  if (ME.logged_in && P.get('next') && !P.get('stay')) {
+    location.replace(safeNext());
+  }
+}
+
+/* 默认账号一键填入：只填输入框，不自动提交（该不该用默认口令，让人自己决定） */
+$('#fillDefault').onclick = () => {
+  $('#username').value = 'admin';
+  $('#password').value = 'ownrag';
+  msg('已填入默认账号 admin / ownrag：直接点「登录」即可；若已改过密请改用新口令', 'warn');
+  $('#loginBtn').focus();
+};
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const username = $('#username').value.trim();
+  const password = $('#password').value;
+  if (!username || !password) {
+    msg('请输入用户名与口令');
+    return;
+  }
+  const btn = $('#loginBtn');
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  msg('正在验证…', 'warn');
+  try {
+    const r = await postJSON('/auth/login', { username, password });
+    ME = r.user || null;
+    msg(r.message || '登录成功', 'ok');
+    toast('登录成功：' + ((ME && (ME.display_name || ME.username)) || username), 'ok');
+    btn.textContent = '已登录';
+    // 回跳：稍等一下让"登录成功"被看见，同时确保 Cookie 已落地
+    setTimeout(() => location.replace(safeNext()), 420);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '登录';
+    // 401/429 的 detail 是后端给的人话（不区分"用户不存在"与"口令错"）
+    msg(err.message || '登录失败', 'bad');
+    $('#password').value = '';
+    $('#password').focus();
+  }
+});
+
+$('#logoutBtn').onclick = async () => {
+  if (!(await uiConfirm('退出后只能查看公开文档，需要重新登录才能检索全部。', '退出登录？'))) return;
+  try {
+    const r = await postJSON('/auth/logout', {});
+    toast(r.message || '已退出登录', 'ok');
+    ME = { logged_in: false };
+    paint();  // 先切回登录表单，再写提示（paint 会按需要清空旧提示）
+    msg('已退出登录：现在只能查看公开文档', 'warn');
+    $('#username').focus();
+  } catch (e) {
+    msg('退出失败：' + e.message, 'bad');
+  }
+};
+
+$('#goBtn').onclick = () => location.replace(safeNext());
+
+loadMe();
+</script>
+</body>
+</html>

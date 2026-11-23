@@ -113,13 +113,17 @@ public final class ChunkStore {
                 if (or.length() > 0) {
                     or.append(" OR ");
                 }
-                or.append(token);
+                // 每个 token 必须加引号：问题里出现 NOT / AND / OR / NEAR 时，
+                // 裸词会被 FTS5 当运算符解析，整条 BM25 直接语法报错→零召回。
+                // 引号内是字面短语，语义不变、只消除运算符歧义（评测集里 "NOT IN 子查询" 就是踩的这个坑）。
+                or.append('"').append(token.replace("\"", "\"\"")).append('"');
             }
             ladder.add(or.toString());
         }
         String sql = "SELECT chunks_fts.chunk_id, chunks_fts.doc_id, bm25(chunks_fts) AS score "
                 + "FROM chunks_fts LEFT JOIN chunks ON chunks.chunk_id = chunks_fts.chunk_id "
-                + "WHERE chunks_fts MATCH ? " + kbInSql(kbs, "chunks_fts.kb") + filterSql(filter, "chunks.")
+                + "WHERE chunks_fts MATCH ? " + kbInSql(kbs, "chunks_fts.kb")
+                + enabledSql("chunks.doc_id") + filterSql(filter, "chunks.")
                 + " ORDER BY score LIMIT ?";
         for (String q : ladder) {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -251,7 +255,8 @@ public final class ChunkStore {
         List<Map<String, Object>> all = new ArrayList<>();
         String sql = "SELECT chunk_vectors.chunk_id, chunk_vectors.doc_id, chunk_vectors.embedding "
                 + "FROM chunk_vectors LEFT JOIN chunks ON chunks.chunk_id = chunk_vectors.chunk_id "
-                + "WHERE 1=1 " + kbInSql(kbs, "chunk_vectors.kb") + filterSql(filter, "chunks.")
+                + "WHERE 1=1 " + kbInSql(kbs, "chunk_vectors.kb")
+                + enabledSql("chunk_vectors.doc_id") + filterSql(filter, "chunks.")
                 + (versioned ? "AND chunks.embed_version = ? " : "");
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             int i = 1;
@@ -296,23 +301,35 @@ public final class ChunkStore {
 
     // ------------------------------------------------ 块表
 
-    /** 按 id 批量取块正文与锚点（检索结果回填用）。 */
+    /** 按 id 批量取块正文与锚点（检索结果回填用）。
+     *  doc_name 一并带出：引用位置只给块号，等于让用户自己去猜"这段出自哪篇文档"。 */
     public static Map<String, Map<String, Object>> readChunks(Connection conn, List<String> chunkIds)
             throws SQLException {
         Map<String, Map<String, Object>> out = new LinkedHashMap<>();
-        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM chunks WHERE chunk_id=?")) {
+        // documents 是文档实体的权威来源；缺行/空值时回退块 meta_json 的 source_file，最后才退回 doc_id
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT c.*, COALESCE(NULLIF(d.source_file, ''), '') AS doc_name "
+                        + "FROM chunks c LEFT JOIN documents d ON d.doc_id = c.doc_id "
+                        + "WHERE c.chunk_id=?")) {
             for (String cid : chunkIds) {
                 ps.setString(1, cid);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
+                        Map<String, Object> meta = parseJsonOrEmpty(rs.getString("meta_json"));
                         row.put("chunk_id", rs.getString("chunk_id"));
                         row.put("doc_id", rs.getString("doc_id"));
+                        String docName = rs.getString("doc_name");
+                        if (docName == null || docName.isEmpty()) {
+                            Object fromMeta = meta.get("source_file");
+                            docName = fromMeta == null ? rs.getString("doc_id") : String.valueOf(fromMeta);
+                        }
+                        row.put("doc_name", docName);
                         row.put("kb", rs.getString("kb"));
                         row.put("ordinal", rs.getInt("ordinal"));
                         row.put("text", rs.getString("text"));
                         row.put("anchors", parseJsonOrEmpty(rs.getString("anchors_json")));
-                        row.put("meta", parseJsonOrEmpty(rs.getString("meta_json")));
+                        row.put("meta", meta);
                         out.put(cid, row);
                     }
                 }
@@ -375,14 +392,43 @@ public final class ChunkStore {
     }
 
     /**
+     * 文档启停过滤（每条件自带前导 AND）：enabled=0 的文档退出检索但保留块与向量——
+     * 与删除（六通道全清、不可逆）相对的"临时下架"。correlated 子查询按 doc_id 查
+     * documents.enabled，缺行/缺列（老库未迁移）按 1 处理，存量行为不变。
+     */
+    private static String enabledSql(String docIdColumn) {
+        return "AND COALESCE((SELECT d.enabled FROM documents d WHERE d.doc_id = "
+                + docIdColumn + "), 1) = 1 ";
+    }
+
+    /**
+     * 访问权限过滤（每条件自带前导 AND）：只留 access_level='public' 的文档。
+     *
+     * 事实源是 documents 一行（按主键点查，万级块上即为索引查找）；缺行（老库/未建档）按 public，
+     * 与"存量文档不因改版突然消失"的口径一致。公开方法供 InspectController 的列表查询复用——
+     * 同一句 SQL 片段只写一次，避免"某条列表接口忘了过滤"。
+     */
+    public static String publicOnlySql(String docIdColumn) {
+        return "AND COALESCE((SELECT d.access_level FROM documents d WHERE d.doc_id = "
+                + docIdColumn + "), 'public') = 'public' ";
+    }
+
+    /**
      * 个人维度过滤 SQL（每条件自带前导 AND；无过滤返回空串）：
      * sensitivity=允许档位列表（缺省行按 internal 处理）、topic=精确、date_from/date_to=ISO 字符串比较。
+     *
+     * 另外承载**访问权限过滤**（`public_only=true`，未登录时由 AuthService 打上）：
+     * 它查 documents.access_level（缺行按 public），与 sensitivity 刻意分开——
+     * sensitivity 是调用方可选的内容分级，public_only 是服务端强制的权限，用户清空过滤条件也绕不过。
      */
     static String filterSql(Map<String, Object> filter, String colPrefix) {
         if (filter == null || filter.isEmpty()) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
+        if (Boolean.TRUE.equals(filter.get("public_only"))) {
+            sb.append(publicOnlySql(colPrefix + "doc_id"));
+        }
         List<String> sens = sensListOf(filter.get("sensitivity"));
         if (!sens.isEmpty()) {
             sb.append(" AND COALESCE(").append(colPrefix).append("sensitivity,'internal') IN (")
@@ -399,6 +445,18 @@ public final class ChunkStore {
         Object dateTo = filter.get("date_to");
         if (dateTo != null && !String.valueOf(dateTo).isEmpty()) {
             sb.append(" AND COALESCE(").append(colPrefix).append("doc_date,'') <= ?");
+        }
+        // 数据源类型过滤：RAG 通道用它把 Excel 历史行卡片（source_type='excel'）挡在召回之外，
+        // 即使迁移漏清也不会串道。excel_catalog（目录块）不在此列——目录本来就该能被检索到。
+        List<String> src = sensListOf(filter.get("source_type"));
+        if (!src.isEmpty()) {
+            sb.append(" AND COALESCE(").append(colPrefix).append("source_type,'') IN (")
+                    .append(placeholders(src.size())).append(")");
+        }
+        List<String> srcEx = sensListOf(filter.get("source_exclude"));
+        if (!srcEx.isEmpty()) {
+            sb.append(" AND COALESCE(").append(colPrefix).append("source_type,'') NOT IN (")
+                    .append(placeholders(srcEx.size())).append(")");
         }
         return sb.toString();
     }
@@ -426,6 +484,12 @@ public final class ChunkStore {
         Object dateTo = filter.get("date_to");
         if (dateTo != null && !String.valueOf(dateTo).isEmpty()) {
             ps.setString(i++, String.valueOf(dateTo));
+        }
+        for (String s : sensListOf(filter.get("source_type"))) {
+            ps.setString(i++, s);
+        }
+        for (String s : sensListOf(filter.get("source_exclude"))) {
+            ps.setString(i++, s);
         }
         return i;
     }

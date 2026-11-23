@@ -52,6 +52,14 @@ public class IndexUpsertStep implements Step {
                 }
             }
 
+            // 向量在位才盖 embed_version；缺向量（deferred / allow_skip 降级）必须留 NULL——
+            // 检索按 embed_version 匹配，盖了版本号却没向量，vectorize/reembed 就永远找不到它（静默残废）
+            List<List<Double>> embeddings =
+                    (List<List<Double>>) ctx.data.getOrDefault("embeddings", new ArrayList<>());
+            if (!embeddings.isEmpty() && embeddings.size() != chunks.size()) {
+                return StepResult.fail("向量数与块数不符：" + embeddings.size() + " vs " + chunks.size());
+            }
+            boolean hasVectors = !embeddings.isEmpty();
             String embedVersion = ctx.settings.getEmbedVersion();
             try (java.sql.PreparedStatement ps = ctx.conn.prepareStatement(
                     "INSERT OR REPLACE INTO chunks(chunk_id, doc_id, kb, source_type, ordinal, text, "
@@ -66,7 +74,7 @@ public class IndexUpsertStep implements Step {
                     ps.setString(6, String.valueOf(c.get("text")));
                     ps.setString(7, Json.write(c.get("anchors") == null ? new LinkedHashMap<>() : c.get("anchors")));
                     ps.setString(8, Json.write(c.get("meta") == null ? new LinkedHashMap<>() : c.get("meta")));
-                    ps.setString(9, embedVersion);
+                    ps.setString(9, hasVectors ? embedVersion : null);
                     // 个人维度过滤列从 meta 提升：检索期过滤走列，Prompt 不再承担过滤责任
                     Map<String, Object> meta = c.get("meta") instanceof Map
                             ? (Map<String, Object>) c.get("meta") : new LinkedHashMap<String, Object>();
@@ -94,12 +102,7 @@ public class IndexUpsertStep implements Step {
             }
 
             boolean vectorsOk = false;
-            List<List<Double>> embeddings =
-                    (List<List<Double>>) ctx.data.getOrDefault("embeddings", new ArrayList<>());
-            if (!embeddings.isEmpty()) {
-                if (embeddings.size() != chunks.size()) {
-                    return StepResult.fail("向量数与块数不符：" + embeddings.size() + " vs " + chunks.size());
-                }
+            if (hasVectors) {
                 vectorsOk = ChunkStore.vectorUpsert(ctx.conn, ctx.kb, chunks, embeddings);
             }
             com.ownrag.core.DocumentStore.refreshStats(ctx.conn, ctx.docId);
@@ -107,7 +110,8 @@ public class IndexUpsertStep implements Step {
 
             Map<String, Object> metrics = new LinkedHashMap<>();
             metrics.put("chunks", chunks.size());
-            metrics.put("vector", vectorsOk ? "ok" : "skipped");
+            metrics.put("vector", vectorsOk ? "ok" : (Boolean.TRUE.equals(ctx.data.get("embed_deferred"))
+                    ? "deferred（向量化待手动触发）" : "skipped"));
             if (Boolean.TRUE.equals(params.get("require_vector")) && !vectorsOk) {
                 return StepResult.fail("向量通道不可用且 require_vector=true", metrics);
             }

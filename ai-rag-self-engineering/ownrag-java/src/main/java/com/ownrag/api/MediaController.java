@@ -55,15 +55,21 @@ public class MediaController {
     }
 
     private final Settings settings;
+    private final com.ownrag.auth.AuthService authService;
 
-    public MediaController(Settings settings) {
+    public MediaController(Settings settings, com.ownrag.auth.AuthService authService) {
         this.settings = settings;
+        this.authService = authService;
     }
 
     /** 解析产物：GET /media/{docId}/images/xxx.jpg —— MinerU markdown 里的相对引用。 */
     @GetMapping("/media/{docId}/**")
     public ResponseEntity<FileSystemResource> media(@PathVariable String docId,
                                                     HttpServletRequest request) throws Exception {
+        // 图片/表格截图也是文档内容：受限文档的产物未登录一律拒绝（与 /source 同一口径）
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
         Path base = settings.getParsedDir().resolve(docId).toAbsolutePath().normalize();
         String rest = restOf(request, "/media/" + docId + "/");
         if (rest == null || rest.isEmpty()) {
@@ -78,7 +84,11 @@ public class MediaController {
 
     /** 上传原件：GET /source/{docId} —— <video>/<audio> 播放入口（Range 可 seek）。 */
     @GetMapping("/source/{docId}")
-    public ResponseEntity<FileSystemResource> source(@PathVariable String docId) throws Exception {
+    public ResponseEntity<FileSystemResource> source(@PathVariable String docId,
+                                                     HttpServletRequest request) throws Exception {
+        if (!authService.canRead(docId, authService.currentUser(request) != null)) {
+            throw new ApiError(403, com.ownrag.auth.AuthService.deniedMessage(docId));
+        }
         Path dir = settings.getFilesDir().resolve(docId).toAbsolutePath().normalize();
         if (!Files.isDirectory(dir)) {
             throw new ApiError(404, "doc 不存在：" + docId);

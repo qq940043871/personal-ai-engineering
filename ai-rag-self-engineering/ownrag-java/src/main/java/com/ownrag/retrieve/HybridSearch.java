@@ -28,6 +28,47 @@ public class HybridSearch {
         this.embedder = embedder;
     }
 
+    /**
+     * RAG 通道的统一检索口径：**不吃 Excel 行卡片**（`source_type='excel'`）。
+     *
+     * 为什么在检索层而不是在迁移脚本里一次性清掉：历史库的行卡片可能还在（迁移漏跑、或从旧备份恢复），
+     * 而"让 Excel 明细参与向量召回"本身就是错的——它会抢占召回名额，还会诱导模型从行卡片里抄数字。
+     * 清库是清理空间，过滤是保证口径，两件事都要有。目录块（`excel_catalog`）不受影响。
+     */
+    public static Map<String, Object> ragFilter(Map<String, Object> filter) {
+        Map<String, Object> f = new LinkedHashMap<>();
+        if (filter != null) {
+            f.putAll(filter);
+        }
+        List<String> exclude = new ArrayList<>();
+        Object raw = f.get("source_exclude");
+        if (raw instanceof List) {
+            for (Object o : (List<?>) raw) {
+                if (o != null) {
+                    exclude.add(String.valueOf(o));
+                }
+            }
+        } else if (raw != null && !String.valueOf(raw).isEmpty()) {
+            exclude.add(String.valueOf(raw));
+        }
+        if (!exclude.contains("excel")) {
+            exclude.add("excel");
+        }
+        f.put("source_exclude", exclude);
+        return f;
+    }
+
+    /**
+     * 访问权限过滤（登录态的唯一落点）：未登录时追加 `public_only`，已登录原样返回。
+     *
+     * 与 {@link #ragFilter} 串联使用：`withAccess(ragFilter(req.metadataFilter), loggedIn)`。
+     * 放在检索层而不是 Prompt 层：没权限的块**根本不进候选池**，模型不可能引用到它，
+     * 也不存在"上下文里塞了一段机密再叮嘱模型别说"这种自欺。
+     */
+    public static Map<String, Object> withAccess(Map<String, Object> filter, boolean loggedIn) {
+        return com.ownrag.auth.AuthService.accessFilter(filter, loggedIn);
+    }
+
     /** 名次融合：score = Σ 1/(k + rank)。不比分数免量纲问题；附各路命中详情。 */
     public static List<Map<String, Object>> rrfFuse(List<List<Map<String, Object>>> resultLists,
                                                     int k, int topN) {
@@ -90,8 +131,8 @@ public class HybridSearch {
                     metadataFilter, settings.getEmbedVersion());
             if (vecHits.isEmpty()) {
                 vectorSkippedReason = "向量通道为空（kb 内无 embed_version=" + settings.getEmbedVersion()
-                        + " 的向量），BM25 单路；换向量模型后需重建："
-                        + "POST /admin/kbs/{kb}/reembed";
+                        + " 的向量），BM25 单路；修复方式：控制台「知识库」页对该库点「重新嵌入」，"
+                        + "或调 POST /admin/kbs/{kb}/reembed";
             }
         } catch (Embedder.EmbedError e) {
             vectorSkippedReason = "向量召回跳过：" + e.getMessage();
@@ -101,8 +142,17 @@ public class HybridSearch {
         lists.add(vecHits);
         lists.add(bm25Hits);
         List<Map<String, Object>> fused = rrfFuse(lists, 60, topN);
+        // 融合候选 + 两路原始命中的并集一次读回：调试页要看"这块是哪一路捞上来的、正文讲什么"
+        java.util.Set<String> allIds = new java.util.LinkedHashSet<>(idsOf(fused));
+        for (List<Map<String, Object>> list : lists) {
+            for (Map<String, Object> r : list) {
+                allIds.add(String.valueOf(r.get("chunk_id")));
+            }
+        }
         Map<String, Map<String, Object>> chunks =
-                ChunkStore.readChunks(conn, idsOf(fused));
+                ChunkStore.readChunks(conn, new ArrayList<>(allIds));
+        enrich(bm25Hits, chunks);
+        enrich(vecHits, chunks);
         List<Map<String, Object>> candidates = new ArrayList<>();
         for (Map<String, Object> f : fused) {
             Map<String, Object> chunk = chunks.get(String.valueOf(f.get("chunk_id")));
@@ -130,6 +180,24 @@ public class HybridSearch {
         path.put("vector_hits", vecHits.size());
         out.put("retrieval_path", path);
         return out;
+    }
+
+    /** 单路命中回填正文/锚点/ordinal：只看分数看不出"捞上来的到底是什么"，调试页要能直接读。 */
+    private static void enrich(List<Map<String, Object>> hits,
+                               Map<String, Map<String, Object>> chunks) {
+        for (Map<String, Object> h : hits) {
+            Map<String, Object> chunk = chunks.get(String.valueOf(h.get("chunk_id")));
+            if (chunk == null) {
+                continue;
+            }
+            h.put("doc_id", chunk.get("doc_id"));
+            h.put("doc_name", chunk.get("doc_name"));
+            h.put("ordinal", chunk.get("ordinal"));
+            h.put("anchors", chunk.get("anchors"));
+            String text = chunk.get("text") == null ? "" : String.valueOf(chunk.get("text"));
+            h.put("chars", text.length());
+            h.put("preview", text.substring(0, Math.min(200, text.length())));
+        }
     }
 
     private static List<String> idsOf(List<Map<String, Object>> fused) {

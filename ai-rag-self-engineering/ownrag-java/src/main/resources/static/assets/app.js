@@ -16,6 +16,68 @@ function toast(msg, kind = '') {
   t.appendChild(d);
   setTimeout(() => d.remove(), 4200);
 }
+
+/* ============ 样式化对话框（替代原生 confirm/prompt：原生弹窗突兀、不可样式化、移动端更糟） ============ */
+function uiConfirm(message, title = '请确认', danger = false) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'dlg-mask';
+    mask.innerHTML = `<div class="dlg" role="dialog" aria-modal="true">
+      <h4>${esc(title)}</h4><p>${esc(message)}</p>
+      <div class="dlg-acts">
+        <button class="btn ghost" data-r="0">取消</button>
+        <button class="btn ${danger ? 'danger' : 'primary'}" data-r="1">${danger ? '确认执行' : '确定'}</button>
+      </div></div>`;
+    const done = v => { mask.remove(); document.removeEventListener('keydown', key); resolve(!!v); };
+    const key = e => {
+      if (e.key === 'Escape') done(false);
+      if (e.key === 'Enter') done(true);
+    };
+    mask.addEventListener('click', e => {
+      const b = e.target.closest('[data-r]');
+      if (b) done(b.dataset.r === '1');
+      else if (e.target === mask) done(false);
+    });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(mask);
+    mask.querySelector('[data-r="1"]').focus();
+  });
+}
+/** fields: [{key,label,placeholder,value}] → 确定返回 {key:value,...}，取消返回 null */
+function uiPrompt(title, fields) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'dlg-mask';
+    mask.innerHTML = `<div class="dlg" role="dialog" aria-modal="true">
+      <h4>${esc(title)}</h4>
+      <div style="margin:6px 0 4px">
+      ${fields.map(f => `<div class="dlg-input"><label class="f">${esc(f.label)}</label>
+        <input data-k="${esc(f.key)}" placeholder="${esc(f.placeholder || '')}" value="${esc(f.value || '')}"></div>`).join('')}
+      </div>
+      <div class="dlg-acts"><button class="btn ghost" data-r="0">取消</button>
+        <button class="btn primary" data-r="1">确定</button></div></div>`;
+    const done = v => {
+      document.removeEventListener('keydown', key);
+      if (!v) { mask.remove(); return resolve(null); }
+      const out = {};
+      mask.querySelectorAll('input[data-k]').forEach(i => { out[i.dataset.k] = i.value.trim(); });
+      mask.remove(); resolve(out);
+    };
+    const key = e => {
+      if (e.key === 'Escape') done(null);
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') done(true);
+    };
+    mask.addEventListener('click', e => {
+      const b = e.target.closest('[data-r]');
+      if (b) done(b.dataset.r === '1');
+      else if (e.target === mask) done(null);
+    });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(mask);
+    const first = mask.querySelector('input');
+    if (first) first.focus();
+  });
+}
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
   const text = await res.text();
@@ -56,7 +118,68 @@ async function sse(path, body, onEvent, signal) {
 }
 
 /* ================= 全局状态 ================= */
-const S = { config: null, health: null, kbs: [], apps: [], poll: null };
+/* me = /auth/me 的结果（未登录时 {logged_in:false}）。登录态只认这一个来源：
+ * 页面跳转靠 Cookie 保持，前端不存 token，也就不会出现"标签页 A 登出、B 还显示已登录"的分叉。 */
+const S = { config: null, health: null, metrics: null, kbs: [], apps: [], poll: null, me: null };
+
+function isLoggedIn() {
+  return !!(S.me && S.me.logged_in);
+}
+/** 登录页地址：带上当前页作为回跳目标，登录完回到原处（页面跳转不丢上下文）。 */
+function loginUrl(next) {
+  return '/ui/login?next=' + encodeURIComponent(next || (location.pathname + location.search));
+}
+
+/** 文档权限 chip：公开 / 需登录（两侧页面共用一套说法）。 */
+function accessChip(level) {
+  const p = String(level || 'public') === 'protected';
+  return `<span class="chip ${p ? 'warn' : 'v'}" title="${p
+    ? '需登录：未登录用户检索不到，也打不开分块与原件'
+    : '公开：未登录访客也能检索与访问'}">${p ? '需登录' : '公开'}</span>`;
+}
+
+/** 可点击的权限 chip（仅登录后使用）：点一下即切换 public ↔ protected。 */
+function accessChipEdit(level, docId) {
+  const p = String(level || 'public') === 'protected';
+  return `<span class="chip ${p ? 'warn' : 'v'} acl-toggle" data-act="acl"
+    data-doc="${esc(docId)}" data-lv="${p ? 'protected' : 'public'}"
+    title="点击切换为「${p ? '公开（未登录可看）' : '需登录'}」">${p ? '需登录' : '公开'} ⇄</span>`;
+}
+
+/** 顶部未登录提示条：明确"现在只能看公开文档"，并给一键登录入口（已登录则不打扰）。 */
+function renderAuthStrip() {
+  const main = document.querySelector('main');
+  if (!main) return;
+  const old = $('#authStrip');
+  if (old) old.remove();
+  if (!S.me || isLoggedIn()) return;
+  const strip = document.createElement('div');
+  strip.id = 'authStrip';
+  strip.className = 'auth-strip';
+  strip.innerHTML = `<span class="chip warn">未登录</span>
+    <span>当前只能查看<b>公开文档</b>；登录后可查询与访问全部文档（含「需登录」级别）。</span>
+    <span class="sp"></span>
+    <a class="btn sm primary" href="${esc(loginUrl())}">登录</a>`;
+  main.insertBefore(strip, main.firstChild);
+}
+
+/** 改文档访问权限（登录后可用）：文档页与知识库页共用，避免两处口径写两遍。 */
+async function toggleDocAccess(docId, current) {
+  const next = String(current) === 'protected' ? 'public' : 'protected';
+  const ok = await uiConfirm(next === 'protected'
+    ? '设为「需登录」后：未登录用户检索不到这篇文档，也打不开它的分块与原件。已登录用户不受影响。'
+    : '设为「公开」后：未登录访客也能检索与访问这篇文档（含分块与原件）。',
+    '修改访问权限？', next === 'protected');
+  if (!ok) return false;
+  try {
+    const r = await postJSON('/docs/' + encodeURIComponent(docId) + '/access', { access_level: next });
+    toast(r.note || '权限已更新', 'ok');
+    return true;
+  } catch (e) {
+    toast('修改权限失败：' + e.message, 'bad');
+    return false;
+  }
+}
 
 /* ================= 14 天路线（侧边栏进度 + plan 页共用） ================= */
 const PLAN_KEY = 'ownrag.plan.v1';
@@ -77,7 +200,7 @@ const PLAN = [
     todo: ['在知识库页用 q=报销 与 q=报销口径 分别搜', '对比命中数：为什么更长的词反而更难命中', '读 store.py 的 _fts_cjk，理解"索引与查询两侧必须同函数"'],
     check: '能解释 bm25 分数为什么取负、OR 回退为什么精度会掉。', tab: 'kb' },
   { d: 6, t: '向量通道：装与不装是两种系统', goal: '同一次检索，比较 vector=skipped 与 vector 有命中的差别。',
-    todo: ['检索调试页先跑一次（chromadb 未装 / Ollama 未起），记下 channels.vector 与提示', '装 chromadb、拉 bge-m3 后再跑，对比两路命中', '看 metrics 里 embed_version 分布'],
+    todo: ['检索调试页先跑一次（清空 embedding key 模拟向量通道缺失），记下 channels.vector 与提示', '配好 SiliconFlow bge-large-zh-v1.5 后再跑，对比两路命中', '看 metrics 里 embed_version 分布'],
     check: '能说清丢向量通道后，哪类问题最先退化（同义改写、跨表述）。', tab: 'retrieve' },
   { d: 7, t: '混合与 RRF：不比分数只比名次', goal: '手算一次 RRF，理解为什么不需要归一化两路分数。',
     todo: ['检索调试页看两路原始命中与 rrf 值', '挑一个块，按 1/(60+rank) 手算两路贡献并核对', '改 k（代码里 rrf_fuse 的 k）观察名次变化'],
@@ -128,18 +251,15 @@ function fillSelect(sel, items, value) {
 }
 function renderPills() {
   const h = S.health || {};
-  const ollama = h.ollama || {};
   const cb = h.chat_backend || {};
   const eb = h.embed_backend || {};
-  // 首灯统一按「生成后端」口径：本地 ollama 与远程 OpenAI 兼容端点（agnes 等）都归 LLM，
-  // 不再出现"Ollama 未使用"这种和当前档位无关的告警。
-  const ollamaUsed = ollama.used !== false;
+  // 首灯统一按「生成后端」口径：OpenAI 兼容端点（本地/云端）都归 LLM，不再有 Ollama 告警
   const pills = [
     { t: 'LLM', ok: !!cb.ok,
       d: cb.ok ? (cb.model || cb.provider || '可用')
         : (cb.detail || '不可达') + (cb.provider ? `（${cb.provider}）` : '') },
     { t: 'embed', ok: !eb.breaker_open,
-      d: eb.breaker_open ? `熔断 ${eb.retry_in}s` : (ollamaUsed ? 'ollama' : '远程') },
+      d: eb.breaker_open ? `熔断 ${eb.retry_in}s` : 'OpenAI 兼容' },
     { t: '步骤注册', ok: !(h.pipeline_missing_steps || []).length, d: (h.steps_registered || []).length + ' 个' },
     { t: 'rerank', ok: !!h.rerank_enabled, d: h.rerank_enabled ? '已配置' : 'RRF 兜底' },
     { t: 'kb', ok: (h.known_kbs || []).length > 0, d: (h.known_kbs || []).join(',') || '未声明' }
@@ -159,20 +279,45 @@ function renderSidebarProgress() {
 }
 
 /* ================= 启动 ================= */
+/**
+ * 默认档位选择：有数据（chunks>0）的库/应用优先。
+ * 教训：曾按 kbs[0]/apps[0] 硬取默认，结果默认档位是一个从未灌语料的空库，
+ * 问答/入库/检索三个页面首屏全是"无依据拒答"失败态——默认值应该指向能用的一档。
+ */
+function pickDefaultKb(kbs, chunksByKb) {
+  const healthy = (kbs || []).filter(k => (chunksByKb || {})[k] > 0);
+  return healthy.length ? healthy[0] : (kbs && kbs[0]) || '';
+}
+function pickDefaultApp(apps, appsCfg, chunksByKb) {
+  for (const name of apps || []) {
+    const cfg = appsCfg && appsCfg[name];
+    const kbs = (cfg && cfg.knowledgeBases) || [];
+    if (kbs.some(k => (chunksByKb || {})[k] > 0)) return name;
+  }
+  return (apps && apps[0]) || '';
+}
 async function boot() {
   renderSidebar();  // 先渲染侧边栏（来自 assets/menu.js），不依赖接口
+  // 登录态先取（每个页面都需要的第一个状态）：取不到就按未登录处理，绝不阻塞页面其余部分
+  try { S.me = await api('/auth/me'); } catch (e) { S.me = { logged_in: false }; }
+  if (typeof renderAccount === 'function') renderAccount();
+  renderAuthStrip();
   try { S.health = await api('/admin/health'); } catch (e) { toast('健康检查失败：' + e.message, 'bad'); }
   try { S.config = await api('/admin/config'); } catch (e) { toast('读取配置失败：' + e.message, 'bad'); }
+  try { S.metrics = await api('/admin/metrics'); } catch (e) { S.metrics = null; }
 
   const kbs = (S.health && S.health.known_kbs) || [];
   S.kbs = kbs;
   S.apps = Object.keys((S.config && S.config.apps) || {});
-  fillSelect('#upKb', kbs, kbs[0]);
-  fillSelect('#kbSel', [''].concat(kbs), kbs[0] || '');
-  fillSelect('#dhKb', kbs, kbs[0]);
-  fillSelect('#retKb', kbs, kbs[0]);
-  fillSelect('#chatApp', S.apps, S.apps[0]);
-  fillSelect('#retApp', S.apps, S.apps[0]);
+  const chunksByKb = (S.metrics && S.metrics.chunks_by_kb) || {};
+  const defKb = pickDefaultKb(kbs, chunksByKb);
+  const defApp = pickDefaultApp(S.apps, (S.config && S.config.apps) || {}, chunksByKb);
+  fillSelect('#upKb', kbs, defKb);
+  fillSelect('#kbSel', [''].concat(kbs), defKb);
+  fillSelect('#dhKb', kbs, defKb);
+  fillSelect('#retKb', kbs, defKb);
+  fillSelect('#chatApp', S.apps, defApp);
+  fillSelect('#retApp', S.apps, defApp);
 
   renderPills();
   renderSidebarProgress();
