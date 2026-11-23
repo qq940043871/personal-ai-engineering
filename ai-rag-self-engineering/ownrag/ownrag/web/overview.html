@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>概览 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body data-page="overview">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>概览</h1><div class="pills" id="pills"></div></div>
+
+    <div class="grid g3">
+      <div class="card"><h3>组件就绪</h3><div id="ovHealth" class="muted">加载中…</div></div>
+      <div class="card"><h3>知识库规模</h3><div id="ovChunks" class="kpi">–</div><div class="tiny" id="ovChunksSub"></div></div>
+      <div class="card"><h3>待办队列</h3><div id="ovTodos" class="kpi">–</div><div class="tiny">失败不会消失，全部进人工队列</div></div>
+    </div>
+    <div class="grid g32" style="margin-top:14px">
+      <div class="card">
+        <h3>三步验证（每次改动后跑一遍）</h3>
+        <div class="hint">这套顺序是刻意的：先证明“文档进得来”，再证明“检索找得到”，最后才看“模型答得对”。
+          跳过前两步直接看答案，等于没有验证。</div>
+        <div id="ovSteps" class="muted"></div>
+        <div class="sep"></div>
+        <div class="flex">
+          <a class="btn primary" href="/ui/ingest">① 去入库</a>
+          <a class="btn" href="/ui/retrieve">② 去检索调试</a>
+          <a class="btn" href="/ui/chat">③ 去问答</a>
+        </div>
+      </div>
+      <div class="card">
+        <h3>部署自检</h3>
+        <div id="ovDeploy" class="tiny mono" style="line-height:1.9"></div>
+        <div class="sep"></div>
+        <h3>接下来该做什么</h3>
+        <div id="ovNext" class="muted"></div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+async function loadOverview() {
+  const h = S.health || {};
+  const ollama = h.ollama || {};
+  $('#ovHealth').innerHTML = `
+    <div class="flex" style="margin-bottom:6px"><i class="dot ${ollama.ok ? 'ok' : 'bad'}"></i>
+      <b>Ollama</b><span class="tiny">${esc(ollama.ok ? '可达' : (ollama.detail || '不可达'))}</span></div>
+    <div class="flex" style="margin-bottom:6px"><i class="dot ${(h.pipeline_missing_steps || []).length ? 'bad' : 'ok'}"></i>
+      <b>管道 DSL</b><span class="tiny">${(h.steps_registered || []).length} 个步骤类型 · 缺失 ${(h.pipeline_missing_steps || []).length}</span></div>
+    <div class="flex"><i class="dot ${h.rerank_enabled ? 'ok' : 'warn'}"></i>
+      <b>rerank / 解析</b><span class="tiny">${h.rerank_enabled ? '已配置' : 'RRF 兜底'} · ${esc(h.mineru_mode || '')} · ${esc(h.asr_engine || '')}</span></div>`;
+
+  try {
+    const m = await api('/admin/metrics');
+    const chunks = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
+    $('#ovChunks').innerHTML = fmt(chunks) + '<small>块</small>';
+    $('#ovChunksSub').textContent = Object.entries(m.chunks_by_kb || {}).map(([k, v]) => k + ': ' + v).join(' · ') || '还没有文档';
+    $('#ovTodos').innerHTML = fmt(m.todos_open || 0) + '<small>待处理</small>';
+    const by = m.tasks_by_status || {};
+    $('#ovSteps').innerHTML = `
+      <div class="step"><span class="n">1</span><span>上传一份文档，看到管道每一步 ok</span><span class="chip ${by.done ? 'ok' : ''}">${by.done || 0} done</span></div>
+      <div class="step"><span class="n">2</span><span>在「检索调试」看到两路命中与 RRF</span><span class="chip ${chunks ? 'ok' : ''}">${chunks} 块可检索</span></div>
+      <div class="step"><span class="n">3</span><span>在「问答」看到 ctx → token → gate 全流程</span><span class="chip ${by.failed ? 'warn' : ''}">${by.failed || 0} failed</span></div>`;
+    $('#ovDeploy').innerHTML =
+      [['config_dir', h.config_dir], ['data_dir', h.data_dir], ['known_kbs', (h.known_kbs || []).join(', ')],
+       ['limits', JSON.stringify(h.limits || {})], ['tasks', JSON.stringify(by)]]
+      .map(([k, v]) => `<div><span class="tiny">${esc(k)}</span> ${esc(v || '—')}</div>`).join('');
+    const open = m.todos_open || 0;
+    $('#ovNext').innerHTML = open
+      ? `有 <b>${open}</b> 条待办在等你：去「入库」右侧处理，处理完点重试即可续跑。`
+      : (chunks ? '当前没有待办。建议去「检索调试」故意问一个坏问题，观察候选池为空时闸门如何拒答。'
+                : '还没有任何文档：先去「入库」上传一份 PDF 或 CSV。');
+  } catch (e) { toast('指标加载失败：' + e.message, 'bad'); }
+}
+window.pageInit = loadOverview;
+boot();
+</script>
+</body>
+</html>

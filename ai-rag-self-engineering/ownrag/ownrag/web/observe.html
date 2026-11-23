@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>观测 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body data-page="observe">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>观测</h1><div class="pills" id="pills"></div></div>
+
+    <div class="grid g3" id="obKpis"></div>
+    <div class="grid g32" style="margin-top:14px">
+      <div class="card">
+        <h3>按 trace_id 复盘 <span class="tag tiny">任何一次“答案不对”先查这里</span></h3>
+        <div class="row">
+          <div><label class="f">trace_id</label><input id="trId" placeholder="从问答页复制"></div>
+          <div class="fix"><button class="btn primary" id="trGo">查 trace</button></div>
+        </div>
+        <div id="trOut" style="margin-top:12px"><div class="empty">输入 trace_id 查看每一步的耗时/计数/错误</div></div>
+      </div>
+      <div class="card">
+        <h3>运行计数</h3>
+        <div id="obMetrics" class="tiny mono" style="line-height:2">加载中…</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>问答日志 <span class="tag tiny">评测集与直击库 L2 的原料</span></h3>
+      <div id="obQa"><div class="empty">加载中…</div></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+$('#trGo').onclick = lookupTrace;
+$('#trId').addEventListener('keydown', e => { if (e.key === 'Enter') lookupTrace(); });
+async function lookupTrace() {
+  const id = $('#trId').value.trim();
+  if (!id) return;
+  $('#trOut').innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    const d = await api('/admin/trace/' + encodeURIComponent(id));
+    $('#trOut').innerHTML = `<div class="tiny mono">trace ${esc(d.trace_id)} · ${d.steps.length} 步</div>
+      <div class="steps" style="margin-top:8px">${d.steps.map((s, i) => `
+        <div class="step"><span class="n">${i + 1}</span>
+          <span><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${s.status}</span>
+            <span class="mono" style="font-size:12px"> ${esc(s.step)}</span>
+            ${s.error ? `<div class="tiny" style="color:#ffb0b0">${esc(s.error)}</div>` : ''}</span>
+          <span class="c">${s.ms}ms<br>${esc(JSON.stringify(s.counters || {}))}</span></div>`).join('')}</div>`;
+  } catch (e) { $('#trOut').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function loadObserve() {
+  try {
+    const m = await api('/admin/metrics');
+    const by = m.tasks_by_status || {};
+    const total = Object.values(m.chunks_by_kb || {}).reduce((a, b) => a + b, 0);
+    $('#obKpis').innerHTML = [
+      ['任务', Object.entries(by).map(([k, v]) => k + ' ' + v).join(' · ') || '0', 'done / failed / running'],
+      ['分块', fmt(total), JSON.stringify(m.chunks_by_kb || {})],
+      ['待办', fmt(m.todos_open || 0), 'open 队列']
+    ].map(([t, v, s]) => `<div class="card"><h3>${esc(t)}</h3><div class="kpi">${esc(v)}</div><div class="tiny">${esc(s)}</div></div>`).join('');
+    $('#obMetrics').textContent = JSON.stringify(m, null, 2);
+  } catch (e) { $('#obMetrics').textContent = e.message; }
+
+  try {
+    const d = await api('/admin/qa_log?limit=15');
+    const rows = d.qa_log || [];
+    $('#obQa').innerHTML = rows.length ? `<table><thead><tr><th>时间</th><th>问题</th><th>答案</th><th>trace</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td class="tiny mono">${esc((r.ts || '').slice(5, 19))}</td>
+        <td>${esc(r.question)}</td>
+        <td class="tiny" style="max-width:420px">${esc(String(r.answer || '').slice(0, 160))}</td>
+        <td><button class="btn sm ghost" onclick="openTrace('${esc(r.trace_id || '')}')">${esc(shortId(r.trace_id))}</button></td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty">还没有问答记录</div>';
+  } catch (e) { $('#obQa').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+window.pageInit = () => {
+  loadObserve();
+  const trace = new URLSearchParams(location.search).get('trace');
+  if (trace) { $('#trId').value = trace; lookupTrace(); }
+};
+boot();
+</script>
+</body>
+</html>

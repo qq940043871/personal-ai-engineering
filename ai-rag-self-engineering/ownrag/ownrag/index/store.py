@@ -130,15 +130,21 @@ def vector_search(settings: "Settings", kb: str, query_embedding: list[float], t
 
 
 def read_chunks(conn: Any, chunk_ids: list[str]) -> dict[str, dict]:
-    """按 id 批量取块正文与锚点（检索结果回填用）。"""
+    """按 id 批量取块正文与锚点（检索结果回填用）。
+
+    doc_name 一并返回：引用位置只给块号/ doc_id，用户看不出这段出自哪篇文档。
+    来源取块 meta 的 source_file（切分时由解析产物的 metadata 带入），缺失才退回 doc_id。
+    """
     out: dict[str, dict] = {}
     for cid in chunk_ids:
         row = conn.execute("SELECT * FROM chunks WHERE chunk_id=?", (cid,)).fetchone()
         if row:
+            meta = json.loads(row["meta_json"] or "{}")
             out[cid] = {"chunk_id": row["chunk_id"], "doc_id": row["doc_id"], "kb": row["kb"],
                         "ordinal": row["ordinal"], "text": row["text"],
                         "anchors": json.loads(row["anchors_json"] or "{}"),
-                        "meta": json.loads(row["meta_json"] or "{}")}
+                        "meta": meta,
+                        "doc_name": meta.get("source_file") or row["doc_id"]}
     return out
 
 

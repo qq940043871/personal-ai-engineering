@@ -48,7 +48,17 @@ def search(conn: sqlite3.Connection, settings: "Settings", kb: str, query: str,
         vector_skipped_reason = f"向量召回跳过：{exc}"
 
     fused = rrf_fuse(vec_hits, bm25_hits, top_n=top_n)
-    chunks = read_chunks(conn, [f["chunk_id"] for f in fused])
+    # 融合候选 + 两路原始命中一起读回：调试页要能回答"这块出自哪篇文档"，不能只给块号
+    ids = [f["chunk_id"] for f in fused]
+    for hits in (bm25_hits, vec_hits):
+        ids.extend(h["chunk_id"] for h in hits)
+    chunks = read_chunks(conn, list(dict.fromkeys(ids)))
+    for hits in (bm25_hits, vec_hits):
+        for h in hits:
+            c = chunks.get(h["chunk_id"])
+            if c:
+                h["doc_name"] = c.get("doc_name")
+                h["ordinal"] = c.get("ordinal")
     candidates = [{**f, **chunks.get(f["chunk_id"], {})} for f in fused
                   if f["chunk_id"] in chunks]
     return {"candidates": candidates, "vector_skipped_reason": vector_skipped_reason,

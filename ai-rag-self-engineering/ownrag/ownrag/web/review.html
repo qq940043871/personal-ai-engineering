@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>解析复核 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body data-page="review">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>解析复核</h1><div class="pills" id="pills"></div></div>
+
+    <div class="hint">入库前的第三道闸：把<b>解析产物</b>和<b>切分结果</b>摊开给你看，点「通过并入库」才真正写索引。
+      自动检查只报事实（阻断项 / 提示项），放不放行由人决定——解析错了，后面检索与生成全错，而这件事在问答阶段查不出来。</div>
+    <div class="grid g32">
+      <div class="card">
+        <h3>复核队列 <span class="tag chip" id="rvCount">–</span></h3>
+        <div class="row">
+          <div class="fix" style="width:150px;flex:0 0 150px"><label class="f">状态</label>
+            <select id="rvStatus">
+              <option value="">全部</option>
+              <option value="pending">待复核</option>
+              <option value="approved">已通过</option>
+              <option value="rejected">已驳回</option>
+            </select></div>
+          <div class="fix"><button class="btn" id="rvReload">刷新</button></div>
+        </div>
+        <div id="rvList" style="margin-top:10px"><div class="empty">加载中…</div></div>
+      </div>
+      <div class="card">
+        <h3>质量检查 <span class="tag chip" id="rvVerdict">–</span></h3>
+        <div class="tiny" style="margin-bottom:8px">阻断项 = 硬事实（空正文、几乎无字），出现即禁止放行；提示项 = 这里通常意味着解析出了问题，自己看一眼。</div>
+        <div id="rvChecks"><div class="empty">选左边一条记录</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>解析过程 <span class="tag tiny">detect_pages → parse → validate_parsed → chunk_markdown → prepare_review</span></h3>
+      <div id="rvSteps"><div class="empty">—</div></div>
+      <div class="sep"></div>
+      <h3>页级明细 <span class="tag tiny">只有带 page 标记的 Markdown 才算得出来，算不出来就不编</span></h3>
+      <div id="rvPages"><div class="empty">—</div></div>
+    </div>
+
+    <div class="grid g32" style="margin-top:14px">
+      <div class="card">
+        <h3>解析产物（Markdown 中间态）</h3>
+        <div id="rvMd" class="log" style="max-height:520px"><div class="empty">—</div></div>
+      </div>
+      <div class="card">
+        <h3>切分预览 <span class="tag chip" id="rvChunkN">–</span></h3>
+        <div id="rvChunks" style="max-height:520px;overflow:auto"><div class="empty">—</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>决策 <span class="tag tiny">通过 = approved + 自动续跑管道（从 review_gate 之后继续，已解析的不会重跑）</span></h3>
+      <div class="row">
+        <div><label class="f">备注 / 驳回原因（驳回必填，会写进待办）</label><input id="rvNote" placeholder="如：第 2 页表格串行，换 vlm 后端重传"></div>
+        <div class="fix"><button class="btn primary" id="rvApprove">通过并入库</button></div>
+        <div class="fix"><button class="btn ghost" id="rvReject">驳回</button></div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+const RV = { cur: null };
+const RV_STATUS_CHIP = { pending: 'warn', approved: 'ok', rejected: 'bad' };
+const RV_VERDICT_CHIP = { pass: 'ok', warn: 'warn', fail: 'bad' };
+
+async function loadReviews() {
+  const st = $('#rvStatus').value;
+  try {
+    const d = await api('/admin/reviews' + (st ? '?status=' + encodeURIComponent(st) : ''));
+    $('#rvCount').textContent = '待复核 ' + d.pending_total;
+    $('#rvCount').className = 'tag chip ' + (d.pending_total ? 'warn' : 'ok');
+    $('#rvList').innerHTML = d.items.length
+      ? '<table><thead><tr><th>来源文件</th><th>自动结论</th><th>规模</th><th>状态</th><th></th></tr></thead><tbody>'
+        + d.items.map(it => `<tr>
+          <td><div>${esc(it.source_file || it.doc_id)}</div>
+              <div class="tiny mono">${esc(it.doc_id)} · ${esc(it.backend || '-')}</div></td>
+          <td><span class="chip ${RV_VERDICT_CHIP[it.verdict] || ''}">${esc(it.verdict || '-')}</span>
+              <div class="tiny">阻断 ${it.blocking.length} · 提示 ${it.warn.length}</div></td>
+          <td class="tiny mono">${fmt(it.pages)} 页<br>${fmt(it.chars)} 字<br>${fmt(it.tables)} 表</td>
+          <td><span class="chip ${RV_STATUS_CHIP[it.status] || ''}">${esc(it.status)}</span>
+              <div class="tiny">${esc((it.reviewed_at || '').slice(0, 16))}</div></td>
+          <td><button class="btn sm" data-rv="${esc(it.doc_id)}">查看</button></td></tr>`).join('')
+        + '</tbody></table>'
+      : '<div class="empty">没有复核记录：上传一份 PDF，管道会停在 review_gate 等你确认</div>';
+  } catch (e) { toast('读取复核队列失败：' + e.message, 'bad'); }
+}
+
+async function openReview(docId) {
+  try {
+    const d = await api('/admin/reviews/' + encodeURIComponent(docId));
+    RV.cur = d;
+    renderReview(d);
+  } catch (e) { toast('读取复核详情失败：' + e.message, 'bad'); }
+}
+
+function renderReview(d) {
+  $('#rvVerdict').textContent = (d.verdict || '-') + ' · ' + d.status;
+  $('#rvVerdict').className = 'tag chip ' + (RV_STATUS_CHIP[d.status] || RV_VERDICT_CHIP[d.verdict] || '');
+
+  const checks = (d.report && d.report.checks) || null;
+  const st = (checks && checks.stats) || {};
+  const facts = `字符 ${fmt(d.chars)} · 页 ${fmt(d.pages)} · 标题 ${fmt(st.headings || 0)} · 表格 ${fmt(d.tables)} · 结构 ${fmt(d.structures)} · 切块 ${fmt(st.chunks || (d.chunks || []).length)} · 后端 ${esc(d.backend || '-')}`;
+  const blocks = [];
+  (d.blocking || []).forEach(b => blocks.push(
+    `<div class="log" style="max-height:none;margin-bottom:8px"><span class="bad">阻断 · ${esc(b.code)}</span>\n${esc(b.detail)}</div>`));
+  (d.warn || []).forEach(w => blocks.push(
+    `<div class="log" style="max-height:none;margin-bottom:8px"><span class="warn">提示 · ${esc(w.code)}</span>\n${esc(w.detail)}</div>`));
+  $('#rvChecks').innerHTML = `<div class="tiny mono" style="margin-bottom:9px">${facts}</div>`
+    + (blocks.length ? blocks.join('')
+      : '<div class="chip ok">无阻断项也无提示项——仍建议扫一眼下面的产物</div>')
+    + (d.note ? `<div class="sep"></div><div class="tiny">审批备注：${esc(d.note)} · ${esc(d.reviewed_at || '')}</div>` : '');
+
+  $('#rvSteps').innerHTML = (d.steps && d.steps.length)
+    ? '<div class="steps">' + d.steps.map(s => `<div class="step">
+        <span class="n">${esc((s.created_at || '').slice(11, 19))}</span>
+        <div><div><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${esc(s.status)}</span>
+          <b style="margin-left:6px">${esc(s.step)}</b>
+          <span class="ms">${s.ms == null ? '' : Math.round(s.ms) + ' ms'}</span></div>
+          ${s.counters_json ? `<div class="ctr">${esc(s.counters_json)}</div>` : ''}
+          ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}</div></div>`).join('') + '</div>'
+    : '<div class="empty">该记录没有关联 trace</div>';
+
+  const pages = d.pages_detail || [];
+  $('#rvPages').innerHTML = pages.length
+    ? '<table><thead><tr><th>页</th><th>字符</th><th>表格</th><th>图片</th><th>空页</th></tr></thead><tbody>'
+      + pages.map(p => `<tr><td class="mono">${fmt(p.page)}</td><td class="mono">${fmt(p.chars)}</td>
+          <td class="mono">${fmt(p.tables || 0)}</td><td class="mono">${fmt(p.images || 0)}</td>
+          <td>${p.empty ? '<span class="chip bad">空</span>' : '<span class="chip ok">有文本</span>'}</td></tr>`).join('')
+      + '</tbody></table>'
+    : `<div class="empty">解析未提供页级标记（MinerU 产物通常无页标记）；声明页数 ${fmt(d.pages)}</div>`;
+
+  const md = $('#rvMd');
+  if (typeof d.markdown === 'string') {
+    md.textContent = d.markdown || '（空）';
+    if (d.markdown_total_chars > d.markdown.length) {
+      md.textContent += `\n\n…（仅显示前 ${fmt(d.markdown.length)} / ${fmt(d.markdown_total_chars)} 字符，用 /admin/reviews/${d.doc_id}?offset= 续读）`;
+    }
+  } else { md.innerHTML = '<div class="empty">未加载产物</div>'; }
+
+  const chunks = d.chunks || [];
+  $('#rvChunkN').textContent = chunks.length + ' 块';
+  $('#rvChunks').innerHTML = chunks.length ? chunks.map(c => `<div class="ctx">
+      <div class="h"><span class="chip v">#${fmt(c.ordinal)}</span>
+        <span class="tiny mono">${esc(c.chunk_id)}</span>
+        <span class="chip ${c.has_table ? 'info' : ''}">${fmt(c.chars)} 字 / ${fmt(c.tokens)} tok${c.has_table ? ' · 含表' : ''}</span></div>
+      <div class="tiny mono" style="margin-bottom:4px">${esc((c.anchors && c.anchors.heading_path || []).join(' > '))}</div>
+      <div class="b">${esc(c.head)}</div></div>`).join('')
+    : '<div class="empty">无切分结果</div>';
+
+  $('#rvNote').value = d.note || '';
+}
+
+$('#rvReload').onclick = loadReviews;
+$('#rvStatus').onchange = loadReviews;
+$('#rvList').addEventListener('click', e => {
+  const b = e.target.closest('[data-rv]');
+  if (b) openReview(b.dataset.rv);
+});
+$('#rvApprove').onclick = async () => {
+  if (!RV.cur) return toast('先选一条记录', 'bad');
+  const btn = $('#rvApprove');
+  btn.disabled = true; btn.textContent = '入库中…';
+  try {
+    const r = await postJSON('/admin/reviews/' + RV.cur.doc_id + '/approve', { note: $('#rvNote').value || null });
+    toast(`已通过，管道续跑结果：${r.task_status}`, r.task_status === 'done' ? 'ok' : 'bad');
+    await loadReviews(); await openReview(RV.cur.doc_id);
+  } catch (e) { toast('放行失败：' + e.message, 'bad'); }
+  finally { btn.disabled = false; btn.textContent = '通过并入库'; }
+};
+$('#rvReject').onclick = async () => {
+  if (!RV.cur) return toast('先选一条记录', 'bad');
+  const note = ($('#rvNote').value || '').trim();
+  if (!note) return toast('驳回必须写原因', 'bad');
+  try {
+    const r = await postJSON('/admin/reviews/' + RV.cur.doc_id + '/reject', { note });
+    toast(`已驳回（关闭待办 ${r.todos_closed} 条）`, 'ok');
+    await loadReviews(); await openReview(RV.cur.doc_id);
+  } catch (e) { toast('驳回失败：' + e.message, 'bad'); }
+};
+
+window.pageInit = () => {
+  loadReviews();
+  const doc = new URLSearchParams(location.search).get('doc');
+  if (doc) openReview(doc);
+};
+boot();
+</script>
+</body>
+</html>

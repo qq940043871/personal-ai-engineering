@@ -36,7 +36,7 @@ include-package-data = true
 include = ["ownrag*"]
 
 [tool.setuptools.package-data]
-ownrag = ["configs/*.yaml", "configs/prompts/*.yaml", "web/*.html"]
+ownrag = ["configs/*.yaml", "configs/prompts/*.yaml", "web/*.html", "web/*.ico", "web/*.png", "web/assets/*.css", "web/assets/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -122,8 +122,11 @@ class ParseMinerU(Step):
             raise RuntimeError(f"MinerU CLI 不可用：{cmd[0]} 未安装（可用 pdf 降级链或改 http 模式）")
         out_dir = ctx.settings.parsed_dir / ctx.doc_id
         out_dir.mkdir(parents=True, exist_ok=True)
+        # 显式 UTF-8：Windows 默认按 GBK 解码子进程输出，中文路径/日志会直接抛 UnicodeDecodeError
+        # （异常发生在读线程里，表现为"命令明明跑了却没有输出"，排障成本极高）
         proc = subprocess.run(cmd + ["-p", str(src), "-o", str(out_dir)],
-                              capture_output=True, text=True, timeout=1800)
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=1800)
         if proc.returncode != 0:
             raise RuntimeError(f"MinerU CLI 失败：{proc.stderr[-300:]}")
         mds = sorted(out_dir.rglob("*.md"))

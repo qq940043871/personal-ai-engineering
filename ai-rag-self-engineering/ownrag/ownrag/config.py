@@ -92,6 +92,9 @@ class Settings:
     def parsed_dir(self) -> Path: return self.data_dir / "parsed"
 
     @property
+    def review_dir(self) -> Path: return self.data_dir / "review"
+
+    @property
     def chroma_dir(self) -> Path: return self.data_dir / "chroma"
 
     @property

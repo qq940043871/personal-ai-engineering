@@ -42,7 +42,7 @@ class FfExtractAudio(Step):
         probe = subprocess.run(
             [ffprobe, "-v", "quiet", "-print_format", "json",
              "-show_format", "-show_streams", str(src)],
-            capture_output=True, text=True, timeout=120)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
         if probe.returncode != 0:
             return StepResult.fail(f"ffprobe 失败：{probe.stderr[-200:]}")
         info = json.loads(probe.stdout or "{}")
@@ -54,7 +54,7 @@ class FfExtractAudio(Step):
         subprocess.run(
             [ffmpeg, "-y", "-v", "error", "-i", str(src),
              "-vn", "-ac", str(params.get("ac", 1)), "-ar", str(params.get("ar", 16000)), str(wav)],
-            capture_output=True, text=True, timeout=3600)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3600)
         if not wav.exists() or wav.stat().st_size == 0:
             return StepResult.fail("ffmpeg 未产出有效音轨")
 

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知识库 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body data-page="kb">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>知识库</h1><div class="pills" id="pills"></div></div>
+
+    <div class="card">
+      <h3>分块浏览</h3>
+      <div class="row">
+        <div class="fix" style="width:160px;flex:0 0 160px"><label class="f">知识库</label><select id="kbSel"></select></div>
+        <div class="fix" style="width:220px"><label class="f">doc_id（可选）</label><input id="kbDoc" placeholder="全部"></div>
+        <div><label class="f">关键词（走 FTS5，与线上同一函数；中文按字切分）</label><input id="kbQ" placeholder="如：报销 或 金额"></div>
+        <div class="fix" style="width:90px;flex:0 0 90px"><label class="f">条数</label><input id="kbN" type="number" value="20"></div>
+        <div class="fix"><button class="btn primary" id="kbGo">查询</button></div>
+      </div>
+    </div>
+    <div class="grid g32" style="margin-top:14px">
+      <div class="card"><h3>结果 <span class="tag chip" id="kbTotal">–</span></h3><div id="kbList"><div class="empty">未查询</div></div></div>
+      <div class="card">
+        <h3>直击库（L0 精确 / L1 语义 / L2 沉淀）</h3>
+        <div class="tiny" style="margin-bottom:8px">直击命中零检索零生成——答错比 RAG 更伤信任，所以先在这张表里把口径写死。</div>
+        <div id="dhList"><div class="empty">加载中…</div></div>
+        <div class="sep"></div>
+        <div class="row">
+          <div class="fix" style="width:80px;flex:0 0 80px"><label class="f">level</label><select id="dhLevel"><option>L0</option><option>L1</option><option>L2</option></select></div>
+          <div class="fix" style="width:150px;flex:0 0 150px"><label class="f">kb</label><select id="dhKb"></select></div>
+          <div><label class="f">标准问</label><input id="dhQ" placeholder="报销上限是多少"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="f">答案（口径写死）</label><input id="dhA" placeholder="1234 元"></div>
+          <div class="fix"><button class="btn" id="dhAdd">加入直击库</button></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+$('#kbGo').onclick = loadChunks;
+async function loadChunks() {
+  const q = $('#kbQ').value.trim(), kb = $('#kbSel').value, doc = $('#kbDoc').value.trim();
+  const n = +$('#kbN').value || 20;
+  const qs = new URLSearchParams({ kb, limit: n });
+  if (q) qs.set('q', q);
+  if (doc) qs.set('doc_id', doc);
+  $('#kbList').innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    const d = await api('/admin/chunks?' + qs.toString());
+    $('#kbTotal').textContent = (d.mode === 'fts' ? 'FTS · ' : '') + d.total + ' 块';
+    $('#kbList').innerHTML = (d.chunks || []).length ? d.chunks.map(c => `
+      <div class="ctx">
+        <div class="h"><span class="chip info">#${esc(c.ordinal)}</span>
+          <span class="tiny mono">${esc(c.chunk_id)}</span>
+          <span class="chip">${esc(c.kb)}</span>
+          ${c.bm25_score != null ? `<span class="chip">-bm25 ${Number(c.bm25_score).toFixed(3)}</span>` : ''}
+          ${c.embed_version ? `<span class="chip v">${esc(c.embed_version)}</span>` : ''}
+          <span class="sp"></span><span class="tiny">${c.chars} 字 ${c.truncated_view ? '（显示截断）' : ''}</span></div>
+        <div class="b">${esc(c.text)}</div>
+        <div class="tiny mono" style="margin-top:6px">${esc(JSON.stringify(c.anchors || {}))} · ${esc(JSON.stringify(c.meta || {}))}</div>
+      </div>`).join('') : '<div class="empty">没有匹配分块</div>';
+  } catch (e) { $('#kbList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$('#dhAdd').onclick = async () => {
+  try {
+    await postJSON('/admin/direct_hits', {
+      kb: $('#dhKb').value, level: $('#dhLevel').value,
+      question: $('#dhQ').value, answer: $('#dhA').value, aliases: []
+    });
+    toast('已加入直击库', 'ok'); $('#dhQ').value = ''; $('#dhA').value = ''; loadDirectHits();
+  } catch (e) { toast(e.message, 'bad'); }
+};
+async function loadDirectHits() {
+  try {
+    const d = await api('/admin/direct_hits');
+    const hits = d.hits || [];
+    $('#dhList').innerHTML = hits.length ? `<table><thead><tr><th>level</th><th>问题</th><th>答案</th><th></th></tr></thead><tbody>
+      ${hits.map(h => `<tr><td><span class="chip v">${esc(h.level)}</span></td>
+        <td>${esc(h.question)}</td><td class="mono" style="font-size:11.5px">${esc(h.answer)}</td>
+        <td><button class="btn sm ghost" onclick="delHit('${esc(h.id)}')">删</button></td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty">直击库为空：加一条，然后在问答页问同一句话，看是否零检索命中</div>';
+  } catch (e) { $('#dhList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function delHit(id) {
+  try { await api('/admin/direct_hits/' + id, { method: 'DELETE' }); toast('已删除', 'ok'); loadDirectHits(); }
+  catch (e) { toast(e.message, 'bad'); }
+}
+window.pageInit = () => { loadChunks(); loadDirectHits(); };
+boot();
+</script>
+</body>
+</html>

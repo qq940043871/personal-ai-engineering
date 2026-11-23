@@ -14,6 +14,10 @@ pipelines:
         params: { min_chars_per_page: 20 }
       - type: chunk_markdown          # 结构感知切分：表格永不跨块
         params: { max_tokens: 512, overlap: 64 }
+      - type: prepare_review          # 解析复核：产物+切分落盘 + 质量检查，置 pending
+        params: { auto_approve: false, min_chars_per_page: 20 }
+      - type: review_gate             # 入库闸门：pending/rejected 一律不许写索引
+        params: {}
       - type: embed                   # Ollama bge-m3 批量；allow_skip=显式降级关键词单路
         params: { batch: 32, allow_skip: true }
       - type: index_upsert            # 双通道写入，按 doc_id 先删后插（幂等）

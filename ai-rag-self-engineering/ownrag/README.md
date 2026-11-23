@@ -81,6 +81,7 @@ uvicorn ownrag.main:app --port 8420                 # 启动期校验：建表 +
 |---|---|---|
 | 概览 | 组件就绪、分块规模、待办数、部署自检 | `/admin/health` `/admin/metrics` `/admin/config` |
 | 入库 | 拖拽上传 → 实时步骤时间线 → 失败重试 → 待办关闭 | `POST /docs/upload` `GET /admin/tasks/{id}` `POST /docs/tasks/{id}/retry` |
+| 解析复核 | 解析产物 + 切分预览 + 质量检查 → 通过才入库（驳回写原因） | `GET /admin/reviews` `/admin/reviews/{doc_id}` `POST .../approve` `.../reject` |
 | 问答 | SSE 实时事件流（hit/ctx/gate/token/error），右栏是**模型真正看到的块** | `POST /chat` |
 | 检索调试 | 只跑检索：双通道原始命中 → RRF → rerank → 预算裁剪 → 闸门一 | `POST /admin/retrieve` |
 | 知识库 | 分块浏览 / FTS 关键词查询 / 直击库增删 | `GET /admin/chunks` `/admin/direct_hits` |
@@ -99,6 +100,30 @@ embedding 侧带熔断：后端不可达（本地 Ollama 没起 / 远程端点�
 python scripts/run_demo.py --file 样例.pdf --question "报告里的报销口径是什么"
 # 失败会看到：哪一步、什么原因、已入待办——"失败可见"是设计不是口号
 ```
+
+### 解析复核（入库前人工闸，PDF 链路）
+
+解析是 RAG 里最不可控的一段，而"错在解析"在问答阶段查不出来。所以 PDF 管道在**切分之后、写索引之前**停一下，把产物摊给人看：
+
+```
+parse → validate_parsed → chunk_markdown → prepare_review → review_gate → embed → index_upsert
+                                           ↑ 落盘 + 自动检查      ↑ 未通过则索引根本跑不到
+```
+
+```bash
+# 上传后管道停在 review_gate：任务 failed + 待办一条，等你确认（不是静默失败）
+curl http://127.0.0.1:8420/admin/reviews                    # 队列：pending / approved / rejected
+curl http://127.0.0.1:8420/admin/reviews/<doc_id>           # 详情：检查项 + 页级明细 + parsed.md + 切分预览
+curl -X POST http://127.0.0.1:8420/admin/reviews/<doc_id>/approve \
+     -H "Content-Type: application/json" -d '{"note":"看过，没问题"}'   # 通过 → 自动续跑入库
+curl -X POST http://127.0.0.1:8420/admin/reviews/<doc_id>/reject \
+     -H "Content-Type: application/json" -d '{"note":"第 2 页表格串行"}' # 驳回 → 拒绝入库并关闭待办
+```
+
+- **工件落盘**：`data/review/<doc_id>/{parsed.md, chunks.json, report.json}`——中间态全文不裁剪，切分预览带块头/锚点/字数/token。
+- **自动检查**只报事实：阻断项（空正文、字符密度过低）+ 提示项（乱码率、无标题、表格被拍平、空页、页标记与页数不一致、走了降级链）。口径见 `../03-解析管道-PDF音视频Excel.md` §2.5。
+- **闸门不是按钮**：`pending` / `rejected` 时 `review_gate` 直接 fail，`embed/index_upsert` 一次都不会跑（`tests/test_review.py` 有端到端断言）。
+- 有阻断项时审批接口返回 409——**阻断项不能被"点通过"绕过**；`auto_approve` 默认关闭，只有批量导入才考虑打开（且仅对无阻断项生效）。
 
 ### 召回测试
 
@@ -136,13 +161,14 @@ lint、类型、测试、覆盖率四道闸全部本地一键跑，跑不过就�
 
 | 管道 | 链路 | 降级链 |
 |---|---|---|
-| `pdf_v1` | detect_pages 页级路由 → MinerU（pipeline/VLM）→ 校验 → 切分 → 索引 | MinerU↔后端互换 → PyMuPDF 纯文本 → 待办 |
+| `pdf_v1` | detect_pages 页级路由 → MinerU（pipeline/VLM）→ 校验 → 切分 → **解析复核（人工闸）** → 索引 | MinerU↔后端互换 → PyMuPDF 纯文本 → 待办 |
 | `av_v1` | ffmpeg 抽音轨+关键帧 → 本地 ASR（faster-whisper）→ 语义切分（停顿/句尾优先，`[mm:ss]` 锚点）→ 关键帧 OCR（可选）→ 索引 | faster-whisper → FunASR → 待办；OCR 不可用显式 skipped |
 | `excel_v1` | 全 TEXT 落 staging 临时表 → schema 推断 → 列映射（LLM 建议+人工确认）→ row_card 文本化 → 索引 | 映射待办人工确认 |
 
 ## 骨架边界（诚实清单，对应 05 文档路线图）
 
 - **已落位**：DSL 执行器（检查点/fallback/待办）、三链路适配、结构感知切分、AV 语义切分（停顿/句尾 + 时间锚结构化 `anchors.t`）、关键帧 OCR 分字段、FTS5 关键词通道、混合检索 RRF、直击库、两道闸门、SSE 问答、trace、**块级版本链（pipeline/chunker/split_params/embed_version）**、评测集与评测脚本、契约测试、**删除端点（三通道退出可检索）**、**控制台 `/ui`（含 14 天路线）**、**上下文预算裁剪（超窗丢块可见）**、**KB 白名单 + 上传体积上限**、**配置随包分发（wheel/只读镜像可解析）**、**embedding 熔断（后端挂掉不再拖慢每个请求）**、**三层供应商分派（chat / embed / rerank：ollama | openai | siliconflow，云-本地 `.env` 一键切）**、**闸门一重排分阈值（拒答语义随向量通道迁移，评测集校准）**。
+- **解析复核闸（入库前）**：`prepare_review` 落盘解析产物+切分预览+页级明细并跑自动质量检查，`review_gate` 以状态机拦截（`pending`/`rejected` 时索引步骤不执行）；单测含真实 PDF 端到端（复核未过 → `chunks` 表为空 → 审批后 resume 才写入）。
 - **问答编排分层**：`routes_chat._stream` 只负责事件顺序，动作拆成 `_search / _rerank / _fit_context / _answer_stream / _repair_answer / _log_qa` 六个可单测单元（`tests/test_chat_steps.py`），修复分支与预算砍块都有独立断言。
 - **显式降级**：chromadb 未装/不可用 → 向量通道跳过（BM25 单路，metric 可见）；rerank 未配置或服务挂 → RRF 兜底（说明随事件/trace 可见）；MinerU/ASR 未装 → 降级链穷尽后进待办；候选超上下文预算 → 按序丢尾块并下发 `gate(context_budget)` 事件；检索只捞回语义邻近块而无实质依据 → 闸门一按重排分下限拒答（`no_evidence`，零模型消耗）。
 - **M2 待办**：aggregate 文本化的 SQL 路径、元数据权限过滤接线、直击库 L2 回流、评测基线数字、闸门/rerank 编排配置化（当前只读 env 与代码内固定顺序）、鉴权与任务队列（长任务仍在进程内线程池）。

@@ -19,13 +19,39 @@ def client(tmp_path, monkeypatch):
 
 
 def test_ui_page_served(client):
+    # 入口 /ui 落概览页，仍离线可用、零外链
     r = client.get("/ui")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
     body = r.text
-    assert "ownrag" in body and "14 天" in body
-    assert "/admin/retrieve" in body and "/chat" in body      # 页面必须对着真实接口
+    assert "ownrag" in body
     assert "https://" not in body.split("</head>")[0]         # 头部零外链（离线可用）
+
+    # 按功能拆分后的每个页面都可取
+    for page in ("overview", "ingest", "review", "chat", "retrieve", "kb", "observe", "plan"):
+        pr = client.get(f"/ui/{page}")
+        assert pr.status_code == 200
+        assert "text/html" in pr.headers["content-type"]
+    # 页面必须对着真实接口
+    assert "/admin/retrieve" in client.get("/ui/retrieve").text
+    assert "/chat" in client.get("/ui/chat").text
+
+    # 共享静态资源可取
+    css = client.get("/ui/assets/app.css")
+    assert css.status_code == 200 and "text/css" in css.headers["content-type"]
+    js = client.get("/ui/assets/app.js")
+    assert js.status_code == 200 and "javascript" in js.headers["content-type"]
+    # 总菜单文件集中定义全部导航项
+    menu = client.get("/ui/assets/menu.js").text
+    for label in ("概览", "入库", "解析复核", "问答", "检索调试", "知识库", "观测", "14 天路线"):
+        assert label in menu
+
+    # 站点图标必须能从根路径取到（浏览器隐式探测 /favicon.ico，iOS 只认 /apple-touch-icon.png）
+    ico = client.get("/favicon.ico")
+    assert ico.status_code == 200 and ico.headers["content-type"] == "image/x-icon"
+    assert ico.content[:4] == b"\x00\x00\x01\x00"            # ICONDIR，非空占位
+    touch = client.get("/apple-touch-icon.png")
+    assert touch.status_code == 200 and "image/png" in touch.headers["content-type"]
 
 
 def test_root_redirects_to_ui(client):

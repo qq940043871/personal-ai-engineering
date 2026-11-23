@@ -214,6 +214,7 @@ def debug_retrieve(req: RetrieveReq) -> dict:
 
     def brief(c: dict) -> dict:
         return {"chunk_id": c.get("chunk_id"), "doc_id": c.get("doc_id"),
+                "doc_name": c.get("doc_name"),  # 引用位置要能直接看出是哪篇文档
                 "ordinal": c.get("ordinal"), "rrf": round(float(c.get("rrf") or 0), 6),
                 "rerank_score": c.get("rerank_score"),
                 "channels": c.get("channels") or [],

@@ -157,7 +157,8 @@ def _ctx_event(candidates: list[dict]) -> Event:
     """候选依据事件：前端右栏展示"模型真正看到的块"。"""
     return ("ctx", {"candidates": [
         {"ordinal": c.get("ordinal"), "chunk_id": c["chunk_id"],
-         "doc_id": c.get("doc_id"), "anchors": c.get("anchors"),
+         "doc_id": c.get("doc_id"), "doc_name": c.get("doc_name"),
+         "anchors": c.get("anchors"),
          "score": c.get("rrf"), "channels": c.get("channels"),
          "preview": (c.get("text") or "")[:160]} for c in candidates]})
 
@@ -244,6 +245,7 @@ def _stream(req: ChatReq, app_cfg: dict) -> Iterator[str]:
         yield _sse("done", {"trace_id": trace_id, "answer": answer,
                             "citations": [{"ordinal": c.get("ordinal"),
                                            "doc_id": c.get("doc_id"),
+                                           "doc_name": c.get("doc_name"),
                                            "anchors": c.get("anchors")}
                                           for c in candidates if c.get("ordinal")]})
         trace.log(conn, trace_id, "generate", "ok", counters={

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>入库 · ownrag</title>
+<link rel="stylesheet" href="/ui/assets/app.css">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body data-page="ingest">
+<div class="app">
+  <aside id="sidebar"></aside>
+
+  <main>
+    <div class="top"><h1>入库</h1><div class="pills" id="pills"></div></div>
+
+    <div class="grid g32">
+      <div>
+        <div class="card">
+          <h3>上传文档 <span class="tag chip" id="upRoute">自动路由</span></h3>
+          <div class="row" style="margin-bottom:10px">
+            <div class="fix" style="width:180px;flex:0 0 180px">
+              <label class="f">知识库（kb）</label>
+              <select id="upKb"></select>
+            </div>
+            <div class="fix" style="flex:1">
+              <label class="f">支持：pdf / xlsx / csv / mp4 / mp3 / wav …（按扩展名路由管道）</label>
+              <div class="tiny mono" id="upPipeHint">—</div>
+            </div>
+          </div>
+          <div class="drop" id="drop">
+            <div style="font-size:15px;margin-bottom:4px">拖文件到这里，或点击选择</div>
+            <div class="tiny">上传即入任务表 → 后台跑管道 → 每步落 trace；失败进待办，不静默丢</div>
+            <input type="file" id="file" hidden>
+          </div>
+          <div id="upResult" style="margin-top:12px"></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <h3>任务详情 <span class="tag tiny" id="taskIdLabel"></span></h3>
+          <div id="taskDetail"><div class="empty">上传后自动展示；也可从右侧“最近任务”点选</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>最近任务 <button class="btn sm ghost" id="reloadTasks" style="margin-left:auto">刷新</button></h3>
+          <div id="taskList"><div class="empty">暂无任务</div></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>待办（人工队列）<span class="tag chip" id="todoN">0</span></h3>
+          <div id="todoList"><div class="empty">没有待办</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/ui/assets/app.js"></script>
+<script src="/ui/assets/menu.js"></script>
+<script>
+const PIPE_BY_EXT = { '.pdf': 'pdf_v1', '.mp4': 'av_v1', '.mkv': 'av_v1', '.mov': 'av_v1',
+  '.mp3': 'av_v1', '.wav': 'av_v1', '.m4a': 'av_v1', '.flac': 'av_v1',
+  '.xlsx': 'excel_v1', '.xlsm': 'excel_v1', '.csv': 'excel_v1' };
+const drop = $('#drop'), fileInput = $('#file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hot'); };
+drop.ondragleave = () => drop.classList.remove('hot');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hot'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+fileInput.onchange = () => { if (fileInput.files[0]) upload(fileInput.files[0]); };
+
+async function upload(file) {
+  const kb = $('#upKb').value;
+  const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+  const pipe = PIPE_BY_EXT[ext];
+  $('#upRoute').textContent = pipe ? ('→ ' + pipe) : '不支持的扩展名';
+  $('#upResult').innerHTML = `<div class="muted">上传中：${esc(file.name)}（${fmt(file.size)} 字节）…</div>`;
+  const fd = new FormData(); fd.append('file', file); fd.append('kb', kb);
+  try {
+    const r = await api('/docs/upload', { method: 'POST', body: fd });
+    $('#upResult').innerHTML = `<div class="flex"><span class="chip ok">已入队</span>
+      <span class="tiny mono">doc ${esc(r.doc_id)} · task ${esc(r.task_id)} · ${fmt(r.size_bytes || 0)}B</span></div>`
+      + (pipe === 'pdf_v1'
+        ? '<div class="tiny" style="margin-top:6px">PDF 会在解析+切分后停在「解析复核」：看过产物点通过才写索引</div>'
+        : '');
+    toast('已入队，正在跑管道', 'ok');
+    watchTask(r.task_id, r.doc_id);
+    loadTasks(); loadTodos();
+  } catch (e) {
+    $('#upResult').innerHTML = `<div class="chip bad">上传失败</div> <span class="tiny">${esc(e.message)}</span>`;
+    toast('上传失败：' + e.message, 'bad');
+  }
+}
+
+function watchTask(taskId, docId) {
+  clearInterval(S.poll);
+  const tick = async () => {
+    try {
+      const d = await api(`/admin/tasks/${taskId}`);
+      renderTask(d, docId);
+      if (d.task.status === 'done' || d.task.status === 'failed') {
+        clearInterval(S.poll);
+        loadTasks(); loadTodos();
+        if (d.task.status === 'failed') toast('管道失败，已入待办', 'bad');
+      }
+    } catch (e) { clearInterval(S.poll); }
+  };
+  tick(); S.poll = setInterval(tick, 1200);
+}
+
+function renderTask(d, docId) {
+  const t = d.task || {}, steps = d.steps || [];
+  $('#taskIdLabel').textContent = shortId(t.id) + ' · ' + (t.pipeline || '');
+  const cls = t.status === 'done' ? 'ok' : t.status === 'failed' ? 'bad' : 'warn';
+  const rows = steps.map((s, i) => `
+    <div class="step">
+      <span class="n">${i + 1}</span>
+      <span><span class="chip ${s.status === 'ok' ? 'ok' : 'bad'}">${s.status}</span>
+        <span class="mono" style="font-size:12px"> ${esc(s.step)}</span>
+        <span class="ms">${s.ms != null ? s.ms + 'ms' : ''}</span>
+        <div class="ctr">${esc(s.counters && Object.keys(s.counters).length ? JSON.stringify(s.counters) : '')}</div>
+        ${s.error ? `<div class="err">${esc(s.error)}</div>` : ''}</span>
+    </div>`).join('');
+  $('#taskDetail').innerHTML = `
+    <div class="flex" style="margin-bottom:10px">
+      <span class="chip ${cls}" id="taskState">${esc(t.status)}</span>
+      <span class="tiny mono">doc ${esc(t.doc_id)} · kb ${esc(t.kb)} · ${esc(t.created_at || '')}</span>
+      <span class="sp"></span>
+      ${/待人工复核|已驳回/.test(String(t.error || '')) ? `<button class="btn sm primary" onclick="openReviewById('${esc(t.doc_id)}')">去解析复核</button>` : ''}
+      ${t.status === 'failed' ? `<button class="btn sm" onclick="retryTask('${esc(t.id)}')">重试（resume）</button>` : ''}
+      <button class="btn sm ghost" onclick="openTrace('${esc(t.trace_id || '')}')">查 trace</button>
+    </div>
+    ${t.error ? `<div class="hint" style="border-left-color:#7a2f2f;color:#ffb0b0">${esc(t.error)}</div>` : ''}
+    <div class="steps">${rows || '<div class="empty">还没有步骤记录</div>'}</div>`;
+}
+async function retryTask(taskId) {
+  try {
+    const r = await api(`/docs/tasks/${taskId}/retry`, { method: 'POST' });
+    toast('重跑结果：' + r.status, r.status === 'done' ? 'ok' : 'bad');
+    watchTask(r.task_id);
+  } catch (e) { toast('重试失败：' + e.message, 'bad'); }
+}
+async function loadTasks() {
+  try {
+    const d = await api('/admin/tasks?limit=12');
+    const rows = (d.tasks || []).map(t => `
+      <div class="step" style="cursor:pointer" onclick="watchTask('${esc(t.id)}','${esc(t.doc_id)}')">
+        <span class="n">${esc((t.created_at || '').slice(11, 19))}</span>
+        <span><span class="chip ${t.status === 'done' ? 'ok' : t.status === 'failed' ? 'bad' : 'warn'}">${esc(t.status)}</span>
+          <span class="tiny mono"> ${esc(t.pipeline)} · ${esc(shortId(t.doc_id))}</span>
+          ${t.error ? `<div class="err">${esc(String(t.error).slice(0, 90))}</div>` : ''}
+          <div class="ctr">${esc(t.current_step || '')}</div></span>
+      </div>`).join('');
+    $('#taskList').innerHTML = rows || '<div class="empty">暂无任务</div>';
+  } catch (e) { $('#taskList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function loadTodos() {
+  try {
+    const d = await api('/admin/todos?only_open=true');
+    const items = d.todos || [];
+    $('#todoN').textContent = items.length;
+    $('#todoList').innerHTML = items.length ? items.map(t => `
+      <div class="ctx">
+        <div class="h"><span class="chip warn">open</span><span class="tiny mono">doc ${esc(shortId(t.doc_id))}</span>
+          <span class="sp"></span><button class="btn sm ghost" onclick="resolveTodo(${t.id})">标记已处理</button></div>
+        <div class="b">${esc(t.reason)}</div>
+      </div>`).join('') : '<div class="empty">没有待办</div>';
+  } catch (e) { $('#todoList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function resolveTodo(id) {
+  try { await api(`/admin/todos/${id}/resolve`, { method: 'POST' }); toast('已关闭', 'ok'); loadTodos(); }
+  catch (e) { toast(e.message, 'bad'); }
+}
+
+$('#reloadTasks').onclick = () => { loadTasks(); loadTodos(); };
+window.pageInit = () => { loadTasks(); loadTodos(); };
+boot();
+</script>
+</body>
+</html>

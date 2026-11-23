@@ -9,6 +9,7 @@
   direct_hits    直击库（L0/L1/L2）
   qa_log         问答日志：评测集扩充 + 直击库 L2 回流原料
   staging_registry  Excel 临时表登记
+  parse_reviews  解析复核：解析产物 + 切分预览的状态机（approved 才允许入库）
 """
 from __future__ import annotations
 
@@ -93,6 +94,29 @@ CREATE TABLE IF NOT EXISTS staging_registry (
     schema_json TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
     PRIMARY KEY (doc_id, table_name)
+);
+CREATE TABLE IF NOT EXISTS parse_reviews (
+    doc_id TEXT PRIMARY KEY,
+    kb TEXT,
+    task_id TEXT,
+    trace_id TEXT,
+    pipeline TEXT,
+    source_file TEXT,
+    backend TEXT,                              -- 实际生效解析后端（pipeline/vlm/pymupdf-fallback）
+    status TEXT NOT NULL DEFAULT 'pending',    -- pending|approved|rejected（approved 才放行入库）
+    verdict TEXT,                              -- pass|warn|fail（自动检查结论，不等于放行）
+    pages INTEGER DEFAULT 0,
+    chars INTEGER DEFAULT 0,
+    tables INTEGER DEFAULT 0,
+    structures INTEGER DEFAULT 0,
+    blocking_json TEXT,                        -- 阻断项（存在即不允许自动放行）
+    warn_json TEXT,                            -- 提示项（复核重点，不阻断）
+    pages_json TEXT,                           -- 页级明细（有页标记才算得出来，否则为空数组）
+    report_path TEXT,                          -- data/review/<doc_id>/report.json
+    note TEXT,                                 -- 审批备注 / 驳回原因
+    reviewed_at TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
 );
 """
 
