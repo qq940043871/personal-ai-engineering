@@ -78,6 +78,40 @@ parse_mineru 失败
 - 批量导入：队列分批、按页数估时长、控并发（与 ASR / VLM 共享显存预算）、**可续跑可重入**（幂等键 doc_id+step）。
 - 成功口径：产出结构可用的 Markdown **且表格未破损**，按文档类型分桶统计——`【待实测】`。
 
+### 2.5 解析复核闸（入库前的人工确认，PDF 链路）
+
+解析是整条链路里最不可控的一段，而**"错在解析"在问答阶段几乎无法回溯**（你只能看到"召回块很怪"，看不到"这一页本来就没解析出来"）。所以在切分之后、写索引之前插一道人工闸：
+
+```
+parse → validate_parsed → chunk_markdown → prepare_review → review_gate → embed → index_upsert
+                                            ↑ 落盘产物+自动检查      ↑ 未通过则索引跑不到
+```
+
+- **为什么在 chunk 之后**：复核要同时看到"解析成了什么"和"切成了什么"，否则人只能凭 Markdown 想象切分效果。
+- **`prepare_review`**：把三份工件落盘（`data/review/<doc_id>/`）——`parsed.md`（中间态全文，不裁剪）、`chunks.json`（块序号/块头/锚点/字数/token/前 160 字）、`report.json`（页级明细 + 解析参数 + 检查结论）；同时写 `parse_reviews` 表，状态置 `pending`。
+- **`review_gate`**：状态机闸门。`pending` / `rejected` 一律 `fail` 进待办，**索引步骤根本不会被执行**——不是"页面藏了个按钮"。
+
+自动检查只报事实，不代替判断：
+
+| 级别 | 项 | 判据 |
+|---|---|---|
+| 阻断 | `empty_markdown` | 产物为空 |
+| 阻断 | `too_few_chars` | 字符密度 < `min_chars_per_page`（默认 20/页）——扫描件未 OCR 的典型形态 |
+| 提示 | `page_marker_mismatch` / `empty_pages` | 页标记数 ≠ 声明页数 / 具体空页清单 |
+| 提示 | `mojibake` / `no_headings` / `table_flattened` / `oversized_chunk` / `degraded_path` | 乱码率、结构丢失、表格被拍平成段落、超长块、走了降级链 |
+
+状态机与放行口径：
+
+| 状态 | 含义 | 下一步 |
+|---|---|---|
+| `pending` | 待人工复核 | 在 `/ui` 的「解析复核」页看产物 → 通过 / 驳回 |
+| `approved` | 人工通过 | 自动 resume 管道（从 `review_gate` 之后继续，已解析的不重跑） |
+| `rejected` | 已驳回（必填原因） | 拒绝入库，并关闭该任务待办（人工已决策，队列不残留） |
+
+- 有阻断项时审批接口直接返回 409——**阻断项不许被"点通过"绕过**。
+- `auto_approve: true` 只对"无阻断项"生效，默认关闭：**默认要人来点头**（批量导入才考虑打开）。
+- 页级明细只在 Markdown 带 `<!--page:N-->` 标记时才算得出来（pymupdf 降级路径会带）；MinerU 产物通常无页标记，此时只报声明页数，**不编造页级数据**。
+
 ---
 
 ## 三、链路 B：ffmpeg + 本地语音识别（音视频）

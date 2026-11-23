@@ -333,3 +333,7 @@ g/rg/k/SCN           → 颜色
 | 文字版 PDF | 能直接选中、复制文字 | PyMuPDF、pdfplumber、pdfminer 等 |
 | 扫描版 PDF | 整页像图片，无法选字 | OCR：PaddleOCR、Tesseract、WPS OCR |
 | 复杂版 PDF | 多栏、表格、公式、图表混排 | MinerU、OpenDataLoader PDF、Docling 等 |
+
+---
+
+**延伸阅读**：[PDF复杂页面与输出故障清单.md](./PDF复杂页面与输出故障清单.md)——把本文提到的"三个容易踩的坑"展开成四类输入侧复杂页面（方向/遮挡/局部字段/资源失败）与四类输出侧故障（重复写入/表格双形态/标题路径丢失/ID 漂移），每条给出发现信号、处置动作与可跑工具。度量口径见 [../校验准确/PDF解析准确性校验方法论.md](../校验准确/PDF解析准确性校验方法论.md)。
