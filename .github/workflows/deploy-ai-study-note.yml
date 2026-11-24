@@ -1,0 +1,64 @@
+name: Deploy ai-study-note to GitHub Pages
+
+# 只发布 ai-study-note/ 这一个子目录，仓库里其余子项目不进入 Pages。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ai-study-note/**'
+      - '.github/workflows/deploy-ai-study-note.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个部署，新的推送排队而不是并发抢占
+concurrency:
+  group: pages-ai-study-note
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare site artifact
+        run: |
+          set -eu
+          mkdir -p _site
+          # 只搬站点目录，其余子项目一律不带
+          cp -r ai-study-note/. _site/
+          # 关掉 Jekyll：否则以下划线开头的目录/文件会被吞掉
+          touch _site/.nojekyll
+          # 仓库 pages 的 base 路径若为子路径（/repo-name/），相对链接天然可用；
+          # 这里只做一次自检，避免漏掉关键文件
+          for f in index.html courses/home.html; do
+            if [ ! -f "_site/$f" ]; then
+              echo "::error::missing _site/$f"
+              exit 1
+            fi
+          done
+          echo "artifact size: $(du -sh _site | cut -f1)"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

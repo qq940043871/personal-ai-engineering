@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>打开 AI 学习系统</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #f5f7fb; color: #1f2937; padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 660px; background: #fff;
+    border: 1px solid #e5e7eb; border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .08);
+    padding: 32px 34px 26px;
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: .2px; }
+  .sub { margin: 0 0 22px; font-size: 13px; color: #6b7280; line-height: 1.7; }
+  .status {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6;
+    margin-bottom: 20px; border: 1px solid;
+  }
+  .status.ok { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+  .status.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; background: currentColor; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  a.btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 9px; font-size: 14px; font-weight: 600;
+    text-decoration: none; border: 1px solid transparent; transition: .15s ease;
+  }
+  a.primary { background: #2563eb; color: #fff; }
+  a.primary:hover { background: #1d4ed8; }
+  a.ghost { background: #fff; color: #374151; border-color: #d1d5db; }
+  a.ghost:hover { background: #f9fafb; border-color: #9ca3af; }
+  a.btn[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+  h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; }
+  pre {
+    margin: 0 0 8px; padding: 13px 15px; background: #0f172a; color: #e2e8f0;
+    border-radius: 9px; font-size: 12.5px; line-height: 1.75; overflow-x: auto;
+    font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+  }
+  pre .c { color: #64748b; }
+  .note { font-size: 12px; color: #9ca3af; line-height: 1.8; margin: 14px 0 0; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>AI 学习系统</h1>
+    <p class="sub">从机器学习到大语言模型的课程站。本页只是入口跳板，真正的站点在 <code>index.html</code>。</p>
+
+    <div id="status" class="status warn">
+      <span class="dot"></span>
+      <span id="statusText">正在检测运行方式…</span>
+    </div>
+
+    <div class="btns">
+      <a id="btnGo" class="btn primary" href="index.html">打开站点</a>
+      <a id="btnNew" class="btn ghost" href="index.html" target="_blank" rel="noopener">新窗口打开</a>
+    </div>
+
+    <p class="note" style="margin: -8px 0 20px;">
+      线上地址（GitHub Pages）：<a id="pageUrl" href="#" style="color:#2563eb;">—</a>
+    </p>
+
+    <h2>本地服务方式（推荐）</h2>
+    <pre><span class="c"># 在本目录下执行，然后访问 http://localhost:3001</span>
+python -m http.server 3001</pre>
+    <pre><span class="c"># Windows 双击也可：start.bat</span>
+start.bat</pre>
+    <p class="note">
+      说明：站点是「左侧导航 + iframe 主区」结构，依赖同目录下的 <code>courses/</code>、<code>assets/</code>、<code>css/</code>。
+      用 <code>file://</code> 直接双击打开时，部分浏览器会拦截 iframe 内的本地脚本与资源，页面可能空白或导航失效。
+      上面的按钮会自动判断当前环境：走 http 时高亮提示，走 file:// 时给出告警但仍可点击尝试。
+    </p>
+  </div>
+
+<script>
+  (function () {
+    var isHttp = location.protocol === 'http:' || location.protocol === 'https:';
+    var statusEl = document.getElementById('status');
+    var textEl = document.getElementById('statusText');
+
+    if (isHttp) {
+      statusEl.className = 'status ok';
+      var host = location.hostname;
+      var isPages = /\.github\.io$/.test(host);
+      textEl.textContent = isPages
+        ? '当前运行在 GitHub Pages（' + host + '），站点可完整运行。'
+        : '当前通过 HTTP 加载（' + location.origin + '），站点可以完整运行，直接点击上方按钮即可。';
+    } else {
+      textEl.textContent = '当前是以 file:// 本地文件方式打开，浏览器的安全策略可能拦截 iframe 内部资源。建议先启动本地服务再访问 http://localhost:3001/open.html。';
+    }
+
+    // 展示线上地址：GitHub Pages 项目站为 https://<user>.github.io/<repo>/
+    var pageUrl = document.getElementById('pageUrl');
+    if (/\.github\.io$/.test(location.hostname)) {
+      var seg = location.pathname.split('/').filter(Boolean)[0];
+      pageUrl.textContent = location.origin + (seg ? '/' + seg + '/' : '/');
+      pageUrl.href = pageUrl.textContent;
+    } else {
+      pageUrl.textContent = 'https://<用户名>.github.io/<仓库名>/ （推送到 main 后由 Actions 自动部署）';
+      pageUrl.removeAttribute('href');
+      pageUrl.style.color = '#9ca3af';
+    }
+
+    // 记录来源，方便在文件模式下把相对链接补全为绝对路径，避免某些浏览器的解析差异
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('a.btn');
+      if (!a || !isHttp) return;
+      // http 模式下无需干预
+    });
+  })();
+</script>
+</body>
+</html>
